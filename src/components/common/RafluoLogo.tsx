@@ -116,11 +116,11 @@ export const RafluoLogo: React.FC<RafluoLogoProps> = ({
       {showOrigin && (
         <span
           className={`mt-1.5 font-medium ${sizeClasses.origin} ${
-            isDark ? 'text-[#8E7E9A]' : 'text-[#8E7E9A]'
+            isDark ? 'text-[#D2C4DC]' : 'text-[#8E7E9A]'
           }`}
         >
           Desenvolvido com carinho por{' '}
-          <strong className={isDark ? 'text-[#D2C4DC]' : 'text-[#4E395B]'}>
+          <strong className={isDark ? 'text-[#D2C4DC] font-semibold' : 'text-[#4E395B]'}>
             Beaquos Estúdio Criativo
           </strong>
         </span>

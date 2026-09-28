@@ -91,12 +91,15 @@ export const HubReportsView: React.FC<HubReportsViewProps> = ({
 
   return (
     <div id="hub-reports-view" className="space-y-6 pb-12">
-      {/* Header - Apenas o título principal, sem subtítulo */}
+      {/* Header com H1 e descrição contextual */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h2 className="text-xl sm:text-2xl font-bold tracking-tight text-[#24152F]">
+        <div className="space-y-1">
+          <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-[#24152F]">
             Relatórios
-          </h2>
+          </h1>
+          <p className="text-xs sm:text-sm text-[#24152F]/70 font-normal">
+            Consolidação e exportação de dados de confirmações.
+          </p>
         </div>
 
         <div className="flex flex-wrap items-center gap-2.5 sm:gap-3 w-full sm:w-auto">
@@ -105,7 +108,7 @@ export const HubReportsView: React.FC<HubReportsViewProps> = ({
             onChange={(e) => setSelectedEventFilter(e.target.value)}
             className="w-full sm:w-auto px-3 py-2 rounded-xl text-xs font-semibold bg-white border border-[#24152F]/15 text-[#24152F] shadow-2xs focus:outline-none focus:ring-2 focus:ring-[#24152F]"
           >
-            <option value="all">Todos os Eventos ({events.length})</option>
+            <option value="all">Todos os eventos</option>
             {events.map((e) => (
               <option key={e.id} value={e.id}>
                 {e.name}
@@ -167,7 +170,7 @@ export const HubReportsView: React.FC<HubReportsViewProps> = ({
             </div>
           </div>
           <p className="text-xl sm:text-2xl lg:text-3xl font-extrabold text-[#24152F] mt-2">{confirmationRate}%</p>
-          <p className="text-[10px] sm:text-[11px] text-[#24152F]/55 mt-0.5">{pending.length} pendentes</p>
+          <p className="text-[10px] sm:text-[11px] text-[#24152F]/55 mt-0.5">Base calculada</p>
         </div>
       </div>
 
@@ -183,7 +186,6 @@ export const HubReportsView: React.FC<HubReportsViewProps> = ({
                 <th className="py-3 px-4">Convites</th>
                 <th className="py-3 px-4">Confirmados</th>
                 <th className="py-3 px-4">Recusas</th>
-                <th className="py-3 px-4">Pendentes</th>
                 <th className="py-3 px-4">Progresso</th>
                 <th className="py-3 px-4 text-right">Ação</th>
               </tr>
@@ -193,7 +195,6 @@ export const HubReportsView: React.FC<HubReportsViewProps> = ({
                 const evGuests = guests.filter((g) => g.eventId === ev.id);
                 const evConfirmed = evGuests.filter((g) => g.status === 'confirmed').length;
                 const evDeclined = evGuests.filter((g) => g.status === 'declined').length;
-                const evPending = evGuests.filter((g) => g.status === 'pending').length;
                 const pct =
                   evGuests.length > 0 ? Math.round((evConfirmed / evGuests.length) * 100) : 0;
 
@@ -211,7 +212,6 @@ export const HubReportsView: React.FC<HubReportsViewProps> = ({
                     <td className="py-3 px-4 font-medium">{evGuests.length}</td>
                     <td className="py-3 px-4 text-emerald-700 font-bold">{evConfirmed}</td>
                     <td className="py-3 px-4 text-rose-700 font-medium">{evDeclined}</td>
-                    <td className="py-3 px-4 text-amber-700 font-medium">{evPending}</td>
                     <td className="py-3 px-4">
                       <div className="flex items-center gap-2">
                         <div className="w-16 h-2 rounded-full bg-[#24152F]/10 overflow-hidden">

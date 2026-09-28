@@ -25,6 +25,7 @@ import { ExportDataDropdown } from '../common/ExportDataDropdown';
 import { WhatsAppIcon } from '../common/WhatsAppIcon';
 import { RafluoLogo } from '../common/RafluoLogo';
 import { ThemeToggle } from '../common/ThemeToggle';
+import { Footer } from '../admin/Footer';
 
 export interface ClientPortalViewProps {
   event: EventData;
@@ -69,6 +70,18 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
   const eventManagers = useMemo(() => {
     return managers.filter((m) => m.eventId === event.id);
   }, [managers, event.id]);
+
+  // Dynamically find current authenticated manager or first manager
+  const currentManager = useMemo(() => {
+    if (authenticatedUser) {
+      return eventManagers.find(
+        (m) => m.email.toLowerCase().trim() === authenticatedUser.toLowerCase().trim()
+      );
+    }
+    return eventManagers[0] || null;
+  }, [eventManagers, authenticatedUser]);
+
+  const accessEndDate = currentManager?.accessEnd || eventManagers[0]?.accessEnd || event.rsvpDeadline;
 
   // Calculate metrics (titulares confirmados + acompanhantes + não comparecem)
   const confirmedGuests = eventGuests.filter((g) => g.status === 'confirmed');
@@ -263,16 +276,6 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
                 </p>
               </div>
 
-              {eventManagers.length > 0 && (
-                <div className="p-3 rounded-xl bg-[#FAF6EE] dark:bg-[#2A1738] border border-[#24152F]/10 dark:border-[#3F2553] text-[11px] text-[#24152F]/75 dark:text-[#D2C4DC] space-y-1">
-                  <span className="font-bold text-[#24152F] dark:text-[#F7F1E5] block">Dica de Acesso:</span>
-                  <span>
-                    Utilize o e-mail cadastrado pela assessoria (Ex:{' '}
-                    <strong className="text-[#24152F] dark:text-[#DFFF5F]">{eventManagers[0].email}</strong>).
-                  </span>
-                </div>
-              )}
-
               {authError && (
                 <div className="p-3 rounded-xl bg-rose-50 dark:bg-rose-950/50 border border-rose-200 dark:border-rose-900 text-xs text-rose-700 dark:text-rose-300 flex items-start gap-2">
                   <XCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
@@ -285,24 +288,17 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
                 id="btn-submit-client-login"
                 className="w-full py-3 rounded-xl bg-[#24152F] hover:bg-[#180D20] text-[#F7F1E5] font-bold text-xs sm:text-sm flex items-center justify-center gap-2 shadow-sm transition-all cursor-pointer active:scale-98"
               >
-                <span>Acessar Painel do Evento</span>
+                <span>Acessar Painel</span>
                 <ArrowRight className="w-4 h-4 text-[#DFFF5F]" />
               </button>
             </form>
-
-            <div className="pt-2 text-center">
-              <button
-                type="button"
-                onClick={onBackToHub}
-                className="text-xs text-[#24152F]/60 dark:text-[#D2C4DC]/60 hover:text-[#24152F] dark:hover:text-[#F7F1E5] font-semibold hover:underline cursor-pointer"
-              >
-                ← Voltar ao Hub Principal
-              </button>
-            </div>
           </div>
 
-          <div className="text-center text-[11px] text-[#24152F]/60 dark:text-[#D2C4DC]/60">
-            Rafluo • Gestão inteligente de confirmações para grandes momentos.
+          <div className="text-center py-2">
+            <p className="text-xs text-[#24152F]/70 dark:text-[#D2C4DC] font-medium tracking-wide">
+              Desenvolvido com carinho por{' '}
+              <span className="font-semibold text-[#24152F] dark:text-[#D2C4DC]">Beaquos Estúdio Criativo</span>
+            </p>
           </div>
         </div>
       </div>
@@ -313,7 +309,7 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
   // VIEW 2: AUTHENTICATED CLIENT DASHBOARD
   // ==========================================
   return (
-    <div className="min-h-screen bg-[#FAF6EE] dark:bg-[#120919] text-[#24152F] dark:text-[#F7F1E5] selection:bg-[#DFFF5F] selection:text-[#180D20] pb-16 transition-colors duration-200">
+    <div className="min-h-screen bg-[#FAF6EE] dark:bg-[#120919] text-[#24152F] dark:text-[#F7F1E5] selection:bg-[#DFFF5F] selection:text-[#180D20] flex flex-col justify-between transition-colors duration-200">
       {/* Top Header Bar */}
       <header className="sticky top-0 z-40 bg-[#24152F] text-[#F7F1E5] border-b border-[#3F2553] shadow-md px-4 sm:px-8 py-3.5">
         <div className="max-w-7xl mx-auto flex items-center justify-between gap-4">
@@ -353,7 +349,7 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
       </header>
 
       {/* Main Container */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-8 pt-6 sm:pt-8 space-y-6 sm:space-y-8">
+      <main className="max-w-7xl w-full mx-auto px-4 sm:px-8 pt-6 sm:pt-8 space-y-6 sm:space-y-8 flex-1 pb-12">
         {/* Event Welcome Banner */}
         <div className="bg-white dark:bg-[#1E1128] rounded-3xl p-6 sm:p-8 border border-[#24152F]/15 dark:border-[#3F2553] shadow-sm space-y-4">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -370,27 +366,39 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
                 {event.name}
               </h1>
               <div className="flex flex-wrap items-center gap-y-1.5 gap-x-4 text-xs text-[#24152F]/80 dark:text-[#D2C4DC] pt-1">
+                {/* Data */}
                 <span className="flex items-center gap-1.5">
                   <Calendar className="w-3.5 h-3.5 text-[#24152F] dark:text-[#DFFF5F]" />
-                  <strong className="text-[#24152F] dark:text-[#F7F1E5]">{formatDateBR(event.date)}</strong> às {event.time}
+                  <strong className="text-[#24152F] dark:text-[#F7F1E5]">{formatDateBR(event.date)}</strong>
                 </span>
+
+                {/* Horário com ícone próprio padronizado */}
+                <span className="flex items-center gap-1.5">
+                  <Clock className="w-3.5 h-3.5 text-[#24152F] dark:text-[#DFFF5F]" />
+                  <span className="font-semibold text-[#24152F] dark:text-[#F7F1E5]">{event.time}</span>
+                </span>
+
+                {/* Local */}
                 <span className="flex items-center gap-1.5">
                   <MapPin className="w-3.5 h-3.5 text-[#24152F] dark:text-[#DFFF5F]" />
                   <span>{event.location}</span>
                 </span>
+
+                {/* Prazo de Confirmação */}
                 <span className="flex items-center gap-1.5">
                   <Clock className="w-3.5 h-3.5 text-[#24152F] dark:text-[#DFFF5F]" />
-                  <span>Prazo RSVP: <strong className="text-[#24152F] dark:text-[#F7F1E5]">{formatDateBR(event.rsvpDeadline)}</strong></span>
+                  <span>Prazo de Confirmação: <strong className="text-[#24152F] dark:text-[#F7F1E5]">{formatDateBR(event.rsvpDeadline)}</strong></span>
                 </span>
               </div>
             </div>
 
-            {/* Export data dropdown */}
-            <div className="self-start md:self-auto">
+            {/* Export data dropdown - Layout responsivo para celular sem cortes */}
+            <div className="w-full md:w-auto flex-shrink-0 pt-2 md:pt-0">
               <ExportDataDropdown
                 onExportXLSX={handleExportXLSX}
                 onExportPDF={handleExportPDF}
                 buttonLabel="Exportar Relatório"
+                className="w-full md:w-auto"
               />
             </div>
           </div>
@@ -405,11 +413,11 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
                   <Share2 className="w-3.5 h-3.5" />
                 </div>
                 <h3 className="text-base sm:text-lg font-bold text-[#F7F1E5]">
-                  Link Oficial do Convite (RSVP dos Convidados)
+                  Link do Convite
                 </h3>
               </div>
               <p className="text-xs text-[#D2C4DC] mt-1">
-                Envie este link para seus amigos e familiares realizarem a confirmação de presença no evento.
+                Envie este link para seus amigos e familiares confirmarem presença no evento.
               </p>
             </div>
           </div>
@@ -437,7 +445,7 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
                 className="flex-1 sm:flex-initial flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition-all shadow-sm cursor-pointer active:scale-95"
               >
                 <WhatsAppIcon className="w-4 h-4" />
-                <span>Enviar no WhatsApp</span>
+                <span>WhatsApp</span>
               </button>
 
               <a
@@ -527,7 +535,7 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-[#24152F]/10 dark:border-[#3F2553]/60">
             <div>
               <h3 className="text-base sm:text-lg font-bold text-[#24152F] dark:text-[#F7F1E5]">
-                Lista de Confirmações ({displayedGuests.length})
+                Lista de Confirmações
               </h3>
               <p className="text-xs text-[#24152F]/60 dark:text-[#D2C4DC]/60 mt-0.5">
                 Acompanhe em tempo real quem já confirmou ou recusou presença no evento
@@ -640,6 +648,9 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
           </div>
         </div>
       </main>
+      
+      {/* Rodapé Padronizado com o Sistema Administrativo */}
+      <Footer />
 
       {/* Guest Details Modal for Client */}
       {selectedGuestForDetail && (

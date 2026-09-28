@@ -148,7 +148,7 @@ export const ImportCsvModal: React.FC<ImportCsvModalProps> = ({
             </div>
             <div className="min-w-0">
               <h3 className="font-bold text-sm sm:text-base text-[#F7F1E5] truncate">Importar Convidados via Planilha CSV</h3>
-              <p className="text-[10px] sm:text-[11px] text-[#D2C4DC] truncate">Importação em lote de contatos e cotas</p>
+              <p className="text-[10px] sm:text-[11px] text-[#D2C4DC] truncate">Importação em lote de contatos e acompanhantes</p>
             </div>
           </div>
           <button
@@ -227,7 +227,7 @@ export const ImportCsvModal: React.FC<ImportCsvModalProps> = ({
                       <th className="py-2 px-3">Nome</th>
                       <th className="py-2 px-3">Telefone</th>
                       <th className="py-2 px-3">Grupo</th>
-                      <th className="py-2 px-3">Cota</th>
+                      <th className="py-2 px-3">Acompanhantes</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-[#24152F]/5">

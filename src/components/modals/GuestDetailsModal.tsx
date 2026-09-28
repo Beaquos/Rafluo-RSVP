@@ -225,7 +225,7 @@ export const GuestDetailsModal: React.FC<GuestDetailsModalProps> = ({
                 <div>
                   <span className="text-[11px] font-bold text-[#24152F]/60 block">Acompanhantes:</span>
                   <p className="text-xs text-[#24152F]/70">
-                    Cota máxima do convite: {guest.maxGuests} pessoa{guest.maxGuests > 1 ? 's' : ''}
+                    Máximo do convite: {guest.maxGuests} pessoa{guest.maxGuests > 1 ? 's' : ''}
                   </p>
                 </div>
                 <span className="text-base sm:text-lg font-extrabold text-[#24152F] px-3 py-1 rounded-lg bg-white border border-[#24152F]/15">

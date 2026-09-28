@@ -19,7 +19,7 @@ import {
   XCircle,
   AlertCircle,
 } from 'lucide-react';
-import { AdminUser, AdminUserStatus } from '../../types/user';
+import { AdminUser, AdminUserStatus, AdminUserRole } from '../../types/user';
 import { formatDateBR, checkTemporaryUserAccess } from '../../utils/dateUtils';
 
 interface HubUsersViewProps {
@@ -29,6 +29,25 @@ interface HubUsersViewProps {
   onToggleStatus: (userId: string, newStatus?: AdminUserStatus) => void;
   onShowToast: (message: string) => void;
 }
+
+const ACCESS_PROFILES: { id: AdminUserRole; name: string; description: string; isDefault?: boolean }[] = [
+  {
+    id: 'Super Administrador',
+    name: 'Super Administrador',
+    description: 'Acesso completo e irrestrito a todas as áreas, relatórios, configurações e usuários do Rafluo.',
+    isDefault: true,
+  },
+  {
+    id: 'Gestor de Eventos',
+    name: 'Gestor de Eventos',
+    description: 'Criação, edição e gerenciamento operacional completo de eventos, convidados e relatórios.',
+  },
+  {
+    id: 'Cerimonialista',
+    name: 'Cerimonialista',
+    description: 'Operação presencial do evento, realização de check-in e consulta da lista de convidados.',
+  },
+];
 
 export const HubUsersView: React.FC<HubUsersViewProps> = ({
   adminUsers,
@@ -48,9 +67,9 @@ export const HubUsersView: React.FC<HubUsersViewProps> = ({
     lastName: '',
     email: '',
     phone: '',
-    role: 'Gestor de Eventos' as 'Super Administrador' | 'Gestor de Eventos' | 'Cerimonialista',
+    role: 'Gestor de Eventos' as AdminUserRole,
+    accessProfiles: ['Gestor de Eventos'] as AdminUserRole[],
     status: 'active' as AdminUserStatus,
-    accessStart: '',
     accessEnd: '',
     photoUrl: null as string | null,
   });
@@ -68,6 +87,28 @@ export const HubUsersView: React.FC<HubUsersViewProps> = ({
     return `(${numbers.slice(0, 2)}) ${numbers.slice(2, 7)}-${numbers.slice(7, 11)}`;
   };
 
+  const toggleProfile = (profileId: AdminUserRole) => {
+    setFormData((prev) => {
+      const exists = prev.accessProfiles.includes(profileId);
+      let updated: AdminUserRole[];
+      if (exists) {
+        // Prevent deselecting all profiles
+        if (prev.accessProfiles.length === 1) {
+          onShowToast('O usuário deve possuir ao menos um perfil de acesso.');
+          return prev;
+        }
+        updated = prev.accessProfiles.filter((p) => p !== profileId);
+      } else {
+        updated = [...prev.accessProfiles, profileId];
+      }
+      return {
+        ...prev,
+        accessProfiles: updated,
+        role: updated.includes('Super Administrador') ? 'Super Administrador' : (updated[0] || 'Gestor de Eventos'),
+      };
+    });
+  };
+
   const handleOpenCreate = () => {
     setEditingUser(null);
     setFormData({
@@ -76,8 +117,8 @@ export const HubUsersView: React.FC<HubUsersViewProps> = ({
       email: '',
       phone: '',
       role: 'Gestor de Eventos',
+      accessProfiles: ['Gestor de Eventos'],
       status: 'active',
-      accessStart: '',
       accessEnd: '',
       photoUrl: null,
     });
@@ -87,14 +128,15 @@ export const HubUsersView: React.FC<HubUsersViewProps> = ({
 
   const handleOpenEdit = (user: AdminUser) => {
     setEditingUser(user);
+    const userProfiles = user.accessProfiles && user.accessProfiles.length > 0 ? user.accessProfiles : [user.role];
     setFormData({
       name: user.name,
       lastName: user.lastName,
       email: user.email,
       phone: user.phone || '',
       role: user.role,
+      accessProfiles: userProfiles,
       status: user.status,
-      accessStart: user.accessStart || '',
       accessEnd: user.accessEnd || '',
       photoUrl: user.photoUrl || null,
     });
@@ -142,18 +184,15 @@ export const HubUsersView: React.FC<HubUsersViewProps> = ({
     } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email.trim())) {
       newErrors.email = 'Insira um e-mail válido';
     }
+    if (!formData.accessProfiles || formData.accessProfiles.length === 0) {
+      newErrors.accessProfiles = 'Selecione ao menos um perfil de acesso';
+    }
     if (formData.phone.trim() && formData.phone.replace(/\D/g, '').length < 10) {
       newErrors.phone = 'Insira um telefone válido com DDD';
     }
     if (formData.status === 'temporary') {
-      if (!formData.accessStart) {
-        newErrors.accessStart = 'Data de início é obrigatória para usuário temporário';
-      }
       if (!formData.accessEnd) {
-        newErrors.accessEnd = 'Data de término é obrigatória para usuário temporário';
-      }
-      if (formData.accessStart && formData.accessEnd && formData.accessStart > formData.accessEnd) {
-        newErrors.accessEnd = 'Data de término deve ser posterior à data de início';
+        newErrors.accessEnd = 'Data de fim do acesso é obrigatória para usuário temporário';
       }
     }
     setErrors(newErrors);
@@ -171,9 +210,11 @@ export const HubUsersView: React.FC<HubUsersViewProps> = ({
       email: formData.email.trim(),
       phone: formData.phone.trim(),
       photoUrl: formData.photoUrl,
-      role: formData.role,
+      role: formData.accessProfiles.includes('Super Administrador')
+        ? 'Super Administrador'
+        : (formData.accessProfiles[0] || 'Gestor de Eventos'),
+      accessProfiles: formData.accessProfiles,
       status: formData.status,
-      accessStart: formData.status === 'temporary' ? formData.accessStart : undefined,
       accessEnd: formData.status === 'temporary' ? formData.accessEnd : undefined,
       createdAt: editingUser ? editingUser.createdAt : new Date().toISOString().split('T')[0],
     };
@@ -206,37 +247,26 @@ export const HubUsersView: React.FC<HubUsersViewProps> = ({
       );
     }
 
-    // Temporary
-    const accessInfo = checkTemporaryUserAccess(user.accessStart, user.accessEnd);
+    // Status Temporário: mesmo padrão visual em laranja, sem ícone de calendário (Item 10)
     return (
-      <div className="flex flex-col sm:items-start gap-0.5">
-        <span
-          className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-bold ${
-            accessInfo.active
-              ? 'bg-amber-50 text-amber-900 border border-amber-200'
-              : 'bg-zinc-100 text-zinc-700 border border-zinc-200'
-          }`}
-        >
-          <CalendarRange className="w-3 h-3 text-amber-700" />
-          Temporário
-        </span>
-        {accessInfo.periodText && (
-          <span className="text-[11px] font-semibold text-[#24152F]/70 tracking-tight">
-            {accessInfo.periodText}
-          </span>
-        )}
-      </div>
+      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-orange-50 text-orange-800 border border-orange-200">
+        <span className="w-1.5 h-1.5 rounded-full bg-orange-500" />
+        Temporário
+      </span>
     );
   };
 
   return (
     <div id="hub-users-view" className="space-y-6 pb-12">
-      {/* Top Header - Apenas o título principal, sem subtítulo */}
+      {/* Top Header com H1 e descrição contextual (Item 1) */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h2 className="text-xl sm:text-2xl font-bold tracking-tight text-[#24152F]">
+        <div className="space-y-1">
+          <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-[#24152F]">
             Usuários
-          </h2>
+          </h1>
+          <p className="text-xs sm:text-sm text-[#24152F]/70 font-normal">
+            Gerencie a equipe e permissões de acesso administrativo.
+          </p>
         </div>
 
         <button
@@ -250,28 +280,25 @@ export const HubUsersView: React.FC<HubUsersViewProps> = ({
         </button>
       </div>
 
-      {/* Governance Note */}
-      <div className="p-4 rounded-xl bg-[#FAF6EE] border border-[#24152F]/15 flex items-start gap-3">
-        <div className="w-8 h-8 rounded-lg bg-[#24152F] text-[#DFFF5F] flex items-center justify-center flex-shrink-0 mt-0.5">
+      {/* Governance Note: Perfeitamente alinhada com ícone e texto no mesmo container (Item 9) */}
+      <div className="p-3.5 sm:p-4 rounded-xl bg-[#FAF6EE] border border-[#24152F]/15 flex items-center gap-3">
+        <div className="w-8 h-8 rounded-lg bg-[#24152F] text-[#DFFF5F] flex items-center justify-center flex-shrink-0">
           <ShieldCheck className="w-4 h-4" />
         </div>
-        <div className="text-xs text-[#24152F]/80 leading-relaxed">
-          <strong className="text-[#24152F] font-bold">Controle de Acessos:</strong> Os usuários com status{' '}
+        <div className="text-xs text-[#24152F]/80 leading-normal flex-1">
+          <strong className="text-[#24152F] font-bold">Controle de Acessos:</strong> Usuários com status{' '}
           <span className="font-semibold text-emerald-800">Ativo</span> acessam normalmente o sistema; os{' '}
           <span className="font-semibold text-rose-800">Desativados</span> não podem realizar login; e os{' '}
-          <span className="font-semibold text-amber-900">Temporários</span> possuem uma janela definida em DD/MM/AA.
+          <span className="font-semibold text-orange-800">Temporários</span> possuem prazo limite de acesso.
         </div>
       </div>
 
-      {/* Users List */}
+      {/* Users List com Título sem contador (Item 11) */}
       <div className="bg-white rounded-2xl border border-[#24152F]/10 shadow-xs overflow-hidden">
-        <div className="p-4 sm:p-5 border-b border-[#24152F]/10 flex items-center justify-between">
+        <div className="p-4 sm:p-5 border-b border-[#24152F]/10">
           <h3 className="text-base font-bold text-[#24152F]">
-            Usuários Cadastrados ({adminUsers.length})
+            Usuários Cadastrados
           </h3>
-          <span className="text-xs text-[#24152F]/50">
-            Acesso administrativo Rafluo
-          </span>
         </div>
 
         <div className="divide-y divide-[#24152F]/5">
@@ -281,11 +308,11 @@ export const HubUsersView: React.FC<HubUsersViewProps> = ({
             return (
               <div
                 key={user.id}
-                className="p-4 sm:p-5 flex flex-col md:flex-row md:items-center justify-between gap-4 hover:bg-[#FAF6EE]/40 transition-colors"
+                className="p-3.5 sm:p-4.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4 hover:bg-[#FAF6EE]/40 transition-colors"
               >
                 {/* 1. Nome, Foto & E-mail */}
-                <div className="flex items-center gap-3.5 min-w-0">
-                  <div className="w-11 h-11 rounded-full bg-[#24152F] text-[#DFFF5F] font-bold text-sm flex items-center justify-center flex-shrink-0 overflow-hidden shadow-xs">
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className="w-10 h-10 rounded-full bg-[#24152F] text-[#DFFF5F] font-bold text-xs sm:text-sm flex items-center justify-center flex-shrink-0 overflow-hidden shadow-2xs">
                     {user.photoUrl ? (
                       <img
                         src={user.photoUrl}
@@ -302,79 +329,47 @@ export const HubUsersView: React.FC<HubUsersViewProps> = ({
                   </div>
 
                   <div className="min-w-0">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <h4 className="text-sm sm:text-base font-bold text-[#24152F] truncate">
+                    <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
+                      <h4 className="text-sm font-bold text-[#24152F] truncate">
                         {user.name} {user.lastName}
                       </h4>
                       {isSelf && (
-                        <span className="text-[10px] font-bold bg-[#DFFF5F] text-[#180D20] px-2 py-0.5 rounded-full">
+                        <span className="text-[10px] font-bold bg-[#DFFF5F] text-[#180D20] px-1.5 py-0.5 rounded-full">
                           Você
                         </span>
                       )}
-                      <span className="text-[11px] font-medium bg-[#FAF6EE] text-[#24152F]/80 px-2 py-0.5 rounded-md border border-[#24152F]/15">
-                        {user.role}
-                      </span>
+                      {(user.accessProfiles && user.accessProfiles.length > 0 ? user.accessProfiles : [user.role]).map((prof) => (
+                        <span
+                          key={prof}
+                          className="text-[10px] sm:text-[11px] font-medium bg-[#24152F]/5 text-[#24152F] px-2 py-0.5 rounded-md border border-[#24152F]/10"
+                        >
+                          {prof}
+                        </span>
+                      ))}
                     </div>
 
-                    <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-1 text-xs text-[#24152F]/70">
-                      <div className="flex items-center gap-1.5 truncate">
-                        <Mail className="w-3.5 h-3.5 text-[#24152F]/40 flex-shrink-0" />
-                        <span className="truncate">{user.email}</span>
-                      </div>
-                      {user.phone && (
-                        <div className="flex items-center gap-1.5 truncate">
-                          <Phone className="w-3.5 h-3.5 text-[#24152F]/40 flex-shrink-0" />
-                          <span>{user.phone}</span>
-                        </div>
-                      )}
+                    <div className="flex items-center gap-1 mt-0.5 text-xs text-[#24152F]/70 truncate">
+                      <Mail className="w-3 h-3 text-[#24152F]/40 flex-shrink-0" />
+                      <span className="truncate">{user.email}</span>
                     </div>
                   </div>
                 </div>
 
-                {/* 2. Status, Data de Cadastro & Ações */}
-                <div className="flex flex-wrap items-center justify-between sm:justify-end gap-3 sm:gap-4 flex-shrink-0 pt-3 md:pt-0 border-t md:border-t-0 border-[#24152F]/10">
-                  {/* Status Badge */}
+                {/* 2. Status Badge & Ações */}
+                <div className="flex items-center justify-between sm:justify-end gap-3 flex-shrink-0 pt-2 sm:pt-0 border-t sm:border-t-0 border-[#24152F]/5">
                   <div className="flex-shrink-0">
                     {renderStatusBadge(user)}
                   </div>
 
-                  {/* Data de cadastro */}
-                  <div className="text-left sm:text-right flex-shrink-0">
-                    <span className="text-[10px] text-[#24152F]/50 block font-medium">Data de Cadastro</span>
-                    <span className="text-xs font-semibold text-[#24152F]">
-                      {formatDateBR(user.createdAt)}
-                    </span>
-                  </div>
-
-                  {/* Actions: Quick Status toggle & Edit */}
-                  <div className="flex items-center gap-2 flex-shrink-0">
-                    {!isSelf && (
-                      <button
-                        onClick={() => onToggleStatus(user.id)}
-                        className={`p-1.5 rounded-xl border text-xs font-semibold transition-all cursor-pointer shadow-2xs ${
-                          user.status === 'active'
-                            ? 'border-rose-200 text-rose-700 hover:bg-rose-50'
-                            : 'border-emerald-200 text-emerald-700 hover:bg-emerald-50'
-                        }`}
-                        title={user.status === 'active' ? 'Desativar usuário' : 'Ativar usuário'}
-                      >
-                        {user.status === 'active' ? (
-                          <XCircle className="w-4 h-4" />
-                        ) : (
-                          <CheckCircle2 className="w-4 h-4" />
-                        )}
-                      </button>
-                    )}
-
-                    <button
-                      onClick={() => handleOpenEdit(user)}
-                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-[#24152F]/15 hover:border-[#24152F] hover:bg-[#FAF6EE] text-[#24152F] text-xs font-semibold transition-all cursor-pointer shadow-2xs"
-                      title="Editar dados e status do usuário"
-                    >
-                      <Edit2 className="w-3.5 h-3.5 text-[#24152F]" />
-                      <span>Editar</span>
-                    </button>
-                  </div>
+                  <button
+                    type="button"
+                    onClick={() => handleOpenEdit(user)}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-[#24152F]/15 hover:border-[#24152F] hover:bg-[#FAF6EE] text-[#24152F] text-xs font-semibold transition-all cursor-pointer shadow-2xs"
+                    title="Editar dados e status do usuário"
+                  >
+                    <Edit2 className="w-3.5 h-3.5 text-[#24152F]" />
+                    <span>Editar</span>
+                  </button>
                 </div>
               </div>
             );
@@ -552,28 +547,73 @@ export const HubUsersView: React.FC<HubUsersViewProps> = ({
                 {errors.phone && <p className="text-[10px] text-rose-600 mt-1">{errors.phone}</p>}
               </div>
 
-              {/* Perfil / Função */}
-              <div>
-                <label className="block text-xs font-bold text-[#24152F] mb-1.5">
-                  Função / Perfil de Acesso
-                </label>
-                <div className="relative">
-                  <select
-                    value={formData.role}
-                    onChange={(e) =>
-                      setFormData({
-                        ...formData,
-                        role: e.target.value as 'Super Administrador' | 'Gestor de Eventos' | 'Cerimonialista',
-                      })
-                    }
-                    className="w-full pl-9 pr-3.5 py-2.5 text-xs sm:text-sm rounded-xl border border-[#24152F]/20 bg-white text-[#24152F] focus:outline-none focus:ring-2 focus:ring-[#24152F] transition-all cursor-pointer appearance-none"
-                  >
-                    <option value="Super Administrador">Super Administrador (Acesso total)</option>
-                    <option value="Gestor de Eventos">Gestor de Eventos (Gerenciamento geral)</option>
-                    <option value="Cerimonialista">Cerimonialista (Operação e Check-in)</option>
-                  </select>
-                  <Shield className="w-4 h-4 text-[#24152F]/40 absolute left-3 top-3.5 pointer-events-none" />
+              {/* Perfil de Acesso (Múltipla Seleção) */}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <label className="block text-xs font-bold text-[#24152F]">
+                    Perfil de Acesso *
+                  </label>
+                  <span className="text-[11px] text-[#24152F]/60 font-medium">
+                    (Múltipla seleção)
+                  </span>
                 </div>
+                <p className="text-[11px] text-[#24152F]/70 leading-tight">
+                  Selecione os perfis de acesso deste usuário. O <strong>Super Administrador</strong> é o perfil padrão do sistema com acesso irrestrito a todas as áreas do Rafluo.
+                </p>
+
+                <div className="space-y-2 pt-1">
+                  {ACCESS_PROFILES.map((profile) => {
+                    const isSelected = formData.accessProfiles.includes(profile.id);
+                    return (
+                      <div
+                        key={profile.id}
+                        role="checkbox"
+                        aria-checked={isSelected}
+                        tabIndex={0}
+                        onClick={() => toggleProfile(profile.id)}
+                        onKeyDown={(e) => {
+                          if (e.key === ' ' || e.key === 'Enter') {
+                            e.preventDefault();
+                            toggleProfile(profile.id);
+                          }
+                        }}
+                        className={`p-3 rounded-xl border cursor-pointer transition-all flex items-start gap-3 select-none ${
+                          isSelected
+                            ? 'bg-[#FAF6EE] border-[#24152F] ring-1 ring-[#24152F] shadow-xs'
+                            : 'bg-white border-[#24152F]/15 hover:border-[#24152F]/40 hover:bg-[#FAF6EE]/30'
+                        }`}
+                      >
+                        <div
+                          className={`w-5 h-5 rounded-md border flex items-center justify-center flex-shrink-0 mt-0.5 transition-colors ${
+                            isSelected
+                              ? 'bg-[#24152F] border-[#24152F] text-[#DFFF5F]'
+                              : 'bg-white border-[#24152F]/30 text-transparent'
+                          }`}
+                        >
+                          <Check className="w-3.5 h-3.5 stroke-[3]" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs font-bold text-[#24152F]">
+                              {profile.name}
+                            </span>
+                            {profile.isDefault && (
+                              <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-md bg-[#DFFF5F] text-[#180D20]">
+                                Padrão do Sistema
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-[11px] text-[#24152F]/70 leading-tight mt-0.5">
+                            {profile.description}
+                          </p>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+                {errors.accessProfiles && (
+                  <p className="text-[10px] text-rose-600 mt-1">{errors.accessProfiles}</p>
+                )}
               </div>
 
               {/* Status de Acesso */}
@@ -601,7 +641,7 @@ export const HubUsersView: React.FC<HubUsersViewProps> = ({
                     onClick={() => setFormData({ ...formData, status: 'temporary' })}
                     className={`py-2 px-3 rounded-xl border text-xs font-semibold transition-all cursor-pointer text-center ${
                       formData.status === 'temporary'
-                        ? 'bg-amber-50 border-amber-400 text-amber-900 shadow-xs ring-1 ring-amber-300'
+                        ? 'bg-orange-50 border-orange-400 text-orange-800 shadow-xs ring-1 ring-orange-300'
                         : 'bg-white border-[#24152F]/15 text-[#24152F]/70 hover:bg-[#FAF6EE]'
                     }`}
                   >
@@ -623,52 +663,33 @@ export const HubUsersView: React.FC<HubUsersViewProps> = ({
                 </div>
               </div>
 
-              {/* Período de Acesso (para Usuário Temporário) */}
+              {/* Período de Acesso (para Usuário Temporário - Item 10) */}
               {formData.status === 'temporary' && (
-                <div className="p-4 rounded-2xl bg-amber-50/60 border border-amber-200 space-y-3 animate-in fade-in">
-                  <div className="flex items-center gap-2 text-xs font-bold text-amber-900">
-                    <Clock className="w-4 h-4 text-amber-700" />
+                <div className="p-4 rounded-2xl bg-orange-50/60 border border-orange-200 space-y-2 animate-in fade-in">
+                  <div className="flex items-center gap-2 text-xs font-bold text-orange-900">
+                    <Clock className="w-4 h-4 text-orange-700" />
                     <span>Janela de Acesso Temporário</span>
                   </div>
 
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <div>
-                      <label className="block text-[11px] font-semibold text-amber-900 mb-1">
-                        Data de Início *
-                      </label>
-                      <input
-                        type="date"
-                        value={formData.accessStart}
-                        onChange={(e) => setFormData({ ...formData, accessStart: e.target.value })}
-                        className={`w-full px-3 py-2 text-xs rounded-xl border bg-white text-[#24152F] focus:outline-none focus:ring-2 focus:ring-amber-500 cursor-pointer ${
-                          errors.accessStart ? 'border-rose-500' : 'border-amber-300'
-                        }`}
-                      />
-                      {errors.accessStart && (
-                        <p className="text-[10px] text-rose-600 mt-1">{errors.accessStart}</p>
-                      )}
-                    </div>
-
-                    <div>
-                      <label className="block text-[11px] font-semibold text-amber-900 mb-1">
-                        Data de Fim *
-                      </label>
-                      <input
-                        type="date"
-                        value={formData.accessEnd}
-                        onChange={(e) => setFormData({ ...formData, accessEnd: e.target.value })}
-                        className={`w-full px-3 py-2 text-xs rounded-xl border bg-white text-[#24152F] focus:outline-none focus:ring-2 focus:ring-amber-500 cursor-pointer ${
-                          errors.accessEnd ? 'border-rose-500' : 'border-amber-300'
-                        }`}
-                      />
-                      {errors.accessEnd && (
-                        <p className="text-[10px] text-rose-600 mt-1">{errors.accessEnd}</p>
-                      )}
-                    </div>
+                  <div>
+                    <label className="block text-[11px] font-semibold text-orange-900 mb-1">
+                      Data de Fim do Acesso *
+                    </label>
+                    <input
+                      type="date"
+                      value={formData.accessEnd}
+                      onChange={(e) => setFormData({ ...formData, accessEnd: e.target.value })}
+                      className={`w-full px-3 py-2 text-xs rounded-xl border bg-white text-[#24152F] focus:outline-none focus:ring-2 focus:ring-orange-500 cursor-pointer ${
+                        errors.accessEnd ? 'border-rose-500' : 'border-orange-300'
+                      }`}
+                    />
+                    {errors.accessEnd && (
+                      <p className="text-[10px] text-rose-600 mt-1">{errors.accessEnd}</p>
+                    )}
                   </div>
 
-                  <p className="text-[11px] text-amber-800/80 leading-tight">
-                    O acesso ao painel estará liberado exclusivamente dentro dessa janela de datas.
+                  <p className="text-[11px] text-orange-800/80 leading-tight pt-1">
+                    O acesso ao painel estará liberado a partir da criação até o fim desta data.
                   </p>
                 </div>
               )}

@@ -79,10 +79,10 @@ export const LoginView: React.FC<LoginViewProps> = ({
         <div className="bg-white rounded-3xl border border-[#24152F]/15 shadow-xl p-6 sm:p-8 space-y-6">
           <div className="space-y-1">
             <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-[#24152F]">
-              Acesso ao Hub Rafluo
+              Acesso ao Rafluo
             </h1>
             <p className="text-xs sm:text-sm text-[#24152F]/60">
-              Entre com suas credenciais administrativas para gerenciar seus eventos
+              Faça login para gerenciar seus eventos
             </p>
           </div>
 
@@ -96,7 +96,7 @@ export const LoginView: React.FC<LoginViewProps> = ({
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
               <label className="block text-xs font-bold text-[#24152F] mb-1">
-                E-mail Administrativo
+                E-mail
               </label>
               <div className="relative">
                 <input
@@ -114,10 +114,9 @@ export const LoginView: React.FC<LoginViewProps> = ({
             </div>
 
             <div>
-              <div className="flex items-center justify-between mb-1">
-                <label className="text-xs font-bold text-[#24152F]">Senha</label>
-                <span className="text-[11px] text-[#24152F]/60">Privada</span>
-              </div>
+              <label className="block text-xs font-bold text-[#24152F] mb-1">
+                Senha
+              </label>
               <div className="relative">
                 <input
                   type="password"
@@ -135,18 +134,18 @@ export const LoginView: React.FC<LoginViewProps> = ({
               id="btn-login-submit"
               className="w-full mt-2 py-3 px-4 rounded-xl bg-[#24152F] hover:bg-[#180D20] text-[#F7F1E5] font-bold text-xs sm:text-sm flex items-center justify-center gap-2 transition-all shadow-md active:scale-98 cursor-pointer group border border-[#3F2553]"
             >
-              <span>Entrar no Rafluo</span>
+              <span>Entrar</span>
               <ArrowRight className="w-4 h-4 text-[#DFFF5F] group-hover:translate-x-0.5 transition-transform" />
             </button>
           </form>
 
-          {/* Quick profile info */}
+          {/* Quick profile info / Rodapé */}
           <div className="p-3.5 rounded-2xl bg-[#FAF6EE] border border-[#24152F]/10 flex items-center gap-3">
             <div className="w-8 h-8 rounded-xl bg-[#24152F] text-[#DFFF5F] flex items-center justify-center font-bold text-xs flex-shrink-0">
               <ShieldCheck className="w-4 h-4" />
             </div>
             <div className="text-[11px] text-[#24152F]/75 leading-relaxed">
-              Ambiente seguro para gestores e administradores do Rafluo.
+              Ambiente seguro para gestores e administradores do Rafluo
             </div>
           </div>
         </div>
@@ -154,9 +153,9 @@ export const LoginView: React.FC<LoginViewProps> = ({
 
       {/* Footer Origin */}
       <footer className="py-4 text-center">
-        <p className="text-xs text-[#24152F]/60 font-medium">
+        <p className="text-xs text-[#24152F]/70 dark:text-[#D2C4DC] font-medium">
           Desenvolvido com carinho por{' '}
-          <strong className="text-[#24152F] font-semibold">Beaquos Estúdio Criativo</strong>
+          <strong className="text-[#24152F] dark:text-[#D2C4DC] font-semibold">Beaquos Estúdio Criativo</strong>
         </p>
       </footer>
     </div>

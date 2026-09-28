@@ -37,21 +37,16 @@ export const HubDashboardView: React.FC<HubDashboardViewProps> = ({
 
   return (
     <div id="hub-dashboard-view" className="space-y-6 sm:space-y-7 pb-10">
-      {/* 2. Top Greeting:
-          Ordem exata:
-          1. Nome do usuário (com cor de destaque diferenciando do restante do texto)
-          2. Quarta-feira, 23 de Setembro (dinâmica)
-          3. "Aqui está um resumo de seus eventos."
-      */}
-      <div className="space-y-1 sm:space-y-1.5">
-        <h1 className="text-2xl sm:text-3xl lg:text-4xl font-extrabold tracking-tight text-[#24152F] dark:text-[#F7F1E5]">
+      {/* 2. Top Greeting no formato original */}
+      <div className="space-y-1">
+        <h1 className="text-xl sm:text-2xl md:text-3xl font-extrabold tracking-tight text-[#24152F] dark:text-[#F7F1E5]">
           {greeting},{' '}
-          <span className="text-[#5C416E] dark:text-[#DFFF5F] font-black">
+          <span className="text-[#3F2553] dark:text-[#DFFF5F]">
             {currentUser.name}
           </span>
           !
         </h1>
-        <p className="text-xs sm:text-sm font-semibold text-[#5C416E] dark:text-[#D2C4DC] tracking-wide">
+        <p className="text-xs sm:text-sm font-medium text-[#5C416E] dark:text-[#D2C4DC]">
           {currentDateLong}
         </p>
         <p className="text-xs sm:text-sm md:text-base text-[#24152F]/70 dark:text-[#E2D7EA]/80 font-normal">
@@ -200,23 +195,16 @@ export const HubDashboardView: React.FC<HubDashboardViewProps> = ({
                     </div>
                   </div>
 
-                  {/* Right: Confirmation Percentage + Navigation Arrow */}
+                  {/* Right: Progresso com o mesmo padrão e componente visual de Relatórios */}
                   <div className="flex items-center justify-between sm:justify-end gap-3 flex-shrink-0 pl-13 sm:pl-0">
-                    <div className="flex items-center gap-2.5">
-                      {/* Mini progress bar on desktop */}
-                      <div className="hidden md:block w-24 h-2 rounded-full bg-[#24152F]/10 overflow-hidden">
+                    <div className="flex items-center gap-2">
+                      <div className="w-16 h-2 rounded-full bg-[#24152F]/10 overflow-hidden">
                         <div
-                          className="h-full bg-[#DFFF5F] transition-all duration-500 rounded-full"
-                          style={{
-                            width: `${percentage}%`,
-                            backgroundColor: percentage > 0 ? '#180D20' : '#DFFF5F',
-                          }}
+                          className="h-full bg-[#180D20] rounded-full"
+                          style={{ width: `${percentage}%` }}
                         />
                       </div>
-
-                      <span className="text-xs sm:text-sm font-bold text-[#24152F] px-2.5 py-1 rounded-lg bg-[#FAF6EE] border border-[#24152F]/10">
-                        <strong className="text-[#24152F]">{percentage}%</strong> confirmados
-                      </span>
+                      <span className="text-[11px] font-bold text-[#24152F]">{percentage}%</span>
                     </div>
 
                     <div className="w-7 h-7 rounded-lg bg-white border border-[#24152F]/15 text-[#24152F] flex items-center justify-center group-hover:bg-[#24152F] group-hover:text-[#F7F1E5] transition-all shadow-2xs">

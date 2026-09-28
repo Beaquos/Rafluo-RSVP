@@ -8,6 +8,8 @@ import { AdminLayout } from './components/admin/AdminLayout';
 import { HubDashboardView } from './components/admin/HubDashboardView';
 import { HubReportsView } from './components/admin/HubReportsView';
 import { HubUsersView } from './components/admin/HubUsersView';
+import { HubClientsView } from './components/admin/HubClientsView';
+import { HubSettingsView } from './components/admin/HubSettingsView';
 import { UserProfileModal } from './components/admin/UserProfileModal';
 import { LoginView } from './components/auth/LoginView';
 import { DashboardSkeleton } from './components/admin/DashboardSkeleton';
@@ -28,8 +30,10 @@ import {
   INITIAL_GUESTS,
   INITIAL_QUESTIONS,
   INITIAL_MANAGERS,
+  INITIAL_CLIENTS,
   EventData,
   GuestData,
+  ClientData,
   FormQuestionData,
   ManagerData,
 } from './data/mockData';
@@ -50,7 +54,9 @@ const INITIAL_ADMIN_USER: AdminUser = {
   email: 'beaquos@gmail.com',
   phone: '(61) 98765-4321',
   photoUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=256&h=256&q=80',
+  jobTitle: 'Diretora Geral & Assessora Chefe',
   role: 'Super Administrador',
+  accessProfiles: ['Super Administrador'],
   status: 'active',
   createdAt: '2026-01-15',
 };
@@ -64,7 +70,9 @@ const INITIAL_ADMIN_USERS_LIST: AdminUser[] = [
     email: 'lucas@beaquos.com',
     phone: '(61) 99123-4567',
     photoUrl: null,
+    jobTitle: 'Gestor Operacional de Eventos',
     role: 'Gestor de Eventos',
+    accessProfiles: ['Gestor de Eventos'],
     status: 'active',
     createdAt: '2026-02-10',
   },
@@ -75,7 +83,9 @@ const INITIAL_ADMIN_USERS_LIST: AdminUser[] = [
     email: 'helena.eventos@gmail.com',
     phone: '(61) 98234-5678',
     photoUrl: null,
+    jobTitle: 'Cerimonialista & Assessora',
     role: 'Cerimonialista',
+    accessProfiles: ['Cerimonialista', 'Gestor de Eventos'],
     status: 'active',
     createdAt: '2026-03-01',
   },
@@ -86,7 +96,9 @@ const INITIAL_ADMIN_USERS_LIST: AdminUser[] = [
     email: 'mariana.apoio@beaquos.com',
     phone: '(61) 98345-6789',
     photoUrl: null,
+    jobTitle: 'Assistente de Cerimonial',
     role: 'Cerimonialista',
+    accessProfiles: ['Cerimonialista'],
     status: 'temporary',
     accessStart: '2026-10-01',
     accessEnd: '2026-10-31',
@@ -106,6 +118,7 @@ export default function App() {
   const [guests, setGuests] = useState<GuestData[]>(INITIAL_GUESTS);
   const [questions, setQuestions] = useState<FormQuestionData[]>(INITIAL_QUESTIONS);
   const [managers, setManagers] = useState<ManagerData[]>(INITIAL_MANAGERS);
+  const [clients, setClients] = useState<ClientData[]>(INITIAL_CLIENTS);
 
   // Authentication State
   const [isAuthenticated, setIsAuthenticated] = useState(true);
@@ -118,7 +131,9 @@ export default function App() {
   const [isGuestModalOpen, setIsGuestModalOpen] = useState(false);
   const [isImportCsvModalOpen, setIsImportCsvModalOpen] = useState(false);
   const [isQuestionModalOpen, setIsQuestionModalOpen] = useState(false);
+  const [editingQuestion, setEditingQuestion] = useState<FormQuestionData | null>(null);
   const [isManagerModalOpen, setIsManagerModalOpen] = useState(false);
+  const [editingManager, setEditingManager] = useState<ManagerData | null>(null);
   const [isWhatsAppModalOpen, setIsWhatsAppModalOpen] = useState(false);
   const [isGuestDetailsModalOpen, setIsGuestDetailsModalOpen] = useState(false);
   const [isUserProfileModalOpen, setIsUserProfileModalOpen] = useState(false);
@@ -186,6 +201,9 @@ export default function App() {
   // Guests for active event
   const activeEventGuests = guests.filter((g) => g.eventId === activeEvent.id);
 
+  // Managers for active event
+  const activeEventManagers = managers.filter((m) => m.eventId === activeEvent.id);
+
   // Navigation handlers
   const handleSelectEvent = (selected: EventData) => {
     setActiveEventId(selected.id);
@@ -247,6 +265,8 @@ export default function App() {
   };
 
   const handleSaveEvent = (updated: EventData) => {
+    const isNew = !events.some((e) => e.id === updated.id);
+
     setEvents((prev) => {
       const exists = prev.some((e) => e.id === updated.id);
       if (exists) {
@@ -256,9 +276,50 @@ export default function App() {
       }
     });
 
+    // Se for novo evento, vincular um responsável específico para este evento conforme cadastro
+    if (isNew && updated.clientName) {
+      const matchedClient = clients.find(
+        (c) => c.name.toLowerCase() === updated.clientName?.toLowerCase()
+      );
+      const newManager: ManagerData = {
+        id: `m-${Date.now()}`,
+        eventId: updated.id,
+        name: updated.clientName,
+        email: matchedClient?.email || `${updated.slug || 'contato'}@exemplo.com`,
+        phone: matchedClient?.phone || '(61) 98888-0000',
+        accessStart: new Date().toISOString().split('T')[0],
+        accessEnd:
+          updated.rsvpDeadline ||
+          new Date(Date.now() + 60 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+        status: 'active',
+      };
+      setManagers((prev) => [...prev, newManager]);
+    }
+
     setActiveEventId(updated.id);
     setToastMessage(`Evento "${updated.name || 'Novo Evento'}" salvo com sucesso!`);
     navigateTo(getEventPath(updated, 'overview'));
+  };
+
+  const handleDeleteEvent = (eventId: string) => {
+    const eventToDelete = events.find((e) => e.id === eventId);
+    if (!eventToDelete) return;
+
+    // Remover somente o evento selecionado e seus dados relacionados
+    setEvents((prev) => prev.filter((e) => e.id !== eventId));
+    setGuests((prev) => prev.filter((g) => g.eventId !== eventId));
+    setQuestions((prev) => prev.filter((q) => q.eventId !== eventId));
+    setManagers((prev) => prev.filter((m) => m.eventId !== eventId));
+
+    // Se o evento ativo for o excluído, selecionar outro evento
+    if (activeEventId === eventId) {
+      const remaining = events.filter((e) => e.id !== eventId);
+      if (remaining.length > 0) {
+        setActiveEventId(remaining[0].id);
+      }
+    }
+
+    setToastMessage(`Evento "${eventToDelete.name}" e dados vinculados excluídos com sucesso.`);
   };
 
   const handleAddGuest = (newGuest: GuestData) => {
@@ -279,13 +340,24 @@ export default function App() {
     setToastMessage(`${newGuests.length} convidados importados com sucesso!`);
   };
 
-  const handleAddQuestion = (newQuestion: FormQuestionData) => {
+  const handleAddQuestion = (savedQuestion: FormQuestionData) => {
     const questionWithEvent = {
-      ...newQuestion,
+      ...savedQuestion,
       eventId: activeEvent.id,
     };
-    setQuestions((prev) => [...prev, questionWithEvent]);
-    setToastMessage('Pergunta adicionada ao formulário RSVP!');
+    setQuestions((prev) => {
+      const exists = prev.some((q) => q.id === savedQuestion.id);
+      if (exists) {
+        return prev.map((q) => (q.id === savedQuestion.id ? questionWithEvent : q));
+      }
+      return [...prev, questionWithEvent];
+    });
+    setToastMessage(
+      editingQuestion
+        ? 'Pergunta atualizada com sucesso!'
+        : 'Pergunta adicionada ao formulário RSVP!'
+    );
+    setEditingQuestion(null);
   };
 
   const handleDeleteQuestion = (questionId: string) => {
@@ -293,13 +365,30 @@ export default function App() {
     setToastMessage('Pergunta removida do formulário.');
   };
 
-  const handleAddManager = (newManager: ManagerData) => {
+  const handleSaveManager = (managerData: ManagerData) => {
     const managerWithEvent = {
-      ...newManager,
+      ...managerData,
       eventId: activeEvent.id,
     };
-    setManagers((prev) => [...prev, managerWithEvent]);
-    setToastMessage(`Responsável "${newManager.name}" adicionado.`);
+    setManagers((prev) => {
+      const exists = prev.some((m) => m.id === managerData.id);
+      if (exists) {
+        return prev.map((m) => (m.id === managerData.id ? managerWithEvent : m));
+      }
+      return [...prev, managerWithEvent];
+    });
+    setToastMessage(
+      editingManager
+        ? `Responsável "${managerData.name}" atualizado com sucesso.`
+        : `Responsável "${managerData.name}" adicionado com sucesso.`
+    );
+    setEditingManager(null);
+  };
+
+  const handleDeleteManager = (managerId: string) => {
+    const target = managers.find((m) => m.id === managerId);
+    setManagers((prev) => prev.filter((m) => m.id !== managerId));
+    setToastMessage(`Responsável "${target?.name || ''}" removido com sucesso.`);
   };
 
   const handleOpenWhatsApp = (guest: GuestData) => {
@@ -366,6 +455,44 @@ export default function App() {
     const targetEvent = route.matchedEvent;
     const updatedTimestamp = new Date().toISOString().split('T')[0];
     const newName = guestInfo?.name?.trim() || 'Convidado';
+    const newEmail = guestInfo?.email?.trim().toLowerCase();
+    const newPhone = guestInfo?.phone?.trim();
+
+    // Check for existing duplicate responses in this event
+    const preventDuplicates = targetEvent.preventDuplicateResponses !== false;
+    const existingIndex = guests.findIndex(
+      (g) =>
+        g.eventId === targetEvent.id &&
+        ((newEmail && g.email && g.email.trim().toLowerCase() === newEmail) ||
+          (newPhone && g.phone && g.phone.replace(/\D/g, '') === newPhone.replace(/\D/g, '') && newPhone.length > 5) ||
+          (newName.length > 2 && g.name.trim().toLowerCase() === newName.toLowerCase()))
+    );
+
+    if (preventDuplicates && existingIndex >= 0) {
+      if (targetEvent.allowResponseEdit !== false) {
+        // Update existing guest response instead of duplicating
+        const existing = guests[existingIndex];
+        const updatedGuest: GuestData = {
+          ...existing,
+          name: newName || existing.name,
+          displayName: newName || existing.displayName,
+          phone: guestInfo?.phone || existing.phone,
+          email: guestInfo?.email || existing.email,
+          status,
+          companionCount,
+          companionNames,
+          respondedAt: updatedTimestamp,
+          answers: { ...existing.answers, ...answers },
+        };
+
+        setGuests((prev) => prev.map((g, idx) => (idx === existingIndex ? updatedGuest : g)));
+        setToastMessage(`Resposta de "${updatedGuest.name}" atualizada com sucesso!`);
+        return;
+      } else {
+        setToastMessage(`Já existe uma resposta para "${newName}". Alterações estão desabilitadas.`);
+        return;
+      }
+    }
 
     const newGuest: GuestData = {
       id: `g-pub-${Date.now()}`,
@@ -426,6 +553,19 @@ export default function App() {
       })
     );
     setToastMessage('Status do usuário administrativo alterado com sucesso.');
+  };
+
+  // Save / Update client
+  const handleSaveClient = (client: ClientData) => {
+    setClients((prev) => {
+      const idx = prev.findIndex((c) => c.id === client.id);
+      if (idx >= 0) {
+        const next = [...prev];
+        next[idx] = client;
+        return next;
+      }
+      return [client, ...prev];
+    });
   };
 
   // Logout
@@ -641,8 +781,18 @@ export default function App() {
                 onSelectEvent={handleSelectEvent}
                 onNewEvent={handleOpenNewEventModal}
                 onEditEvent={handleOpenEditEventModal}
+                onDeleteEvent={handleDeleteEvent}
                 onShowToast={(msg) => setToastMessage(msg)}
                 onOpenPreview={handleOpenGuestPreview}
+                currentUser={currentUser}
+              />
+            )}
+
+            {currentHubSection === 'clients' && (
+              <HubClientsView
+                clients={clients}
+                onSaveClient={handleSaveClient}
+                onShowToast={(msg) => setToastMessage(msg)}
               />
             )}
 
@@ -667,6 +817,12 @@ export default function App() {
                 onShowToast={(msg) => setToastMessage(msg)}
               />
             )}
+
+            {currentHubSection === 'settings' && (
+              <HubSettingsView
+                onShowToast={(msg) => setToastMessage(msg)}
+              />
+            )}
           </>
         ) : (
           /* CLIENT EVENT OPERATIONAL WORKSPACE: Deep management of active event */
@@ -676,7 +832,14 @@ export default function App() {
             event={activeEvent}
             onEditEvent={() => handleOpenEditEventModal(activeEvent)}
             questions={questions}
-            onAddQuestion={() => setIsQuestionModalOpen(true)}
+            onAddQuestion={() => {
+              setEditingQuestion(null);
+              setIsQuestionModalOpen(true);
+            }}
+            onEditQuestion={(q) => {
+              setEditingQuestion(q);
+              setIsQuestionModalOpen(true);
+            }}
             onDeleteQuestion={handleDeleteQuestion}
             guests={activeEventGuests}
             onAddGuest={() => setIsGuestModalOpen(true)}
@@ -684,8 +847,16 @@ export default function App() {
             onOpenWhatsApp={handleOpenWhatsApp}
             onOpenGuestDetails={handleOpenGuestDetails}
             onOpenGuestPreview={handleOpenGuestPreview}
-            managers={managers}
-            onAddManager={() => setIsManagerModalOpen(true)}
+            managers={activeEventManagers}
+            onAddManager={() => {
+              setEditingManager(null);
+              setIsManagerModalOpen(true);
+            }}
+            onEditManager={(m) => {
+              setEditingManager(m);
+              setIsManagerModalOpen(true);
+            }}
+            onDeleteManager={handleDeleteManager}
             onExportCsv={handleExportCsv}
             onExitToMaster={handleExitToMaster}
             onShowToast={(msg) => setToastMessage(msg)}
@@ -729,15 +900,23 @@ export default function App() {
 
         <QuestionModal
           isOpen={isQuestionModalOpen}
-          onClose={() => setIsQuestionModalOpen(false)}
+          onClose={() => {
+            setIsQuestionModalOpen(false);
+            setEditingQuestion(null);
+          }}
           onSave={handleAddQuestion}
           existingQuestions={questions}
+          question={editingQuestion}
         />
 
         <ManagerModal
           isOpen={isManagerModalOpen}
-          onClose={() => setIsManagerModalOpen(false)}
-          onSave={handleAddManager}
+          onClose={() => {
+            setIsManagerModalOpen(false);
+            setEditingManager(null);
+          }}
+          onSave={handleSaveManager}
+          manager={editingManager}
           eventName={activeEvent.name}
         />
 

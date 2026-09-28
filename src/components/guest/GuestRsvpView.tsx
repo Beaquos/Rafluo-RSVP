@@ -261,7 +261,7 @@ export const GuestRsvpView: React.FC<GuestRsvpViewProps> = ({
             <h2 className="text-lg sm:text-xl font-bold text-[#24152F] break-words">{guest.displayName}</h2>
             {guest.maxGuests > 0 && (
               <p className="text-xs text-[#24152F]/70 pt-0.5">
-                Cota autorizada: <strong>{guest.maxGuests} acompanhante(s)</strong>
+                Autorizado: <strong>{guest.maxGuests} acompanhante(s)</strong>
               </p>
             )}
           </div>
@@ -298,13 +298,19 @@ export const GuestRsvpView: React.FC<GuestRsvpViewProps> = ({
             </div>
 
             <div className="pt-3 flex flex-wrap items-center justify-center gap-2.5">
-              <button
-                type="button"
-                onClick={() => setSubmitted(false)}
-                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl border border-[#24152F]/20 text-xs font-semibold text-[#24152F] hover:bg-[#F7F1E5] transition-colors cursor-pointer"
-              >
-                <Edit3 className="w-3.5 h-3.5" /> Alterar Minha Resposta
-              </button>
+              {event.allowResponseEdit !== false ? (
+                <button
+                  type="button"
+                  onClick={() => setSubmitted(false)}
+                  className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl border border-[#24152F]/20 text-xs font-semibold text-[#24152F] hover:bg-[#F7F1E5] transition-colors cursor-pointer"
+                >
+                  <Edit3 className="w-3.5 h-3.5" /> Alterar Minha Resposta
+                </button>
+              ) : (
+                <span className="text-[11px] text-[#24152F]/60 italic">
+                  Alterações de resposta desabilitadas para este evento.
+                </span>
+              )}
 
               {isPublicEventInvite && (
                 <button

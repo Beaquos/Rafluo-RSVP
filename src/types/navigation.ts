@@ -1,4 +1,4 @@
-export type HubSection = 'dashboard' | 'events' | 'reports' | 'users';
+export type HubSection = 'dashboard' | 'events' | 'clients' | 'reports' | 'users' | 'settings';
 
 export type NavSection =
   | 'overview'

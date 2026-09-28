@@ -12,6 +12,7 @@ import {
   X,
   ArrowLeft,
   Sparkles,
+  Contact,
 } from 'lucide-react';
 import { HubSection, NavSection, NavItem } from '../../types/navigation';
 import { formatDateBR } from '../../utils/dateUtils';
@@ -38,8 +39,8 @@ interface SidebarProps {
   onToggleCollapse?: () => void;
 }
 
-// Exactly 4 primary areas for the Hub:
-// Dashboard | Eventos | Relatórios | Usuários
+// Hub Navigation:
+// Dashboard | Eventos | Clientes | Relatórios | Usuários | Configurações
 const HUB_NAV_ITEMS: { id: HubSection; label: string; icon: React.ComponentType<{ className?: string }> }[] = [
   {
     id: 'dashboard',
@@ -52,6 +53,11 @@ const HUB_NAV_ITEMS: { id: HubSection; label: string; icon: React.ComponentType<
     icon: Calendar,
   },
   {
+    id: 'clients',
+    label: 'Clientes',
+    icon: Contact,
+  },
+  {
     id: 'reports',
     label: 'Relatórios',
     icon: BarChart3,
@@ -60,6 +66,11 @@ const HUB_NAV_ITEMS: { id: HubSection; label: string; icon: React.ComponentType<
     id: 'users',
     label: 'Usuários',
     icon: Users,
+  },
+  {
+    id: 'settings',
+    label: 'Configurações',
+    icon: Settings,
   },
 ];
 
@@ -72,7 +83,7 @@ const EVENT_NAV_ITEMS: NavItem[] = [
   },
   {
     id: 'events',
-    label: 'Dados',
+    label: 'Dados do Evento',
     iconName: 'Calendar',
   },
   {

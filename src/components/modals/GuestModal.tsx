@@ -189,7 +189,7 @@ export const GuestModal: React.FC<GuestModalProps> = ({
             </div>
 
             <div>
-              <label className="block font-semibold mb-1 text-[#24152F]">Cota de Acompanhantes</label>
+              <label className="block font-semibold mb-1 text-[#24152F]">Acompanhantes Permitidos</label>
               <input
                 type="number"
                 min={0}

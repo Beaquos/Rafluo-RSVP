@@ -8,12 +8,37 @@ export interface EventData {
   time: string;
   location: string;
   address: string;
+  cep?: string;
+  street?: string;
+  number?: string;
+  complement?: string;
+  neighborhood?: string;
+  city?: string;
+  state?: string;
   mapsUrl: string;
   description: string;
   rsvpDeadline: string;
   allowGuests: boolean;
   maxGuestsPerInvite: number;
   status: 'active' | 'closed' | 'draft';
+  allowResponseEdit?: boolean;
+  preventDuplicateResponses?: boolean;
+  colors?: {
+    primary: string;
+    background: string;
+    accent: string;
+    secondary: string;
+  };
+}
+
+export interface ClientData {
+  id: string;
+  name: string;
+  email: string;
+  phone: string;
+  invitationType: 'Aniversário Infantil' | 'Aniversário Adulto' | 'Chá de Bebê' | 'Chá de Fraldas' | 'Chá de Bebê ou Fraldas' | 'Outros';
+  createdAt: string;
+  notes?: string;
 }
 
 export interface GuestData {
@@ -39,6 +64,7 @@ export interface ManagerData {
   eventId: string;
   name: string;
   email: string;
+  phone?: string;
   accessStart: string;
   accessEnd: string;
   status: 'active' | 'inactive';
@@ -63,71 +89,118 @@ export interface FormQuestionData {
 export const INITIAL_EVENTS: EventData[] = [
   {
     id: 'ev-01',
-    name: 'Casamento Marina & Lucas',
-    clientName: 'Marina Silva & Lucas Prado',
-    slug: 'marina-e-lucas',
-    type: 'Casamento',
+    name: 'Aniversário Marina Silva',
+    clientName: 'Marina Silva',
+    slug: 'marina-silva',
+    type: 'Aniversário Adulto',
     date: '2026-10-24',
     time: '16:30',
     location: 'Villa Giardini Espaço de Eventos',
     address: 'SHTQ Trecho 1 Conjunto 12, Lago Norte, Brasília - DF',
     mapsUrl: 'https://maps.google.com/?q=Villa+Giardini+Brasilia',
-    description: 'Celebração da nossa união com cerimônia ao ar livre seguida de recepção.',
+    description: 'Celebração com recepção ao ar livre e muita música.',
     rsvpDeadline: '2026-10-10',
     allowGuests: true,
     maxGuestsPerInvite: 2,
     status: 'active',
+    allowResponseEdit: true,
+    preventDuplicateResponses: true,
   },
   {
     id: 'ev-02',
-    name: '15 Anos Sophia Martins',
+    name: 'Aniversário Sophia Martins',
     clientName: 'Família Martins & Sophia',
-    slug: '15-anos-sophia',
-    type: '15 Anos / Debutante',
+    slug: 'aniversario-sophia',
+    type: 'Aniversário Infantil',
     date: '2026-11-14',
     time: '20:00',
     location: 'Espaço Contemporâneo Festas',
     address: 'Setor de Mansões Park Way, Brasília - DF',
     mapsUrl: 'https://maps.google.com/?q=Espaco+Contemporaneo+Park+Way',
-    description: 'Noite dos sonhos: comemoração dos 15 anos com jantar e balada.',
+    description: 'Comemoração infantil com buffet especial e recreação.',
     rsvpDeadline: '2026-10-31',
     allowGuests: true,
     maxGuestsPerInvite: 1,
     status: 'active',
+    allowResponseEdit: true,
+    preventDuplicateResponses: true,
   },
   {
     id: 'ev-03',
-    name: 'Bodas de Prata Carlos & Helena',
-    clientName: 'Carlos e Helena Medeiros',
-    slug: 'bodas-carlos-helena',
-    type: 'Bodas de Prata',
+    name: 'Chá de Bebê do Theo',
+    clientName: 'Helena & Roberto Costa',
+    slug: 'cha-bebe-theo',
+    type: 'Chá de Bebê',
     date: '2026-12-05',
     time: '12:30',
     location: 'Restaurante Coco Bambu Lago Sul',
     address: 'SCES Trecho 2, Conjunto 36, Brasília - DF',
     mapsUrl: 'https://maps.google.com/?q=Coco+Bambu+Lago+Sul',
-    description: 'Almoço comemorativo de 25 anos de casamento em família.',
+    description: 'Chá de fraldas e recepção em família para chegada do Theo.',
     rsvpDeadline: '2026-11-20',
     allowGuests: true,
     maxGuestsPerInvite: 2,
     status: 'draft',
+    allowResponseEdit: true,
+    preventDuplicateResponses: true,
   },
   {
     id: 'ev-04',
-    name: 'Gala Beaquos Design Awards 2026',
+    name: 'Encontro Anual Beaquos Tech 2026',
     clientName: 'Beaquos Estúdio Criativo',
-    slug: 'gala-beaquos-2026',
-    type: 'Corporativo',
+    slug: 'beaquos-tech-2026',
+    type: 'Outros',
     date: '2026-08-15',
     time: '19:30',
     location: 'Centro de Convenções Ulysses Guimarães',
     address: 'SDC Eixo Monumental, Brasília - DF',
     mapsUrl: 'https://maps.google.com/?q=Centro+de+Convencoes+Ulysses+Guimaraes',
-    description: 'Premiação e networking das marcas parceiras do estúdio.',
+    description: 'Premiação e confraternização anual de parceiros do estúdio.',
     rsvpDeadline: '2026-08-01',
     allowGuests: false,
     maxGuestsPerInvite: 1,
     status: 'closed',
+    allowResponseEdit: false,
+    preventDuplicateResponses: true,
+  },
+];
+
+export const INITIAL_CLIENTS: ClientData[] = [
+  {
+    id: 'cli-01',
+    name: 'Marina Silva',
+    email: 'marina.silva@email.com',
+    phone: '(11) 98765-4321',
+    invitationType: 'Aniversário Adulto',
+    createdAt: '2026-08-10',
+    notes: 'Cliente de aniversário adulto com festa ao ar livre.',
+  },
+  {
+    id: 'cli-02',
+    name: 'Sophia Martins',
+    email: 'sophia.martins@email.com',
+    phone: '(11) 91234-5678',
+    invitationType: 'Aniversário Infantil',
+    createdAt: '2026-08-22',
+    notes: 'Aniversário infantil para 60 convidados com buffet temático.',
+  },
+  {
+    id: 'cli-03',
+    name: 'Helena & Roberto Costa',
+    email: 'helena.costa@email.com',
+    phone: '(21) 99887-6655',
+    invitationType: 'Chá de Bebê',
+    createdAt: '2026-09-01',
+    notes: 'Chá de fraldas e recepção intimista.',
+  },
+  {
+    id: 'cli-04',
+    name: 'Beaquos Estúdio Criativo',
+    email: 'contato@beaquos.com',
+    phone: '(11) 3456-7890',
+    invitationType: 'Outros',
+    createdAt: '2026-09-12',
+    notes: 'Confraternização corporativa e eventos especiais.',
   },
 ];
 
@@ -147,7 +220,7 @@ export const INITIAL_QUESTIONS: FormQuestionData[] = [
     id: 'q_has_companions',
     eventId: 'ev-01',
     title: 'Você levará acompanhante(s)?',
-    description: 'Informe se irá acompanhado de acordo com a sua cota de convite.',
+    description: 'Informe se irá acompanhado de acordo com o seu convite.',
     type: 'yes_no',
     required: true,
     order: 2,
@@ -365,8 +438,9 @@ export const INITIAL_MANAGERS: ManagerData[] = [
   {
     id: 'm-01',
     eventId: 'ev-01',
-    name: 'Marina Silva (Noiva)',
+    name: 'Marina Silva (Responsável)',
     email: 'marina.silva@exemplo.com',
+    phone: '(61) 98111-2233',
     accessStart: '2026-09-01',
     accessEnd: '2026-10-30',
     status: 'active',
@@ -376,8 +450,39 @@ export const INITIAL_MANAGERS: ManagerData[] = [
     eventId: 'ev-01',
     name: 'Camila Cerimonialista',
     email: 'camila@cerimonialbeaquos.com',
+    phone: '(61) 99881-4455',
     accessStart: '2026-09-15',
     accessEnd: '2026-10-28',
+    status: 'active',
+  },
+  {
+    id: 'm-03',
+    eventId: 'ev-02',
+    name: 'Sophia Martins',
+    email: 'sophia.martins@exemplo.com',
+    phone: '(61) 99123-8877',
+    accessStart: '2026-09-10',
+    accessEnd: '2026-11-20',
+    status: 'active',
+  },
+  {
+    id: 'm-04',
+    eventId: 'ev-03',
+    name: 'Helena Costa',
+    email: 'helena.costa@exemplo.com',
+    phone: '(61) 99881-2233',
+    accessStart: '2026-09-15',
+    accessEnd: '2026-12-10',
+    status: 'active',
+  },
+  {
+    id: 'm-05',
+    eventId: 'ev-04',
+    name: 'Coordenação Beaquos',
+    email: 'contato@beaquos.com',
+    phone: '(11) 3456-7890',
+    accessStart: '2026-07-01',
+    accessEnd: '2026-08-30',
     status: 'active',
   },
 ];

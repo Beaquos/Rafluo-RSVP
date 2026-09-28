@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   Users,
   CheckCircle,
@@ -23,14 +23,20 @@ import {
   Globe,
   Edit3,
   FileSpreadsheet,
+  Share2,
+  ChevronDown,
+  Palette,
+  RotateCcw,
+  MoreHorizontal,
 } from 'lucide-react';
 import { NavSection } from '../../types/navigation';
 import { EventData, GuestData, FormQuestionData, ManagerData } from '../../data/mockData';
-import { copyToClipboard, getEventRsvpUrl, getGuestRsvpUrl } from '../../utils/linkUtils';
+import { copyToClipboard, getEventRsvpUrl, getGuestRsvpUrl, getClientPanelUrl } from '../../utils/linkUtils';
 import { formatDateBR, formatDateTimeBR } from '../../utils/dateUtils';
 import { exportReportToXLSX, exportReportToPDF } from '../../utils/reportExportUtils';
 import { ExportDataDropdown } from '../common/ExportDataDropdown';
 import { WhatsAppIcon } from '../common/WhatsAppIcon';
+import { WhatsAppModal } from '../modals/WhatsAppModal';
 
 interface DashboardSkeletonProps {
   currentSection: NavSection;
@@ -39,6 +45,7 @@ interface DashboardSkeletonProps {
   onEditEvent: () => void;
   questions: FormQuestionData[];
   onAddQuestion: () => void;
+  onEditQuestion?: (question: FormQuestionData) => void;
   onDeleteQuestion: (id: string) => void;
   guests: GuestData[];
   onAddGuest: () => void;
@@ -48,6 +55,8 @@ interface DashboardSkeletonProps {
   onOpenGuestPreview: (guestCode: string) => void;
   managers: ManagerData[];
   onAddManager: () => void;
+  onEditManager?: (manager: ManagerData) => void;
+  onDeleteManager?: (managerId: string) => void;
   onExportCsv: () => void;
   onExitToMaster?: () => void;
   onShowToast?: (message: string) => void;
@@ -62,6 +71,7 @@ export const DashboardSkeleton: React.FC<DashboardSkeletonProps> = ({
   onEditEvent,
   questions,
   onAddQuestion,
+  onEditQuestion,
   onDeleteQuestion,
   guests,
   onAddGuest,
@@ -71,6 +81,8 @@ export const DashboardSkeleton: React.FC<DashboardSkeletonProps> = ({
   onOpenGuestPreview,
   managers,
   onAddManager,
+  onEditManager,
+  onDeleteManager,
   onExportCsv,
   onExitToMaster,
   onShowToast,
@@ -81,6 +93,42 @@ export const DashboardSkeleton: React.FC<DashboardSkeletonProps> = ({
   const [guestStatusFilter, setGuestStatusFilter] = useState<'all' | 'confirmed' | 'declined'>('all');
   const [copiedGuestId, setCopiedGuestId] = useState<string | null>(null);
   const [localEventCopied, setLocalEventCopied] = useState(false);
+  const [managerToDelete, setManagerToDelete] = useState<ManagerData | null>(null);
+  const [selectedManagerForWhatsApp, setSelectedManagerForWhatsApp] = useState<ManagerData | null>(null);
+  const [openManagerActionId, setOpenManagerActionId] = useState<string | null>(null);
+  const managerActionRef = useRef<HTMLDivElement>(null);
+  const [isShareDropdownOpen, setIsShareDropdownOpen] = useState(false);
+  const shareDropdownRef = useRef<HTMLDivElement>(null);
+
+  const [eventPalette, setEventPalette] = useState(() => {
+    return (
+      event.colors || {
+        primary: '#24152F',
+        background: '#FAF6EE',
+        accent: '#DFFF5F',
+        secondary: '#D25B34',
+      }
+    );
+  });
+
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (
+        shareDropdownRef.current &&
+        !shareDropdownRef.current.contains(e.target as Node)
+      ) {
+        setIsShareDropdownOpen(false);
+      }
+      if (
+        managerActionRef.current &&
+        !managerActionRef.current.contains(e.target as Node)
+      ) {
+        setOpenManagerActionId(null);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   const handleCopyEvent = async () => {
     if (onCopyEventLink) {
@@ -133,8 +181,11 @@ export const DashboardSkeleton: React.FC<DashboardSkeletonProps> = ({
       {currentSection === 'overview' && (
         <div className="space-y-6">
           {/* Event Header Banner with Rafluo Deep Purple & Neon Style */}
-          <div className="bg-[#24152F] text-[#F7F1E5] rounded-2xl p-5 sm:p-7 shadow-lg border border-[#3F2553] relative overflow-hidden">
-            <div className="absolute -right-12 -top-12 w-56 h-56 rounded-full bg-[#DFFF5F]/10 pointer-events-none blur-3xl" />
+          <div className="bg-[#24152F] text-[#F7F1E5] rounded-2xl p-5 sm:p-7 shadow-lg border border-[#3F2553] relative">
+            {/* Background ambient blur strictly contained */}
+            <div className="absolute inset-0 rounded-2xl overflow-hidden pointer-events-none">
+              <div className="absolute -right-12 -top-12 w-56 h-56 rounded-full bg-[#DFFF5F]/10 blur-3xl" />
+            </div>
 
             <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-5">
               <div className="space-y-2.5">
@@ -171,26 +222,46 @@ export const DashboardSkeleton: React.FC<DashboardSkeletonProps> = ({
                 </div>
               </div>
 
-              {/* Banner Actions */}
-              <div className="flex flex-wrap items-center gap-2.5 w-full sm:w-auto">
+              {/* Banner Action: Compartilhar (Item 7) */}
+              <div className="relative w-full sm:w-48 flex-shrink-0" ref={shareDropdownRef}>
                 <button
-                  id="btn-edit-event-banner"
-                  onClick={onEditEvent}
-                  className="flex-1 sm:flex-initial justify-center px-4 py-2.5 rounded-xl bg-white hover:bg-[#F7F1E5] text-[#24152F] text-xs font-bold shadow-sm transition-all active:scale-95 cursor-pointer flex items-center gap-2"
-                  title="Editar dados e configurações do evento"
+                  type="button"
+                  id="btn-share-event-banner"
+                  onClick={() => setIsShareDropdownOpen(!isShareDropdownOpen)}
+                  className="w-full justify-center px-4 py-2.5 rounded-xl bg-[#DFFF5F] hover:bg-[#CEF04A] text-[#180D20] text-xs font-bold shadow-md transition-all active:scale-95 cursor-pointer flex items-center gap-2 border border-[#DFFF5F]"
+                  title="Compartilhar link de confirmação do evento"
                 >
-                  <Edit3 className="w-3.5 h-3.5 text-[#24152F]" />
-                  <span>Editar Detalhes</span>
+                  <Share2 className="w-3.5 h-3.5 text-[#180D20]" />
+                  <span>Compartilhar</span>
+                  <ChevronDown className="w-3.5 h-3.5 text-[#180D20]/70" />
                 </button>
-                <button
-                  id="btn-edit-form-banner"
-                  onClick={() => onNavigate('form-builder')}
-                  className="flex-1 sm:flex-initial justify-center px-4 py-2.5 rounded-xl bg-[#2E1B3C] text-[#F7F1E5] border border-[#3F2553] hover:border-[#DFFF5F]/50 text-xs font-bold transition-all flex items-center gap-2 active:scale-95 cursor-pointer shadow-sm"
-                  title="Acessar e configurar o formulário de confirmação de presença"
-                >
-                  <FileText className="w-3.5 h-3.5 text-[#DFFF5F]" />
-                  <span>Formulário</span>
-                </button>
+
+                {isShareDropdownOpen && (
+                  <div className="absolute right-0 top-full mt-1.5 w-full rounded-xl bg-white text-[#24152F] border border-[#24152F]/15 shadow-2xl p-1.5 z-50 animate-in fade-in zoom-in-95 duration-100 space-y-1">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsShareDropdownOpen(false);
+                        handleCopyEvent();
+                      }}
+                      className="w-full text-left px-3.5 py-2.5 text-xs font-semibold rounded-lg hover:bg-[#FAF6EE] flex items-center gap-2.5 cursor-pointer transition-colors"
+                    >
+                      <Copy className="w-3.5 h-3.5 text-[#24152F]/70" />
+                      <span>Copiar Link</span>
+                    </button>
+
+                    <a
+                      href={getEventRsvpUrl(event.id, event.slug)}
+                      target="_blank"
+                      rel="noreferrer"
+                      onClick={() => setIsShareDropdownOpen(false)}
+                      className="w-full text-left px-3.5 py-2.5 text-xs font-semibold rounded-lg hover:bg-[#FAF6EE] flex items-center gap-2.5 cursor-pointer transition-colors"
+                    >
+                      <ExternalLink className="w-3.5 h-3.5 text-[#24152F]/70" />
+                      <span>Abrir Link</span>
+                    </a>
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -382,127 +453,182 @@ export const DashboardSkeleton: React.FC<DashboardSkeletonProps> = ({
                 <ArrowLeft className="w-3.5 h-3.5" />
                 <span>Voltar ao Dashboard</span>
               </button>
-              <span className="text-[#24152F]/30 text-xs">/</span>
-              <span className="text-xs font-bold text-[#180D20] bg-[#DFFF5F] px-2.5 py-0.5 rounded-full">
-                {event.name}
-              </span>
             </div>
           </div>
 
           <div className="bg-white rounded-2xl border border-[#24152F]/10 p-5 sm:p-6 shadow-xs">
-            {/* SECTION: EVENTS */}
+            {/* SECTION: DADOS DO EVENTO (Itens 16 e 17) */}
             {currentSection === 'events' && (
               <div className="space-y-4">
                 <div className="flex items-center justify-between pb-3 border-b border-[#24152F]/10">
                   <div>
-                    <h3 className="text-base font-bold text-[#24152F]">Dados</h3>
+                    <h3 className="text-base font-bold text-[#24152F]">Dados do Evento</h3>
                   </div>
                   <button
-                    id="btn-create-event-tab"
+                    id="btn-edit-event-data"
                     onClick={onEditEvent}
-                    className="px-3.5 py-2 bg-[#24152F] text-[#F7F1E5] text-xs font-semibold rounded-lg hover:bg-[#180D20] transition-colors shadow-sm border border-[#3F2553]"
+                    className="px-3.5 py-2 bg-[#24152F] text-[#F7F1E5] text-xs font-semibold rounded-lg hover:bg-[#180D20] transition-colors shadow-sm border border-[#3F2553] cursor-pointer flex items-center gap-1.5"
                   >
-                    Editar Dados
+                    <Edit3 className="w-3.5 h-3.5 text-[#DFFF5F]" />
+                    <span>Editar Dados</span>
                   </button>
                 </div>
 
-                <div className="p-5 rounded-2xl border border-[#24152F]/15 bg-[#FAF6EE] space-y-3">
-                  <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <span className="text-[10px] uppercase font-bold text-[#180D20] bg-[#DFFF5F] px-2 py-0.5 rounded">
-                          {event.type}
-                        </span>
-                        <span className="text-xs font-bold text-[#24152F]">Ativo (Recebendo RSVP)</span>
-                      </div>
-                      <h4 className="text-base font-bold text-[#24152F] mt-1">{event.name}</h4>
-                      <p className="text-xs text-[#24152F]/70 mt-0.5">
-                        {formatDateBR(event.date)} às {event.time} • {event.location}
-                      </p>
-                      <p className="text-xs text-[#24152F] font-medium mt-1">
-                        Confirmação até: <strong>{formatDateBR(event.rsvpDeadline)}</strong>
-                      </p>
-                    </div>
-
-                    <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
-                      <button
-                        onClick={onEditEvent}
-                        className="flex-1 sm:flex-initial text-center px-3.5 py-1.5 text-xs font-semibold text-[#24152F] bg-white border border-[#24152F]/20 rounded-lg hover:bg-[#F7F1E5] cursor-pointer"
-                      >
-                        Editar Informações
-                      </button>
-                      <button
-                        onClick={() => onNavigate('form-builder')}
-                        className="flex-1 sm:flex-initial text-center px-3.5 py-1.5 text-xs font-semibold bg-[#24152F] text-[#F7F1E5] rounded-lg hover:bg-[#180D20] cursor-pointer border border-[#3F2553]"
-                      >
-                        Editar Perguntas
-                      </button>
-                    </div>
-                  </div>
-
-                  {/* Public RSVP Link Box */}
-                  <div className="p-3 rounded-xl bg-white border border-[#24152F]/10 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 text-xs">
-                    <div className="flex items-center gap-2 min-w-0">
-                      <Globe className="w-3.5 h-3.5 text-[#24152F]/70 flex-shrink-0" />
-                      <span className="font-mono text-[11px] text-[#24152F]/70 truncate">
-                        {getEventRsvpUrl(event.id, event.slug)}
+                <div className="p-5 rounded-2xl border border-[#24152F]/15 bg-[#FAF6EE] space-y-4">
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-[10px] uppercase font-bold text-[#180D20] bg-[#DFFF5F] px-2 py-0.5 rounded">
+                        {event.type}
+                      </span>
+                      <span className="text-xs font-bold text-[#24152F]">
+                        {event.status === 'active' ? 'Ativo (Recebendo RSVP)' : event.status === 'draft' ? 'Rascunho' : 'Fechado'}
                       </span>
                     </div>
-                    <div className="flex items-center gap-2 flex-shrink-0">
-                      <button
-                        type="button"
-                        onClick={handleCopyEvent}
-                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#24152F] hover:bg-[#180D20] text-[#F7F1E5] text-xs font-semibold cursor-pointer border border-[#3F2553] transition-colors"
-                        title="Copiar Link RSVP"
-                      >
-                        {hasCopiedLink || localEventCopied ? (
-                          <Check className="w-3.5 h-3.5 text-[#DFFF5F]" />
-                        ) : (
-                          <Copy className="w-3.5 h-3.5 text-[#DFFF5F]" />
-                        )}
-                        <span>{hasCopiedLink || localEventCopied ? 'Copiado!' : 'Copiar Link'}</span>
-                      </button>
-                      <a
-                        href={getEventRsvpUrl(event.id, event.slug)}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-[#24152F]/20 text-[#24152F] hover:bg-[#F7F1E5] text-xs font-semibold cursor-pointer transition-colors"
-                        title="Abrir página pública do RSVP"
-                      >
-                        <ExternalLink className="w-3.5 h-3.5 text-[#24152F]" />
-                        <span>Abrir Link</span>
-                      </a>
-                      {onExitToMaster && (
-                        <button
-                          type="button"
-                          onClick={onExitToMaster}
-                          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-[#24152F]/15 text-[#24152F] hover:bg-[#F7F1E5] text-xs font-semibold cursor-pointer"
-                        >
-                          <LayoutGrid className="w-3.5 h-3.5 text-[#24152F]" />
-                          <span>Ver Todos</span>
-                        </button>
-                      )}
-                    </div>
+                    <h4 className="text-base sm:text-lg font-bold text-[#24152F] mt-1.5">{event.name}</h4>
+                    {event.clientName && (
+                      <p className="text-xs text-[#5C416E] font-medium mt-0.5">
+                        Cliente: <strong>{event.clientName}</strong>
+                      </p>
+                    )}
+                    {event.description && (
+                      <p className="text-xs text-[#24152F]/75 mt-2 leading-relaxed max-w-2xl">
+                        {event.description}
+                      </p>
+                    )}
                   </div>
 
-                  <div className="pt-3 border-t border-[#24152F]/10 grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs text-[#24152F]/70">
+                  <div className="pt-3 border-t border-[#24152F]/10 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5 text-xs text-[#24152F]/80">
                     <div>
-                      <span className="font-semibold text-[#24152F]">Endereço:</span> {event.address}
+                      <span className="font-semibold text-[#24152F] block">Data e Horário:</span>
+                      <div className="flex items-center gap-3 mt-0.5">
+                        <span className="flex items-center gap-1.5">
+                          <Calendar className="w-3.5 h-3.5 text-[#24152F]" />
+                          <strong className="text-[#24152F]">{formatDateBR(event.date)}</strong>
+                        </span>
+                        <span className="flex items-center gap-1.5">
+                          <Clock className="w-3.5 h-3.5 text-[#24152F]" />
+                          <span className="font-semibold text-[#24152F]">{event.time}</span>
+                        </span>
+                      </div>
                     </div>
+
                     <div>
-                      <span className="font-semibold text-[#24152F]">Acompanhantes:</span>{' '}
-                      {event.allowGuests ? `Permitido (Máx. ${event.maxGuestsPerInvite})` : 'Não'}
+                      <span className="font-semibold text-[#24152F] block">Prazo de Confirmação:</span>
+                      <span>Até {formatDateBR(event.rsvpDeadline)}</span>
                     </div>
+
+                    <div className="sm:col-span-2">
+                      <span className="font-semibold text-[#24152F] block">Local e Endereço:</span>
+                      <span>{event.location} • {event.address}</span>
+                    </div>
+
+                    {event.mapsUrl && (
+                      <div>
+                        <span className="font-semibold text-[#24152F] block">Google Maps:</span>
+                        <a
+                          href={event.mapsUrl}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="text-[#24152F] underline font-medium hover:text-[#5C416E]"
+                        >
+                          Abrir Localização
+                        </a>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* BLOCO 2 SEPARADO: Regras de Resposta do Evento */}
+                <div className="p-5 rounded-2xl border border-[#24152F]/15 bg-[#FAF6EE] dark:bg-[#2A1738]/50 space-y-4">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-[#24152F]/10 dark:border-[#3F2553]">
                     <div>
-                      <span className="font-semibold text-[#24152F]">Google Maps:</span>{' '}
-                      <a
-                        href={event.mapsUrl}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="text-[#24152F] underline font-medium"
+                      <h4 className="text-sm sm:text-base font-bold text-[#24152F] dark:text-[#F7F1E5] flex items-center gap-2">
+                        <ShieldCheck className="w-4 h-4 text-[#24152F] dark:text-[#DFFF5F]" />
+                        <span>Regras de Resposta do Evento</span>
+                      </h4>
+                      <p className="text-xs text-[#24152F]/70 dark:text-[#D2C4DC]/80 mt-0.5">
+                        Políticas e restrições aplicadas diretamente às respostas dos convidados no RSVP.
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={onEditEvent}
+                      className="self-start sm:self-auto px-3.5 py-1.5 rounded-xl border border-[#24152F]/15 bg-white dark:bg-[#1E1128] text-xs font-semibold text-[#24152F] dark:text-[#F7F1E5] hover:bg-[#FAF6EE] dark:hover:bg-[#24152F] cursor-pointer transition-colors shadow-2xs flex items-center gap-1.5"
+                    >
+                      <Edit3 className="w-3.5 h-3.5 text-[#24152F] dark:text-[#DFFF5F]" />
+                      <span>Configurar Regras</span>
+                    </button>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
+                    {/* Permitir alteração de resposta */}
+                    <div className="p-4 rounded-xl bg-white dark:bg-[#1E1128] border border-[#24152F]/10 dark:border-[#3F2553] shadow-2xs flex items-start justify-between gap-3">
+                      <div className="space-y-0.5">
+                        <span className="font-bold text-[#24152F] dark:text-[#F7F1E5] block">Permitir alteração de resposta</span>
+                        <span className="text-[11px] text-[#24152F]/70 dark:text-[#D2C4DC]/70 leading-relaxed block">
+                          Quando habilitada, o convidado poderá alterar sua resposta enviada no formulário.
+                        </span>
+                      </div>
+                      <span
+                        className={`text-[10px] font-bold px-2.5 py-0.5 rounded-full flex-shrink-0 ${
+                          (event.allowResponseEdit ?? true)
+                            ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300'
+                            : 'bg-rose-100 text-rose-800 dark:bg-rose-950/60 dark:text-rose-300'
+                        }`}
                       >
-                        Abrir Localização
-                      </a>
+                        {(event.allowResponseEdit ?? true) ? 'Habilitado' : 'Desabilitado'}
+                      </span>
+                    </div>
+
+                    {/* Impedir duplicidade de respostas */}
+                    <div className="p-4 rounded-xl bg-white dark:bg-[#1E1128] border border-[#24152F]/10 dark:border-[#3F2553] shadow-2xs flex items-start justify-between gap-3">
+                      <div className="space-y-0.5">
+                        <span className="font-bold text-[#24152F] dark:text-[#F7F1E5] block">Impedir duplicidade de respostas</span>
+                        <span className="text-[11px] text-[#24152F]/70 dark:text-[#D2C4DC]/70 leading-relaxed block">
+                          Evita que o mesmo convidado registre múltiplos envios e confirmações para o evento.
+                        </span>
+                      </div>
+                      <span
+                        className={`text-[10px] font-bold px-2.5 py-0.5 rounded-full flex-shrink-0 ${
+                          (event.preventDuplicateResponses ?? true)
+                            ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300'
+                            : 'bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300'
+                        }`}
+                      >
+                        {(event.preventDuplicateResponses ?? true) ? 'Ativo' : 'Inativo'}
+                      </span>
+                    </div>
+
+                    {/* Permitir acompanhantes */}
+                    <div className="p-4 rounded-xl bg-white dark:bg-[#1E1128] border border-[#24152F]/10 dark:border-[#3F2553] shadow-2xs flex items-start justify-between gap-3">
+                      <div className="space-y-0.5">
+                        <span className="font-bold text-[#24152F] dark:text-[#F7F1E5] block">Permitir acompanhantes</span>
+                        <span className="text-[11px] text-[#24152F]/70 dark:text-[#D2C4DC]/70 leading-relaxed block">
+                          Define se o convidado pode levar acompanhantes de acordo com o limite configurado.
+                        </span>
+                      </div>
+                      <span
+                        className={`text-[10px] font-bold px-2.5 py-0.5 rounded-full flex-shrink-0 ${
+                          event.allowGuests
+                            ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300'
+                            : 'bg-[#24152F]/10 text-[#24152F]/70 dark:bg-white/10 dark:text-[#D2C4DC]'
+                        }`}
+                      >
+                        {event.allowGuests ? 'Permitido' : 'Não permitido'}
+                      </span>
+                    </div>
+
+                    {/* Limite de acompanhantes por convite */}
+                    <div className="p-4 rounded-xl bg-white dark:bg-[#1E1128] border border-[#24152F]/10 dark:border-[#3F2553] shadow-2xs flex items-start justify-between gap-3">
+                      <div className="space-y-0.5">
+                        <span className="font-bold text-[#24152F] dark:text-[#F7F1E5] block">Limite por convite</span>
+                        <span className="text-[11px] text-[#24152F]/70 dark:text-[#D2C4DC]/70 leading-relaxed block">
+                          Número máximo de acompanhantes permitidos por convite titular.
+                        </span>
+                      </div>
+                      <span className="text-xs font-bold px-2.5 py-0.5 rounded-full bg-[#FAF6EE] dark:bg-[#2A1738] border border-[#24152F]/15 dark:border-[#3F2553] text-[#24152F] dark:text-[#F7F1E5] flex-shrink-0">
+                        {event.allowGuests ? `Até ${event.maxGuestsPerInvite || 1} pessoas` : 'Sem acompanhantes'}
+                      </span>
                     </div>
                   </div>
                 </div>
@@ -581,14 +707,19 @@ export const DashboardSkeleton: React.FC<DashboardSkeletonProps> = ({
                           )}
                         </div>
 
-                        <div className="flex items-center gap-2 flex-shrink-0">
-                          <span className="text-[10px] uppercase font-semibold text-[#24152F]/50 px-2 py-1 bg-gray-100 rounded">
-                            {q.type}
-                          </span>
+                        <div className="flex items-center gap-1.5 flex-shrink-0">
+                          <button
+                            type="button"
+                            onClick={() => onEditQuestion && onEditQuestion(q)}
+                            className="p-1.5 rounded-lg text-[#24152F]/70 hover:text-[#24152F] hover:bg-white transition-colors cursor-pointer border border-[#24152F]/10"
+                            title="Editar pergunta"
+                          >
+                            <Edit3 className="w-3.5 h-3.5" />
+                          </button>
                           {idx > 0 && (
                             <button
                               onClick={() => onDeleteQuestion(q.id)}
-                              className="p-1.5 rounded-lg text-[#24152F]/40 hover:text-rose-600 hover:bg-rose-50 transition-colors"
+                              className="p-1.5 rounded-lg text-[#24152F]/40 hover:text-rose-600 hover:bg-rose-50 transition-colors cursor-pointer"
                               title="Excluir pergunta"
                             >
                               <Trash2 className="w-3.5 h-3.5" />
@@ -707,14 +838,13 @@ export const DashboardSkeleton: React.FC<DashboardSkeletonProps> = ({
                         <th className="py-3 px-3">Grupo</th>
                         <th className="py-3 px-3">Status</th>
                         <th className="py-3 px-3">Acompanhantes</th>
-                        <th className="py-3 px-3">Telefone</th>
                         <th className="py-3 px-3.5 text-right">Ações Rápidas</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-[#24152F]/5 text-[#24152F]">
                       {filteredGuests.length === 0 ? (
                         <tr>
-                          <td colSpan={7} className="py-8 text-center text-[#24152F]/50 text-xs">
+                          <td colSpan={6} className="py-8 text-center text-[#24152F]/50 text-xs">
                             Nenhum convidado encontrado com os filtros aplicados.
                           </td>
                         </tr>
@@ -758,11 +888,8 @@ export const DashboardSkeleton: React.FC<DashboardSkeletonProps> = ({
                                   +{g.companionCount}
                                 </span>
                               ) : (
-                                <span className="text-[#24152F]/40">Cota: {g.maxGuests}</span>
+                                <span className="text-[#24152F]/40">{g.maxGuests}</span>
                               )}
-                            </td>
-                            <td className="py-3 px-3 text-[#24152F]/70 font-mono text-[11px]">
-                              {g.phone || '—'}
                             </td>
                             <td className="py-3 px-3.5 text-right">
                               <div className="flex items-center justify-end gap-1.5">
@@ -818,56 +945,131 @@ export const DashboardSkeleton: React.FC<DashboardSkeletonProps> = ({
             {/* SECTION: MANAGERS */}
             {currentSection === 'managers' && (
               <div className="space-y-4">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-[#24152F]/10">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-[#24152F]/10 dark:border-[#3F2553]">
                   <div>
-                    <h3 className="text-base font-bold text-[#24152F]">
-                      Responsáveis
+                    <h3 className="text-base font-bold text-[#24152F] dark:text-[#F7F1E5]">
+                      Responsáveis pelo Evento
                     </h3>
+                    <p className="text-xs text-[#24152F]/65 dark:text-[#D2C4DC]/70 mt-0.5">
+                      Gerencie as pessoas autorizadas a acessar o painel exclusivo do evento.
+                    </p>
                   </div>
                   <button
                     id="btn-add-manager"
                     onClick={onAddManager}
-                    className="w-full sm:w-auto text-center justify-center px-3.5 py-2 bg-[#24152F] hover:bg-[#180D20] text-[#F7F1E5] text-xs font-semibold rounded-xl sm:rounded-lg transition-colors shadow-sm border border-[#3F2553]"
+                    className="w-full sm:w-auto text-center justify-center px-3.5 py-2 bg-[#24152F] hover:bg-[#180D20] text-[#F7F1E5] text-xs font-semibold rounded-xl sm:rounded-lg transition-colors shadow-sm border border-[#3F2553] cursor-pointer"
                   >
                     + Adicionar Responsável
                   </button>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {managers.map((m) => (
-                    <div
-                      key={m.id}
-                      className="p-4 rounded-xl border border-[#24152F]/10 bg-white space-y-3"
-                    >
-                      <div className="flex items-start justify-between">
-                        <div>
-                          <h4 className="text-sm font-bold text-[#24152F]">{m.name}</h4>
-                          <p className="text-xs text-[#24152F]/60 mt-0.5">{m.email}</p>
-                        </div>
-                        <span
-                          className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
-                            m.status === 'active'
-                              ? 'bg-[#DFFF5F] text-[#180D20]'
-                              : 'bg-gray-100 text-gray-500'
-                          }`}
-                        >
-                          {m.status === 'active' ? 'Acesso Ativo' : 'Inativo'}
-                        </span>
-                      </div>
-
-                      <div className="p-2.5 rounded-lg bg-[#FAF6EE] border border-[#24152F]/10 text-xs space-y-1">
-                        <p className="font-semibold text-[#24152F] text-[11px] flex items-center gap-1">
-                          <Clock className="w-3.5 h-3.5 text-[#24152F]" /> Janela Temporal de Consulta:
-                        </p>
-                        <p className="text-[#24152F]/80">
-                          De <strong>{formatDateBR(m.accessStart)}</strong> até <strong>{formatDateBR(m.accessEnd)}</strong>
-                        </p>
-                        <p className="text-[10px] text-[#24152F]/50">
-                          (Independe da data de confirmação que se encerra em {formatDateBR(event.rsvpDeadline)})
-                        </p>
-                      </div>
+                  {managers.length === 0 ? (
+                    <div className="col-span-1 md:col-span-2 p-8 text-center text-xs text-[#24152F]/60 bg-[#FAF6EE] dark:bg-[#1E1128] rounded-xl border border-[#24152F]/10 dark:border-[#3F2553]">
+                      Nenhum responsável cadastrado neste evento ainda.
                     </div>
-                  ))}
+                  ) : (
+                    managers.map((m) => (
+                      <div
+                        key={m.id}
+                        className="p-4 rounded-xl border border-[#24152F]/10 dark:border-[#3F2553] bg-white dark:bg-[#1E1128] space-y-3 shadow-xs"
+                      >
+                        <div className="flex items-start justify-between">
+                          <div>
+                            <h4 className="text-sm font-bold text-[#24152F] dark:text-[#F7F1E5]">{m.name}</h4>
+                            <p className="text-xs text-[#24152F]/60 dark:text-[#D2C4DC]/70 mt-0.5">{m.email}</p>
+                          </div>
+                          <span
+                            className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                              m.status === 'active'
+                                ? 'bg-[#DFFF5F] text-[#180D20]'
+                                : 'bg-gray-100 dark:bg-white/10 text-gray-500 dark:text-gray-400'
+                            }`}
+                          >
+                            {m.status === 'active' ? 'Acesso Ativo' : 'Inativo'}
+                          </span>
+                        </div>
+
+                        {/* Informação de Acesso: Disponível até (data) dinâmica */}
+                        <div className="p-3 rounded-xl bg-[#FAF6EE] dark:bg-[#2A1738]/50 border border-[#24152F]/10 dark:border-[#3F2553] flex items-center gap-3">
+                          <div className="w-7 h-7 rounded-lg bg-white dark:bg-[#1E1128] border border-[#24152F]/10 dark:border-[#3F2553] flex items-center justify-center flex-shrink-0 shadow-2xs">
+                            <Clock className="w-3.5 h-3.5 text-[#24152F] dark:text-[#DFFF5F]" />
+                          </div>
+                          <div className="min-w-0">
+                            <p className="text-xs font-bold text-[#24152F] dark:text-[#F7F1E5]">
+                              Disponível até {formatDateBR(m.accessEnd)}
+                            </p>
+                            <p className="text-[11px] text-[#24152F]/70 dark:text-[#D2C4DC]/70 italic mt-0.5">
+                              O acesso inicia no cadastro e encerra na data definida.
+                            </p>
+                          </div>
+                        </div>
+
+                        {/* Ações de Gestão do Responsável: WhatsApp e Menu Ações */}
+                        <div className="flex items-center justify-end gap-2 pt-2 border-t border-[#24152F]/10 dark:border-[#3F2553]">
+                          {/* Botão WhatsApp com o nome 'WhatsApp' */}
+                          <button
+                            type="button"
+                            id={`btn-manager-whatsapp-${m.id}`}
+                            onClick={() => setSelectedManagerForWhatsApp(m)}
+                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold border border-emerald-700 transition-all shadow-2xs hover:shadow-xs active:scale-95 cursor-pointer"
+                            title="Enviar mensagem WhatsApp"
+                            aria-label="WhatsApp"
+                          >
+                            <WhatsAppIcon className="w-3.5 h-3.5" />
+                            <span>WhatsApp</span>
+                          </button>
+
+                          {/* Botão Ações com Ícone e Menu Centralizado */}
+                          <div className="relative" ref={openManagerActionId === m.id ? managerActionRef : undefined}>
+                            <button
+                              type="button"
+                              id={`btn-manager-actions-${m.id}`}
+                              onClick={() => setOpenManagerActionId(openManagerActionId === m.id ? null : m.id)}
+                              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-white dark:bg-[#24152F] border border-[#24152F]/15 dark:border-[#3F2553] hover:bg-[#FAF6EE] dark:hover:bg-[#2E1B3C] text-[#24152F] dark:text-[#F7F1E5] transition-colors cursor-pointer shadow-2xs active:scale-98 ${
+                                openManagerActionId === m.id ? 'ring-2 ring-[#24152F]/20 dark:ring-[#DFFF5F]/30 bg-[#FAF6EE] dark:bg-[#2E1B3C]' : ''
+                              }`}
+                              title="Opções do responsável"
+                            >
+                              <MoreHorizontal className="w-3.5 h-3.5" />
+                              <span>Ações</span>
+                              <ChevronDown className={`w-3 h-3 transition-transform ${openManagerActionId === m.id ? 'rotate-180' : ''}`} />
+                            </button>
+
+                            {/* Dropdown com Editar e Remover */}
+                            {openManagerActionId === m.id && (
+                              <div className="absolute right-0 bottom-full mb-1.5 w-36 rounded-xl bg-white dark:bg-[#1E1128] border border-[#24152F]/15 dark:border-[#3F2553] shadow-xl py-1 z-30 animate-in fade-in zoom-in-95 duration-100">
+                                <button
+                                  type="button"
+                                  id={`btn-manager-edit-${m.id}`}
+                                  onClick={() => {
+                                    setOpenManagerActionId(null);
+                                    onEditManager && onEditManager(m);
+                                  }}
+                                  className="w-full text-left px-3 py-2 text-xs font-medium text-[#24152F] dark:text-[#F7F1E5] hover:bg-[#FAF6EE] dark:hover:bg-[#2A1738] flex items-center gap-2 cursor-pointer transition-colors"
+                                >
+                                  <Edit3 className="w-3.5 h-3.5 text-[#24152F] dark:text-[#DFFF5F]" />
+                                  <span>Editar</span>
+                                </button>
+                                <button
+                                  type="button"
+                                  id={`btn-manager-delete-${m.id}`}
+                                  onClick={() => {
+                                    setOpenManagerActionId(null);
+                                    setManagerToDelete(m);
+                                  }}
+                                  className="w-full text-left px-3 py-2 text-xs font-medium text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 flex items-center gap-2 cursor-pointer transition-colors border-t border-[#24152F]/5 dark:border-[#3F2553]/50"
+                                >
+                                  <Trash2 className="w-3.5 h-3.5 text-rose-600 dark:text-rose-400" />
+                                  <span>Remover</span>
+                                </button>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    ))
+                  )}
                 </div>
               </div>
             )}
@@ -939,49 +1141,327 @@ export const DashboardSkeleton: React.FC<DashboardSkeletonProps> = ({
               </div>
             )}
 
-            {/* SECTION: SETTINGS */}
+            {/* SECTION: SETTINGS (Itens 3, 4 e 8) */}
             {currentSection === 'settings' && (
-              <div className="space-y-4">
+              <div className="space-y-6">
                 <div className="pb-3 border-b border-[#24152F]/10">
                   <h3 className="text-base font-bold text-[#24152F]">
                     Configurações
                   </h3>
+                  <p className="text-xs text-[#24152F]/60 mt-0.5">
+                    Paleta institucional e identidade visual aplicada neste evento.
+                  </p>
                 </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
-                  <div className="p-4 rounded-xl border border-[#24152F]/10 bg-white space-y-2">
-                    <p className="font-bold text-[#24152F]">Paleta Institucional Rafluo</p>
-                    <div className="flex items-center gap-3 mt-2">
-                      <div className="flex items-center gap-1.5">
-                        <span className="w-5 h-5 rounded-md bg-[#24152F] border border-black/10 inline-block shadow-2xs" />
-                        <span className="font-mono text-[10px] text-[#24152F]">#24152F</span>
-                      </div>
-                      <div className="flex items-center gap-1.5">
-                        <span className="w-5 h-5 rounded-md bg-[#F7F1E5] border border-[#EDE4D3] inline-block shadow-2xs" />
-                        <span className="font-mono text-[10px] text-[#24152F]">#F7F1E5</span>
-                      </div>
-                      <div className="flex items-center gap-1.5">
-                        <span className="w-5 h-5 rounded-md bg-[#DFFF5F] border border-black/10 inline-block shadow-2xs" />
-                        <span className="font-mono text-[10px] text-[#24152F]">#DFFF5F</span>
-                      </div>
+
+                {/* Paleta Institucional do Evento (Itens 3 e 4) - Realmente editável */}
+                <div className="p-5 sm:p-6 rounded-2xl border border-[#24152F]/10 bg-white space-y-5 shadow-xs">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-[#24152F]/10">
+                    <div>
+                      <h4 className="font-bold text-sm sm:text-base text-[#24152F]">
+                        Paleta Institucional do Evento
+                      </h4>
+                      <p className="text-xs text-[#24152F]/70">
+                        Essa paleta será aplicada ao formulário de confirmação de presença e ao painel do responsável pelo evento.
+                      </p>
                     </div>
-                    <p className="text-[11px] text-[#24152F]/60 pt-1">
-                      Roxo Escuro (#24152F) • Bege (#F7F1E5) • Verde Neon (#DFFF5F)
-                    </p>
+                    <div className="w-8 h-8 rounded-xl bg-[#24152F]/10 text-[#24152F] flex items-center justify-center flex-shrink-0">
+                      <Palette className="w-4 h-4" />
+                    </div>
                   </div>
 
-                  <div className="p-4 rounded-xl border border-[#24152F]/10 bg-white space-y-1">
-                    <p className="font-bold text-[#24152F]">Rafluo</p>
-                    <p className="text-[#24152F]/70">Gestão inteligente de confirmações.</p>
-                    <p className="text-[11px] text-[#24152F]/60 pt-2 font-medium">
-                      Desenvolvido com carinho por{' '}
-                      <span className="text-[#24152F] font-bold">Beaquos Estúdio Criativo</span>
+                  {/* Card Preview em tempo real */}
+                  <div
+                    className="p-5 rounded-2xl border border-[#24152F]/15 space-y-3 transition-colors"
+                    style={{ backgroundColor: eventPalette.background }}
+                  >
+                    <div className="flex items-center justify-between">
+                      <span
+                        className="font-bold text-xs sm:text-sm"
+                        style={{ color: eventPalette.primary }}
+                      >
+                        Visual do Convite — {event.name}
+                      </span>
+                      <span
+                        className="text-[10px] font-bold px-2.5 py-0.5 rounded-full"
+                        style={{
+                          backgroundColor: eventPalette.accent,
+                          color: eventPalette.primary,
+                        }}
+                      >
+                        Paleta Ativa
+                      </span>
+                    </div>
+
+                    <p
+                      className="text-xs"
+                      style={{ color: `${eventPalette.primary}CC` }}
+                    >
+                      Cores personalizadas que seus convidados verão ao abrir o link do RSVP.
                     </p>
+
+                    <div className="pt-2 flex items-center gap-3">
+                      <div
+                        className="px-4 py-2 rounded-xl text-xs font-bold shadow-xs flex items-center gap-2"
+                        style={{
+                          backgroundColor: eventPalette.primary,
+                          color: eventPalette.background,
+                        }}
+                      >
+                        <span
+                          className="w-2 h-2 rounded-full"
+                          style={{ backgroundColor: eventPalette.accent }}
+                        />
+                        Confirmar Presença
+                      </div>
+
+                      <div
+                        className="px-3 py-1.5 rounded-xl text-xs font-bold border"
+                        style={{
+                          borderColor: `${eventPalette.secondary}60`,
+                          color: eventPalette.secondary,
+                          backgroundColor: 'rgba(255,255,255,0.7)',
+                        }}
+                      >
+                        Secundária
+                      </div>
+                    </div>
                   </div>
+
+                  {/* 4 Inputs de Edição das Cores */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
+                    {/* 1. Primária */}
+                    <div className="p-3.5 rounded-xl bg-[#FAF6EE]/50 border border-[#24152F]/10 space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[10px] font-bold uppercase tracking-wider text-[#24152F]/50">
+                          Primária
+                        </span>
+                        <span
+                          className="w-6 h-6 rounded-lg border border-black/10 shadow-xs inline-block"
+                          style={{ backgroundColor: eventPalette.primary }}
+                        />
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="color"
+                          value={eventPalette.primary}
+                          onChange={(e) =>
+                            setEventPalette({ ...eventPalette, primary: e.target.value })
+                          }
+                          className="w-8 h-8 rounded-lg cursor-pointer border-0 p-0 bg-transparent"
+                          title="Escolher cor"
+                        />
+                        <input
+                          type="text"
+                          value={eventPalette.primary}
+                          onChange={(e) =>
+                            setEventPalette({ ...eventPalette, primary: e.target.value })
+                          }
+                          className="w-full px-2.5 py-1.5 text-xs font-mono font-bold rounded-lg border border-[#24152F]/15 bg-white text-[#24152F] uppercase"
+                        />
+                      </div>
+                    </div>
+
+                    {/* 2. Fundo */}
+                    <div className="p-3.5 rounded-xl bg-[#FAF6EE]/50 border border-[#24152F]/10 space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[10px] font-bold uppercase tracking-wider text-[#24152F]/50">
+                          Fundo
+                        </span>
+                        <span
+                          className="w-6 h-6 rounded-lg border border-black/10 shadow-xs inline-block"
+                          style={{ backgroundColor: eventPalette.background }}
+                        />
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="color"
+                          value={eventPalette.background}
+                          onChange={(e) =>
+                            setEventPalette({ ...eventPalette, background: e.target.value })
+                          }
+                          className="w-8 h-8 rounded-lg cursor-pointer border-0 p-0 bg-transparent"
+                          title="Escolher cor"
+                        />
+                        <input
+                          type="text"
+                          value={eventPalette.background}
+                          onChange={(e) =>
+                            setEventPalette({ ...eventPalette, background: e.target.value })
+                          }
+                          className="w-full px-2.5 py-1.5 text-xs font-mono font-bold rounded-lg border border-[#24152F]/15 bg-white text-[#24152F] uppercase"
+                        />
+                      </div>
+                    </div>
+
+                    {/* 3. Destaque */}
+                    <div className="p-3.5 rounded-xl bg-[#FAF6EE]/50 border border-[#24152F]/10 space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[10px] font-bold uppercase tracking-wider text-[#24152F]/50">
+                          Destaque
+                        </span>
+                        <span
+                          className="w-6 h-6 rounded-lg border border-black/10 shadow-xs inline-block"
+                          style={{ backgroundColor: eventPalette.accent }}
+                        />
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="color"
+                          value={eventPalette.accent}
+                          onChange={(e) =>
+                            setEventPalette({ ...eventPalette, accent: e.target.value })
+                          }
+                          className="w-8 h-8 rounded-lg cursor-pointer border-0 p-0 bg-transparent"
+                          title="Escolher cor"
+                        />
+                        <input
+                          type="text"
+                          value={eventPalette.accent}
+                          onChange={(e) =>
+                            setEventPalette({ ...eventPalette, accent: e.target.value })
+                          }
+                          className="w-full px-2.5 py-1.5 text-xs font-mono font-bold rounded-lg border border-[#24152F]/15 bg-white text-[#24152F] uppercase"
+                        />
+                      </div>
+                    </div>
+
+                    {/* 4. Secundária */}
+                    <div className="p-3.5 rounded-xl bg-[#FAF6EE]/50 border border-[#24152F]/10 space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[10px] font-bold uppercase tracking-wider text-[#24152F]/50">
+                          Secundária
+                        </span>
+                        <span
+                          className="w-6 h-6 rounded-lg border border-black/10 shadow-xs inline-block"
+                          style={{ backgroundColor: eventPalette.secondary }}
+                        />
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="color"
+                          value={eventPalette.secondary}
+                          onChange={(e) =>
+                            setEventPalette({ ...eventPalette, secondary: e.target.value })
+                          }
+                          className="w-8 h-8 rounded-lg cursor-pointer border-0 p-0 bg-transparent"
+                          title="Escolher cor"
+                        />
+                        <input
+                          type="text"
+                          value={eventPalette.secondary}
+                          onChange={(e) =>
+                            setEventPalette({ ...eventPalette, secondary: e.target.value })
+                          }
+                          className="w-full px-2.5 py-1.5 text-xs font-mono font-bold rounded-lg border border-[#24152F]/15 bg-white text-[#24152F] uppercase"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Ações da Paleta: Restaurar e Salvar (Item 4: strictly "Salvar") */}
+                  <div className="pt-2 flex flex-wrap items-center justify-between gap-3 border-t border-[#24152F]/10">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setEventPalette({
+                          primary: '#24152F',
+                          background: '#FAF6EE',
+                          accent: '#DFFF5F',
+                          secondary: '#D25B34',
+                        });
+                        if (onShowToast) onShowToast('Paleta restaurada para os padrões oficiais.');
+                      }}
+                      className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl border border-[#24152F]/15 text-[#24152F]/70 text-xs font-semibold hover:bg-[#FAF6EE] cursor-pointer transition-colors"
+                    >
+                      <RotateCcw className="w-3.5 h-3.5" />
+                      <span>Restaurar Padrão</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        event.colors = eventPalette;
+                        if (onShowToast) onShowToast('Paleta do evento salva com sucesso!');
+                      }}
+                      className="flex items-center gap-2 px-6 py-2.5 rounded-xl bg-[#24152F] text-[#F7F1E5] text-xs font-bold hover:bg-[#180D20] transition-colors cursor-pointer shadow-sm"
+                    >
+                      <Check className="w-4 h-4" />
+                      <span>Salvar</span>
+                    </button>
+                  </div>
+                </div>
+
+                <div className="p-4 rounded-xl border border-[#24152F]/10 dark:border-[#3F2553] bg-white dark:bg-[#1E1128] space-y-1">
+                  <p className="font-bold text-[#24152F] dark:text-[#F7F1E5]">Rafluo</p>
+                  <p className="text-[#24152F]/70 dark:text-[#D2C4DC]/80 text-xs">Gestão inteligente de confirmações.</p>
+                  <p className="text-[11px] text-[#24152F]/60 dark:text-[#D2C4DC] pt-2 font-medium">
+                    Desenvolvido com carinho por{' '}
+                    <span className="text-[#24152F] dark:text-[#D2C4DC] font-bold">Beaquos Estúdio Criativo</span>
+                  </p>
                 </div>
               </div>
             )}
           </div>
         </div>
+      )}
+
+      {/* Modal de Confirmação para Remover Responsável */}
+      {managerToDelete && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#24152F]/70 backdrop-blur-xs animate-in fade-in duration-150"
+        >
+          <div className="w-full max-w-md bg-white dark:bg-[#1E1128] rounded-2xl border border-[#24152F]/15 dark:border-[#3F2553] p-6 shadow-2xl space-y-4">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-full bg-rose-100 dark:bg-rose-950/60 text-rose-700 dark:text-rose-300 flex items-center justify-center flex-shrink-0">
+                <Trash2 className="w-5 h-5 text-rose-600 dark:text-rose-400" />
+              </div>
+              <div>
+                <h3 className="text-base font-bold text-[#24152F] dark:text-[#F7F1E5]">Remover responsável?</h3>
+                <p className="text-xs text-[#24152F]/60 dark:text-[#D2C4DC]/70 mt-0.5 font-medium">
+                  {managerToDelete.name}
+                </p>
+              </div>
+            </div>
+
+            <p className="text-xs text-[#24152F]/80 dark:text-[#D2C4DC] leading-relaxed">
+              Tem certeza de que deseja remover este responsável? Essa ação não poderá ser desfeita.
+            </p>
+
+            <div className="flex items-center justify-end gap-2.5 pt-2">
+              <button
+                type="button"
+                onClick={() => setManagerToDelete(null)}
+                className="px-4 py-2 rounded-xl text-xs font-semibold bg-white dark:bg-[#24152F] border border-[#24152F]/15 dark:border-[#3F2553] text-[#24152F] dark:text-[#F7F1E5] hover:bg-[#FAF6EE] dark:hover:bg-[#2E1B3C] transition-colors cursor-pointer"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  if (onDeleteManager) {
+                    onDeleteManager(managerToDelete.id);
+                  }
+                  setManagerToDelete(null);
+                }}
+                className="px-4 py-2 rounded-xl text-xs font-bold bg-rose-600 hover:bg-rose-700 text-white transition-colors cursor-pointer shadow-sm"
+              >
+                Remover
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal WhatsApp para Responsável - Reutilização do componente oficial */}
+      {selectedManagerForWhatsApp && (
+        <WhatsAppModal
+          isOpen={!!selectedManagerForWhatsApp}
+          onClose={() => setSelectedManagerForWhatsApp(null)}
+          manager={selectedManagerForWhatsApp}
+          event={event}
+        />
       )}
     </div>
   );

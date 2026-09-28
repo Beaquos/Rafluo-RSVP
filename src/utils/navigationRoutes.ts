@@ -8,8 +8,10 @@ import { EventData, GuestData } from '../data/mockData';
 export const HUB_ROUTES: Record<HubSection, string> = {
   dashboard: '/dashboard',
   events: '/eventos',
+  clients: '/clientes',
   reports: '/relatorios',
   users: '/usuarios',
+  settings: '/configuracoes',
 };
 
 export const getHubPath = (section: HubSection): string => {
@@ -20,8 +22,10 @@ export const parseHubPath = (pathname: string): HubSection | null => {
   const clean = pathname.replace(/\/+$/, '').toLowerCase();
   if (clean === '' || clean === '/' || clean === '/dashboard') return 'dashboard';
   if (clean === '/eventos') return 'events';
+  if (clean === '/clientes') return 'clients';
   if (clean === '/relatorios') return 'reports';
   if (clean === '/usuarios') return 'users';
+  if (clean === '/configuracoes' || clean === '/configuracao') return 'settings';
   return null;
 };
 

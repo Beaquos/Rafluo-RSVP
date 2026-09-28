@@ -7,6 +7,7 @@ interface QuestionModalProps {
   onClose: () => void;
   onSave: (newQuestion: FormQuestionData) => void;
   existingQuestions: FormQuestionData[];
+  question?: FormQuestionData | null;
 }
 
 export const QuestionModal: React.FC<QuestionModalProps> = ({
@@ -14,6 +15,7 @@ export const QuestionModal: React.FC<QuestionModalProps> = ({
   onClose,
   onSave,
   existingQuestions,
+  question,
 }) => {
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
@@ -24,19 +26,30 @@ export const QuestionModal: React.FC<QuestionModalProps> = ({
   const [conditionTarget, setConditionTarget] = useState(existingQuestions[0]?.id || '');
   const [conditionValue, setConditionValue] = useState('sim');
 
-  // Reset fields when opening
+  // Reset or load fields when opening
   useEffect(() => {
     if (isOpen) {
-      setTitle('');
-      setDescription('');
-      setType('short_text');
-      setRequired(true);
-      setOptionsText('Opção 1\nOpção 2\nOpção 3');
-      setHasCondition(false);
-      setConditionTarget(existingQuestions[0]?.id || '');
-      setConditionValue('sim');
+      if (question) {
+        setTitle(question.title);
+        setDescription(question.description || '');
+        setType(question.type);
+        setRequired(question.required);
+        setOptionsText(question.options?.join('\n') || 'Opção 1\nOpção 2\nOpção 3');
+        setHasCondition(!!question.condition);
+        setConditionTarget(question.condition?.targetQuestionId || existingQuestions[0]?.id || '');
+        setConditionValue(question.condition?.value || 'sim');
+      } else {
+        setTitle('');
+        setDescription('');
+        setType('short_text');
+        setRequired(true);
+        setOptionsText('Opção 1\nOpção 2\nOpção 3');
+        setHasCondition(false);
+        setConditionTarget(existingQuestions[0]?.id || '');
+        setConditionValue('sim');
+      }
     }
-  }, [isOpen, existingQuestions]);
+  }, [isOpen, existingQuestions, question]);
 
   // Handle ESC key to close
   useEffect(() => {
@@ -58,15 +71,15 @@ export const QuestionModal: React.FC<QuestionModalProps> = ({
       ? optionsText.split('\n').map((o) => o.trim()).filter(Boolean)
       : undefined;
 
-    const newQ: FormQuestionData = {
-      id: 'q_' + Date.now(),
-      eventId: 'ev-01',
+    const savedQ: FormQuestionData = {
+      id: question ? question.id : 'q_' + Date.now(),
+      eventId: question ? question.eventId : 'ev-01',
       title,
       description,
       type,
       required,
       options,
-      order: existingQuestions.length + 1,
+      order: question ? question.order : existingQuestions.length + 1,
       condition: hasCondition
         ? {
             targetQuestionId: conditionTarget,
@@ -76,7 +89,7 @@ export const QuestionModal: React.FC<QuestionModalProps> = ({
         : undefined,
     };
 
-    onSave(newQ);
+    onSave(savedQ);
     onClose();
   };
 
@@ -96,10 +109,12 @@ export const QuestionModal: React.FC<QuestionModalProps> = ({
         <div className="px-4 sm:px-6 py-3.5 sm:py-4 bg-[#24152F] text-[#F7F1E5] flex items-center justify-between border-b border-[#3F2553] flex-shrink-0">
           <div className="flex items-center space-x-2.5 min-w-0 pr-2">
             <div className="w-8 h-8 rounded-lg bg-[#DFFF5F] text-[#180D20] flex items-center justify-center flex-shrink-0">
-              <Plus className="w-4 h-4 text-[#180D20]" />
+              {question ? <Check className="w-4 h-4 text-[#180D20]" /> : <Plus className="w-4 h-4 text-[#180D20]" />}
             </div>
             <div className="min-w-0">
-              <h3 className="font-bold text-sm sm:text-base text-[#F7F1E5] truncate">Nova Pergunta RSVP</h3>
+              <h3 className="font-bold text-sm sm:text-base text-[#F7F1E5] truncate">
+                {question ? 'Editar Pergunta' : 'Nova Pergunta RSVP'}
+              </h3>
               <p className="text-[10px] sm:text-[11px] text-[#D2C4DC] truncate">Personalize perguntas e regras condicionais</p>
             </div>
           </div>
@@ -138,33 +153,17 @@ export const QuestionModal: React.FC<QuestionModalProps> = ({
             />
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div>
-              <label className="block font-semibold mb-1 text-[#24152F]">Tipo de Resposta</label>
-              <select
-                value={type}
-                onChange={(e) => setType(e.target.value as any)}
-                className="w-full px-3 py-2 rounded-lg border border-[#24152F]/20 bg-[#FAF6EE] focus:outline-none focus:ring-1 focus:ring-[#24152F]"
-              >
-                <option value="short_text">Texto Curto</option>
-                <option value="long_text">Texto Longo</option>
-                <option value="single_choice">Escolha Única (Sim / Não)</option>
-                <option value="multiple_choice">Múltipla Escolha</option>
-                <option value="dropdown">Lista Suspensa</option>
-              </select>
-            </div>
-
-            <div className="flex items-center pt-5">
-              <label className="flex items-center gap-2 cursor-pointer text-[#24152F]">
-                <input
-                  type="checkbox"
-                  checked={required}
-                  onChange={(e) => setRequired(e.target.checked)}
-                  className="w-4 h-4 accent-[#24152F]"
-                />
-                <span className="font-semibold">Resposta Obrigatória</span>
-              </label>
-            </div>
+          {/* Item 12: Remover da tela a informação/seção Tipo de Resposta mantendo a edição do formulário */}
+          <div className="pt-1">
+            <label className="flex items-center gap-2 cursor-pointer text-[#24152F]">
+              <input
+                type="checkbox"
+                checked={required}
+                onChange={(e) => setRequired(e.target.checked)}
+                className="w-4 h-4 accent-[#24152F]"
+              />
+              <span className="font-semibold">Resposta Obrigatória</span>
+            </label>
           </div>
 
           {['single_choice', 'multiple_choice', 'dropdown'].includes(type) && (

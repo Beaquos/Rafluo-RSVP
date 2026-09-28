@@ -38,11 +38,17 @@ const HUB_TITLES: Record<HubSection, { title: string }> = {
   events: {
     title: 'Eventos',
   },
+  clients: {
+    title: 'Clientes',
+  },
   reports: {
     title: 'Relatórios',
   },
   users: {
     title: 'Usuários',
+  },
+  settings: {
+    title: 'Configurações',
   },
 };
 
@@ -51,7 +57,7 @@ const EVENT_SECTION_TITLES: Record<NavSection, { title: string }> = {
     title: 'Dashboard',
   },
   events: {
-    title: 'Dados',
+    title: 'Dados do Evento',
   },
   'form-builder': {
     title: 'Formulários',
@@ -111,66 +117,45 @@ export const AdminHeader: React.FC<AdminHeaderProps> = ({
       id="admin-top-header"
       className="sticky top-0 z-30 bg-[#FAF6EE]/95 dark:bg-[#180D20]/95 backdrop-blur-md border-b border-[#24152F]/10 dark:border-[#3F2553]/60 px-4 sm:px-6 py-3 transition-colors"
     >
-      <div className="flex items-center justify-between gap-3 sm:gap-4">
+      <div className="flex items-center justify-between gap-2 sm:gap-4 relative">
         {/* Left Side: Mobile Menu Button + Navigation / Breadcrumb Context */}
-        <div className="flex items-center space-x-3 min-w-0">
+        <div className="flex items-center space-x-2 sm:space-x-3 min-w-0 flex-1 relative z-20">
           <button
             type="button"
             id="btn-open-sidebar-mobile"
             onClick={onOpenMobileMenu}
-            className="lg:hidden p-2 rounded-xl bg-white dark:bg-[#24152F] border border-[#24152F]/15 dark:border-[#3F2553] text-[#24152F] dark:text-[#F7F1E5] shadow-2xs hover:bg-[#FAF6EE] dark:hover:bg-[#2E1B3C] transition-colors cursor-pointer"
+            className="lg:hidden p-2 rounded-xl bg-white dark:bg-[#24152F] border border-[#24152F]/15 dark:border-[#3F2553] text-[#24152F] dark:text-[#F7F1E5] shadow-2xs hover:bg-[#FAF6EE] dark:hover:bg-[#2E1B3C] transition-colors cursor-pointer flex-shrink-0"
             aria-label="Abrir navegação"
           >
             <Menu className="w-5 h-5" />
           </button>
 
-          <div className="min-w-0">
-            {isMasterView ? (
-              /* Hub View Header - Apenas o nome principal do menu, sem subtítulo */
-              <div className="flex items-center">
-                <h1 className="text-base sm:text-lg font-bold text-[#24152F] dark:text-[#F7F1E5] tracking-tight">
-                  {hubMeta.title}
-                </h1>
-              </div>
-            ) : (
+          <div className="min-w-0 flex-1">
+            {!isMasterView && (
               /* Inside Specific Event Header - Mantém apenas o título do evento como identificação */
-              <div className="flex items-center">
-                {/* Event Selector Dropdown */}
-                <div className="relative" ref={eventDropdownRef}>
+              <div className="flex items-center min-w-0">
+                {/* Event Selector Dropdown (Item 13: responsividade mobile corrigida) */}
+                <div className="relative min-w-0" ref={eventDropdownRef}>
                   <button
                     type="button"
                     id="btn-event-switcher-header"
                     onClick={() => setIsEventDropdownOpen(!isEventDropdownOpen)}
-                    className="flex items-center gap-1.5 text-base sm:text-lg font-bold text-[#24152F] dark:text-[#F7F1E5] tracking-tight hover:text-[#3F2553] dark:hover:text-[#DFFF5F] transition-colors cursor-pointer text-left"
+                    className="flex items-center gap-1.5 text-sm sm:text-lg font-bold text-[#24152F] dark:text-[#F7F1E5] tracking-tight hover:text-[#3F2553] dark:hover:text-[#DFFF5F] transition-colors cursor-pointer text-left min-w-0 max-w-full"
                     title="Alternar evento"
                   >
-                    <span className="truncate max-w-[180px] sm:max-w-xs md:max-w-md">
+                    <span className="truncate max-w-[130px] min-[390px]:max-w-[170px] sm:max-w-xs md:max-w-md block">
                       {activeEvent?.name || eventMeta.title}
                     </span>
-                    <ChevronDown className="w-4 h-4 text-[#24152F]/60 dark:text-[#D2C4DC]/60" />
+                    <ChevronDown className="w-4 h-4 text-[#24152F]/60 dark:text-[#D2C4DC]/60 flex-shrink-0" />
                   </button>
 
                   {isEventDropdownOpen && (
-                    <div className="absolute left-0 mt-2 w-72 sm:w-80 max-w-[calc(100vw-2rem)] rounded-2xl bg-white dark:bg-[#1E1128] border border-[#24152F]/15 dark:border-[#3F2553] shadow-xl py-2 z-50">
-                      {onExitToMaster && (
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setIsEventDropdownOpen(false);
-                            onExitToMaster();
-                          }}
-                          className="w-full text-left px-4 py-2.5 text-xs font-bold text-[#24152F] dark:text-[#F7F1E5] hover:bg-[#FAF6EE] dark:hover:bg-[#2E1B3C] flex items-center gap-2 border-b border-[#24152F]/10 dark:border-[#3F2553]/60 cursor-pointer"
-                        >
-                          <ArrowLeft className="w-3.5 h-3.5 text-[#24152F] dark:text-[#DFFF5F]" />
-                          <span>Voltar ao Hub Geral</span>
-                        </button>
-                      )}
-
-                      <div className="px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-[#24152F]/40 dark:text-[#D2C4DC]/50">
+                    <div className="fixed inset-x-3 top-16 sm:inset-x-auto sm:absolute sm:left-0 sm:top-full sm:mt-2 sm:w-80 rounded-2xl bg-white dark:bg-[#1E1128] border border-[#24152F]/15 dark:border-[#3F2553] shadow-2xl py-2 z-50 animate-in fade-in zoom-in-95 duration-100">
+                      <div className="px-3.5 py-1.5 text-[10px] font-bold uppercase tracking-wider text-[#24152F]/50 dark:text-[#D2C4DC]/60">
                         Trocar para outro Evento:
                       </div>
 
-                      <div className="max-h-60 overflow-y-auto divide-y divide-[#24152F]/5 dark:divide-[#3F2553]/40">
+                      <div className="max-h-64 overflow-y-auto divide-y divide-[#24152F]/5 dark:divide-[#3F2553]/40">
                         {events.map((ev) => {
                           const isCurrent = ev.id === activeEvent?.id;
                           return (
@@ -206,26 +191,8 @@ export const AdminHeader: React.FC<AdminHeaderProps> = ({
           </div>
         </div>
 
-        {/* Right Side: Quick Action (Event Only) + Notifications Icon + ThemeToggle + UserMenu */}
-        <div className="flex items-center space-x-2 sm:space-x-2.5 flex-shrink-0">
-          {/* Quick link button when inside an event */}
-          {!isMasterView && activeEvent && onCopyEventLink && (
-            <button
-              type="button"
-              id="btn-copy-event-link-header"
-              onClick={onCopyEventLink}
-              title="Copiar link deste evento"
-              className={`hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all shadow-2xs cursor-pointer ${
-                hasCopiedLink
-                  ? 'bg-emerald-100 text-emerald-800 border border-emerald-300'
-                  : 'bg-[#DFFF5F] hover:bg-[#CEF04A] text-[#180D20] border border-[#DFFF5F]'
-              }`}
-            >
-              {hasCopiedLink ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
-              <span>{hasCopiedLink ? 'Copiado!' : 'Copiar Link'}</span>
-            </button>
-          )}
-
+        {/* Right Side: Notifications Icon + ThemeToggle + UserMenu (Item 13: z-10 sem sobrepor o seletor) */}
+        <div className="flex items-center space-x-1.5 sm:space-x-2.5 flex-shrink-0 relative z-10">
           {/* 7. Notification Icon */}
           <NotificationsDropdown
             guests={guests}
