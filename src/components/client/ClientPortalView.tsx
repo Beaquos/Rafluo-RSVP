@@ -16,9 +16,17 @@ import {
   ExternalLink,
   Lock,
   ArrowRight,
+  ChevronDown,
+  ChevronUp,
+  Mail,
+  Baby,
+  User,
+  SlidersHorizontal,
+  X,
 } from 'lucide-react';
 import { EventData, GuestData, ManagerData, FormQuestionData } from '../../data/mockData';
 import { formatDateBR, formatDateTimeBR } from '../../utils/dateUtils';
+import { getInviteMembers, getInviteGuestCountText } from '../../utils/inviteUtils';
 import { copyToClipboard, getEventRsvpUrl } from '../../utils/linkUtils';
 import { exportReportToXLSX, exportReportToPDF } from '../../utils/reportExportUtils';
 import { ExportDataDropdown } from '../common/ExportDataDropdown';
@@ -58,13 +66,48 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
   const [authError, setAuthError] = useState<string | null>(null);
   const [isCopiedRsvp, setIsCopiedRsvp] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState<'all' | 'confirmed' | 'declined'>('all');
+  
+  // Estados para o Modal Filtrar (Item 3 do User Request)
+  const [isFilterModalOpen, setIsFilterModalOpen] = useState(false);
+  const [filterStatus, setFilterStatus] = useState<'all' | 'confirmed' | 'declined'>('all');
+  const [filterAgeCategory, setFilterAgeCategory] = useState<'ambos' | 'adulto' | 'crianca'>('ambos');
+  const [filterSelectedGroups, setFilterSelectedGroups] = useState<string[]>([]);
+
+  // Estados de rascunho enquanto o modal estiver aberto
+  const [draftFilterStatus, setDraftFilterStatus] = useState<'all' | 'confirmed' | 'declined'>('all');
+  const [draftFilterAgeCategory, setDraftFilterAgeCategory] = useState<'ambos' | 'adulto' | 'crianca'>('ambos');
+  const [draftFilterSelectedGroups, setDraftFilterSelectedGroups] = useState<string[]>([]);
+
   const [selectedGuestForDetail, setSelectedGuestForDetail] = useState<GuestData | null>(null);
+  const [expandedInviteIds, setExpandedInviteIds] = useState<string[]>([]);
+
+  const toggleInviteExpand = (id: string) => {
+    setExpandedInviteIds((prev) =>
+      prev.includes(id) ? prev.filter((i) => i !== id) : [...prev, id]
+    );
+  };
 
   // Filter guests for this event
   const eventGuests = useMemo(() => {
     return guests.filter((g) => g.eventId === event.id);
   }, [guests, event.id]);
+
+  // Grupos disponíveis no evento
+  const availableGroups = useMemo(() => {
+    const defaultGroups = ['Amigos', 'Família'];
+    const dynamicGroups = eventGuests.map((g) => g.group).filter(Boolean) as string[];
+    return Array.from(new Set([...defaultGroups, ...dynamicGroups]));
+  }, [eventGuests]);
+
+  const hasActiveFilters =
+    filterStatus !== 'all' ||
+    filterAgeCategory !== 'ambos' ||
+    filterSelectedGroups.length > 0;
+
+  const activeFilterCount =
+    (filterStatus !== 'all' ? 1 : 0) +
+    (filterAgeCategory !== 'ambos' ? 1 : 0) +
+    filterSelectedGroups.length;
 
   // Registered managers for this event
   const eventManagers = useMemo(() => {
@@ -94,22 +137,88 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
   const totalConvidados = confirmedCount + totalCompanions + declinedCount;
   const confirmationRate = totalConvidados > 0 ? Math.round((totalAttending / totalConvidados) * 100) : 0;
 
-  // Filtered list based on search and status
+  // Filtered list based on search and modal filters
   const displayedGuests = useMemo(() => {
     return eventGuests.filter((g) => {
+      const q = searchTerm.trim().toLowerCase();
       const matchesSearch =
-        g.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        g.displayName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        (g.phone && g.phone.includes(searchTerm)) ||
-        (g.email && g.email.toLowerCase().includes(searchTerm.toLowerCase()));
+        q === '' ||
+        g.name.toLowerCase().includes(q) ||
+        g.displayName.toLowerCase().includes(q) ||
+        (g.phone && g.phone.includes(q)) ||
+        (g.email && g.email.toLowerCase().includes(q));
 
       if (!matchesSearch) return false;
-      if (statusFilter === 'all') return true;
-      return g.status === statusFilter;
+
+      // Filtro de Status
+      if (filterStatus !== 'all' && g.status !== filterStatus) {
+        return false;
+      }
+
+      // Filtro de Grupo (Tag)
+      if (filterSelectedGroups.length > 0) {
+        const guestGroup = g.group || 'Geral';
+        if (!filterSelectedGroups.includes(guestGroup)) {
+          return false;
+        }
+      }
+
+      // Filtro de Faixa Etária (Adulto / Criança)
+      if (filterAgeCategory !== 'ambos') {
+        const mems = getInviteMembers(g);
+        if (filterAgeCategory === 'adulto' && !mems.some((m) => m.category === 'Adulto')) {
+          return false;
+        }
+        if (filterAgeCategory === 'crianca' && !mems.some((m) => m.category === 'Criança')) {
+          return false;
+        }
+      }
+
+      return true;
     });
-  }, [eventGuests, searchTerm, statusFilter]);
+  }, [eventGuests, searchTerm, filterStatus, filterAgeCategory, filterSelectedGroups]);
 
   // Handle Login Validation
+  // Live countdown for Client Portal (utilizes same event date/time)
+  const [timeLeft, setTimeLeft] = useState<{
+    days: number;
+    hours: number;
+    minutes: number;
+    seconds: number;
+    isPast: boolean;
+  } | null>(null);
+
+  useEffect(() => {
+    if (!event.date) return;
+    const calculateTime = () => {
+      const targetTime = event.time || '12:00';
+      const target = new Date(`${event.date}T${targetTime}:00`);
+      const now = new Date();
+      const diff = target.getTime() - now.getTime();
+
+      if (isNaN(diff)) {
+        setTimeLeft(null);
+        return;
+      }
+
+      if (diff <= 0) {
+        setTimeLeft({ days: 0, hours: 0, minutes: 0, seconds: 0, isPast: true });
+        return;
+      }
+
+      const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+      const hours = Math.floor((diff / (1000 * 60 * 60)) % 24);
+      const minutes = Math.floor((diff / (1000 * 60)) % 60);
+      const seconds = Math.floor((diff / 1000) % 60);
+
+      setTimeLeft({ days, hours, minutes, seconds, isPast: false });
+    };
+
+    calculateTime();
+    const interval = setInterval(calculateTime, 1000);
+    return () => clearInterval(interval);
+  }, [event.date, event.time]);
+
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
     const cleanEmail = emailInput.trim().toLowerCase();
@@ -241,20 +350,20 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
           {/* Login Card */}
           <div className="bg-white dark:bg-[#1E1128] rounded-3xl p-6 sm:p-8 border border-[#24152F]/15 dark:border-[#3F2553] shadow-xl space-y-6">
             <div className="space-y-1 text-center border-b border-[#24152F]/10 dark:border-[#3F2553]/60 pb-4">
-              <p className="text-xs text-[#24152F]/60 dark:text-[#D2C4DC]/70 font-medium uppercase tracking-wider">
+              <p className="text-[11px] text-[#24152F]/60 dark:text-[#D2C4DC]/70 font-semibold font-inter uppercase tracking-wider">
                 Acompanhamento Exclusivo do Evento
               </p>
-              <h2 className="text-xl font-bold text-[#24152F] dark:text-[#F7F1E5]">{event.name}</h2>
+              <h2 className="text-xl sm:text-2xl font-bold font-heading text-[#24152F] dark:text-[#F7F1E5] tracking-tight">{event.name}</h2>
               {event.clientName && (
-                <p className="text-xs text-[#24152F]/80 dark:text-[#D2C4DC] font-semibold pt-0.5">
-                  Responsável: {event.clientName}
+                <p className="text-xs text-[#24152F]/80 dark:text-[#D2C4DC] font-medium font-inter pt-0.5">
+                  Responsável: <strong className="font-semibold">{event.clientName}</strong>
                 </p>
               )}
             </div>
 
             <form onSubmit={handleLogin} className="space-y-4">
               <div className="space-y-1.5">
-                <label className="block text-xs font-bold text-[#24152F] dark:text-[#F7F1E5]">
+                <label className="block text-[13px] font-medium font-inter text-[#24152F] dark:text-[#F7F1E5]">
                   E-mail do Responsável
                 </label>
                 <div className="relative">
@@ -268,16 +377,16 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
                       setAuthError(null);
                     }}
                     placeholder="seu.email@exemplo.com"
-                    className="w-full pl-10 pr-4 py-3 rounded-xl border border-[#24152F]/20 dark:border-[#3F2553] bg-[#FAF6EE]/40 dark:bg-[#2A1738] text-xs sm:text-sm text-[#24152F] dark:text-[#F7F1E5] placeholder:text-[#24152F]/40 dark:placeholder:text-[#D2C4DC]/40 focus:outline-none focus:ring-2 focus:ring-[#DFFF5F] focus:bg-white dark:focus:bg-[#24152F] transition-all"
+                    className="w-full pl-10 pr-4 py-3 rounded-xl border border-[#24152F]/20 dark:border-[#3F2553] bg-[#FAF6EE]/40 dark:bg-[#2A1738] text-xs sm:text-sm font-inter text-[#24152F] dark:text-[#F7F1E5] placeholder:text-[#24152F]/40 dark:placeholder:text-[#D2C4DC]/40 focus:outline-none focus:ring-2 focus:ring-[#DFFF5F] focus:bg-white dark:focus:bg-[#24152F] transition-all"
                   />
                 </div>
-                <p className="text-[11px] text-[#24152F]/60 dark:text-[#D2C4DC]/60">
+                <p className="text-xs text-[#24152F]/70 dark:text-[#D2C4DC]/70 font-inter font-normal leading-relaxed">
                   Informe o e-mail cadastrado para ter acesso às confirmações de presença e métricas.
                 </p>
               </div>
 
               {authError && (
-                <div className="p-3 rounded-xl bg-rose-50 dark:bg-rose-950/50 border border-rose-200 dark:border-rose-900 text-xs text-rose-700 dark:text-rose-300 flex items-start gap-2">
+                <div className="p-3 rounded-xl bg-rose-50 dark:bg-rose-950/50 border border-rose-200 dark:border-rose-900 text-xs font-inter text-rose-700 dark:text-rose-300 flex items-start gap-2">
                   <XCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
                   <span>{authError}</span>
                 </div>
@@ -286,7 +395,7 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
               <button
                 type="submit"
                 id="btn-submit-client-login"
-                className="w-full py-3 rounded-xl bg-[#24152F] hover:bg-[#180D20] text-[#F7F1E5] font-bold text-xs sm:text-sm flex items-center justify-center gap-2 shadow-sm transition-all cursor-pointer active:scale-98"
+                className="w-full py-3 rounded-xl bg-[#24152F] hover:bg-[#180D20] text-[#F7F1E5] font-semibold font-heading text-xs sm:text-sm flex items-center justify-center gap-2 shadow-sm transition-all cursor-pointer active:scale-98"
               >
                 <span>Acessar Painel</span>
                 <ArrowRight className="w-4 h-4 text-[#DFFF5F]" />
@@ -461,14 +570,42 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
           </div>
         </div>
 
+        {/* Live Countdown in Client Portal (uses same event date and time) */}
+        {timeLeft && !timeLeft.isPast && (
+          <div className="bg-white dark:bg-[#1E1128] rounded-3xl p-5 sm:p-6 border border-[#24152F]/15 dark:border-[#3F2553] shadow-xs text-center space-y-3">
+            <div className="inline-flex items-center gap-2 text-xs font-bold text-[#24152F] dark:text-[#DFFF5F] uppercase tracking-wider">
+              <Clock className="w-4 h-4 text-[#24152F] dark:text-[#DFFF5F]" />
+              <span>Contagem regressiva</span>
+            </div>
+            <div className="grid grid-cols-4 gap-2.5 sm:gap-4 max-w-md mx-auto">
+              <div className="p-2.5 sm:p-3 rounded-2xl bg-[#FAF6EE] dark:bg-[#2A1738] border border-[#24152F]/10 dark:border-[#3F2553]">
+                <span className="block text-2xl sm:text-3xl font-extrabold text-[#24152F] dark:text-[#F7F1E5]">{timeLeft.days}</span>
+                <span className="block text-[10px] text-[#24152F]/60 dark:text-[#D2C4DC]/60 font-semibold uppercase">Dias</span>
+              </div>
+              <div className="p-2.5 sm:p-3 rounded-2xl bg-[#FAF6EE] dark:bg-[#2A1738] border border-[#24152F]/10 dark:border-[#3F2553]">
+                <span className="block text-2xl sm:text-3xl font-extrabold text-[#24152F] dark:text-[#F7F1E5]">{timeLeft.hours}</span>
+                <span className="block text-[10px] text-[#24152F]/60 dark:text-[#D2C4DC]/60 font-semibold uppercase">Horas</span>
+              </div>
+              <div className="p-2.5 sm:p-3 rounded-2xl bg-[#FAF6EE] dark:bg-[#2A1738] border border-[#24152F]/10 dark:border-[#3F2553]">
+                <span className="block text-2xl sm:text-3xl font-extrabold text-[#24152F] dark:text-[#F7F1E5]">{timeLeft.minutes}</span>
+                <span className="block text-[10px] text-[#24152F]/60 dark:text-[#D2C4DC]/60 font-semibold uppercase">Min</span>
+              </div>
+              <div className="p-2.5 sm:p-3 rounded-2xl bg-[#FAF6EE] dark:bg-[#2A1738] border border-[#24152F]/10 dark:border-[#3F2553]">
+                <span className="block text-2xl sm:text-3xl font-extrabold text-[#24152F] dark:text-[#F7F1E5]">{timeLeft.seconds}</span>
+                <span className="block text-[10px] text-[#24152F]/60 dark:text-[#D2C4DC]/60 font-semibold uppercase">Seg</span>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Metrics Overview Cards (4 Cards) */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
           {/* Total Convidados */}
           <div className="bg-white dark:bg-[#1E1128] p-4 sm:p-5 rounded-2xl border border-[#24152F]/15 dark:border-[#3F2553] shadow-xs flex flex-col justify-between">
             <div className="flex items-center justify-between text-[#24152F] dark:text-[#F7F1E5]">
               <span className="text-xs font-bold text-[#24152F]/70 dark:text-[#D2C4DC]/80">Total Convidados</span>
-              <div className="w-8 h-8 rounded-xl bg-[#24152F]/10 dark:bg-white/10 text-[#24152F] dark:text-[#DFFF5F] flex items-center justify-center shadow-xs flex-shrink-0">
-                <Users className="w-4 h-4" />
+              <div className="w-8 h-8 rounded-xl bg-[#24152F] text-[#DFFF5F] flex items-center justify-center shadow-xs flex-shrink-0">
+                <Users className="w-4 h-4 text-[#DFFF5F]" />
               </div>
             </div>
             <div className="mt-2">
@@ -478,11 +615,10 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
           </div>
 
           {/* Confirmados */}
-          <div className="bg-white dark:bg-[#1E1128] p-4 sm:p-5 rounded-2xl border border-[#DFFF5F]/80 dark:border-[#DFFF5F]/40 shadow-xs flex flex-col justify-between relative overflow-hidden">
-            <div className="absolute top-0 right-0 w-16 h-16 bg-[#DFFF5F]/20 rounded-full blur-xl pointer-events-none" />
+          <div className="bg-white dark:bg-[#1E1128] p-4 sm:p-5 rounded-2xl border border-[#24152F]/15 dark:border-[#3F2553] shadow-xs flex flex-col justify-between">
             <div className="flex items-center justify-between text-[#24152F] dark:text-[#F7F1E5]">
               <span className="text-xs font-bold text-[#24152F] dark:text-[#F7F1E5]">Confirmados</span>
-              <div className="w-8 h-8 rounded-xl bg-[#DFFF5F] text-[#180D20] flex items-center justify-center shadow-xs ring-1 ring-[#DFFF5F]/60 flex-shrink-0">
+              <div className="w-8 h-8 rounded-xl bg-[#DFFF5F] text-[#180D20] flex items-center justify-center shadow-xs flex-shrink-0">
                 <CheckCircle2 className="w-4 h-4 text-[#180D20]" />
               </div>
             </div>
@@ -503,8 +639,8 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
           <div className="bg-white dark:bg-[#1E1128] p-4 sm:p-5 rounded-2xl border border-[#24152F]/15 dark:border-[#3F2553] shadow-xs flex flex-col justify-between">
             <div className="flex items-center justify-between text-[#24152F] dark:text-[#F7F1E5]">
               <span className="text-xs font-bold text-[#24152F]/70 dark:text-[#D2C4DC]/80">Acompanhantes</span>
-              <div className="w-8 h-8 rounded-xl bg-[#24152F]/10 dark:bg-white/10 text-[#24152F] dark:text-[#DFFF5F] flex items-center justify-center shadow-xs flex-shrink-0">
-                <Users className="w-4 h-4" />
+              <div className="w-8 h-8 rounded-xl bg-[#24152F] text-[#DFFF5F] flex items-center justify-center shadow-xs flex-shrink-0">
+                <Users className="w-4 h-4 text-[#DFFF5F]" />
               </div>
             </div>
             <div className="mt-2">
@@ -543,50 +679,76 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
             </div>
           </div>
 
-          {/* Search and Filters */}
-          <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3">
-            <div className="relative flex-1 max-w-md">
-              <Search className="w-4 h-4 text-[#24152F]/40 dark:text-[#D2C4DC]/40 absolute left-3 top-1/2 -translate-y-1/2" />
-              <input
-                type="text"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                placeholder="Buscar por nome, telefone ou e-mail..."
-                className="w-full pl-9 pr-4 py-2 rounded-xl border border-[#24152F]/20 dark:border-[#3F2553] bg-[#FAF6EE]/50 dark:bg-[#2A1738] text-xs text-[#24152F] dark:text-[#F7F1E5] placeholder:text-[#24152F]/40 dark:placeholder:text-[#D2C4DC]/40 focus:outline-none focus:ring-1 focus:ring-[#DFFF5F]"
-              />
+          {/* Barra de Ferramentas com Busca e Botão de Filtro (Item 3 do User Request) */}
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 p-3 rounded-2xl bg-[#FAF6EE]/60 dark:bg-[#2A1738]/50 border border-[#24152F]/10 dark:border-[#3F2553]">
+            <div className="flex items-center gap-2.5 flex-1 max-w-lg">
+              <div className="relative flex-1">
+                <Search className="w-4 h-4 text-[#24152F]/40 dark:text-[#D2C4DC]/40 absolute left-3 top-1/2 -translate-y-1/2" />
+                <input
+                  type="text"
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  placeholder="Buscar por nome, telefone ou e-mail..."
+                  className="w-full pl-9 pr-3 py-2 rounded-xl border border-[#24152F]/20 dark:border-[#3F2553] bg-white dark:bg-[#1E1128] text-xs text-[#24152F] dark:text-[#F7F1E5] placeholder:text-[#24152F]/40 dark:placeholder:text-[#D2C4DC]/40 focus:outline-none focus:ring-1 focus:ring-[#DFFF5F]"
+                />
+              </div>
+
+              {/* Botão de Filtro com apenas o ícone de Sliders, destacado e proporcional */}
+              <button
+                type="button"
+                id="btn-open-filter-modal-client"
+                onClick={() => {
+                  setDraftFilterStatus(filterStatus);
+                  setDraftFilterAgeCategory(filterAgeCategory);
+                  setDraftFilterSelectedGroups([...filterSelectedGroups]);
+                  setIsFilterModalOpen(true);
+                }}
+                className={`relative flex items-center justify-center p-2.5 h-10 w-10 rounded-xl border text-xs font-semibold transition-colors cursor-pointer flex-shrink-0 shadow-2xs ${
+                  hasActiveFilters
+                    ? 'bg-[#24152F] dark:bg-[#DFFF5F] text-[#F7F1E5] dark:text-[#180D20] border-[#24152F] dark:border-[#DFFF5F]'
+                    : 'bg-white dark:bg-[#1E1128] border-[#24152F]/20 dark:border-[#3F2553] text-[#24152F] dark:text-[#F7F1E5] hover:bg-[#FAF6EE] dark:hover:bg-[#2A1738]'
+                }`}
+                title="Filtrar confirmações"
+              >
+                <SlidersHorizontal className="w-4 h-4" />
+                {hasActiveFilters && (
+                  <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-[#DFFF5F] dark:bg-[#24152F] text-[#24152F] dark:text-[#DFFF5F] text-[9px] font-black flex items-center justify-center border border-[#24152F] dark:border-[#DFFF5F]">
+                    {activeFilterCount}
+                  </span>
+                )}
+              </button>
             </div>
 
-            <div className="flex items-center gap-1.5 overflow-x-auto pb-1 md:pb-0">
-              {[
-                { id: 'all', label: `Todos (${totalConvidados})` },
-                { id: 'confirmed', label: `Confirmados (${confirmedCount})` },
-                { id: 'declined', label: `Não Comparecem (${declinedCount})` },
-              ].map((tab) => (
+            {hasActiveFilters && (
+              <div className="flex items-center gap-2 text-xs">
+                <span className="text-[#24152F]/60 dark:text-[#D2C4DC]/60">
+                  {displayedGuests.length} de {eventGuests.length} convite(s) filtrado(s)
+                </span>
                 <button
-                  key={tab.id}
-                  onClick={() => setStatusFilter(tab.id as any)}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-colors cursor-pointer ${
-                    statusFilter === tab.id
-                      ? 'bg-[#24152F] dark:bg-[#DFFF5F] text-[#F7F1E5] dark:text-[#180D20]'
-                      : 'bg-[#FAF6EE] dark:bg-[#2A1738] text-[#24152F]/70 dark:text-[#D2C4DC]/80 hover:bg-[#FAF6EE]/80 dark:hover:bg-[#321C42]'
-                  }`}
+                  type="button"
+                  onClick={() => {
+                    setFilterStatus('all');
+                    setFilterAgeCategory('ambos');
+                    setFilterSelectedGroups([]);
+                  }}
+                  className="text-[11px] text-rose-700 dark:text-rose-400 underline font-semibold hover:text-rose-800 cursor-pointer ml-1"
                 >
-                  {tab.label}
+                  Limpar filtros
                 </button>
-              ))}
-            </div>
+              </div>
+            )}
           </div>
 
-          {/* Guest Table */}
-          <div className="overflow-x-auto rounded-2xl border border-[#24152F]/10 dark:border-[#3F2553]">
-            <table className="w-full text-left text-xs whitespace-nowrap min-w-[620px]">
+          {/* Guest Table — Exato mesmo layout visual de Respostas Recentes / Convidados */}
+          <div className="overflow-hidden md:overflow-x-auto rounded-xl border border-[#24152F]/10 dark:border-[#3F2553] bg-white dark:bg-[#1E1128]">
+            <table className="w-full text-left text-xs md:whitespace-nowrap md:min-w-[560px]">
               <thead className="bg-[#FAF6EE] dark:bg-[#2A1738] text-[#24152F]/80 dark:text-[#D2C4DC] font-bold border-b border-[#24152F]/10 dark:border-[#3F2553]">
                 <tr>
-                  <th className="py-3 px-4">Convidado</th>
-                  <th className="py-3 px-3">Status</th>
-                  <th className="py-3 px-3 text-center">Acompanhantes</th>
-                  <th className="py-3 px-3">Data e Hora</th>
-                  <th className="py-3 px-4 text-right">Ficha</th>
+                  <th className="py-3 px-4 w-full md:w-auto">Nome Convidado</th>
+                  <th className="py-3 px-3 hidden md:table-cell">Tag (Grupo)</th>
+                  <th className="py-3 px-3 hidden md:table-cell">Status</th>
+                  <th className="py-3 px-3 hidden md:table-cell">Nº convidados</th>
+                  <th className="py-3 px-4 text-right hidden md:table-cell">Ficha</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-[#24152F]/5 dark:divide-[#3F2553]/50 text-[#24152F] dark:text-[#F7F1E5]">
@@ -597,51 +759,151 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
                     </td>
                   </tr>
                 ) : (
-                  displayedGuests.map((g) => (
-                    <tr key={g.id} className="hover:bg-[#FAF6EE]/50 dark:hover:bg-[#2A1738]/50 transition-colors">
-                      <td className="py-3 px-4">
-                        <span className="font-bold text-[#24152F] dark:text-[#F7F1E5] block">{g.displayName || g.name}</span>
-                        {(g.phone || g.email) && (
-                          <span className="text-[11px] text-[#24152F]/60 dark:text-[#D2C4DC]/60 block mt-0.5">
-                            {g.phone} {g.phone && g.email && '•'} {g.email}
-                          </span>
-                        )}
-                      </td>
-                      <td className="py-3 px-3">
-                        {g.status === 'confirmed' ? (
-                          <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-[#DFFF5F] text-[#180D20]">
-                            Confirmado
-                          </span>
-                        ) : (
-                          <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-rose-100 dark:bg-rose-950/60 text-rose-800 dark:text-rose-300">
-                            Não comparecerá
-                          </span>
-                        )}
-                      </td>
-                      <td className="py-3 px-3 text-center">
-                        {g.status === 'confirmed' && g.companionCount > 0 ? (
-                          <span className="inline-flex items-center px-2 py-0.5 rounded-md font-bold text-xs bg-[#FAF6EE] dark:bg-[#2A1738] text-[#24152F] dark:text-[#F7F1E5] border border-[#24152F]/10 dark:border-[#3F2553]">
-                            +{g.companionCount}
-                          </span>
-                        ) : (
-                          <span className="text-[#24152F]/40 dark:text-[#D2C4DC]/40">—</span>
-                        )}
-                      </td>
-                      <td className="py-3 px-3 text-[#24152F]/70 dark:text-[#D2C4DC]/70 font-medium">
-                        {g.respondedAt ? formatDateTimeBR(g.respondedAt) : 'Registrado'}
-                      </td>
-                      <td className="py-3 px-4 text-right">
-                        <button
-                          type="button"
-                          onClick={() => setSelectedGuestForDetail(g)}
-                          className="px-2.5 py-1.5 rounded-lg border border-[#24152F]/20 dark:border-[#3F2553] hover:bg-[#24152F] hover:text-[#F7F1E5] dark:hover:bg-[#DFFF5F] dark:hover:text-[#180D20] text-[#24152F] dark:text-[#F7F1E5] font-semibold text-xs inline-flex items-center gap-1 transition-colors cursor-pointer"
+                  displayedGuests.map((g) => {
+                    const members = getInviteMembers(g);
+                    const guestCountText = getInviteGuestCountText(members);
+                    const isExpanded = expandedInviteIds.includes(g.id);
+                    const personName = g.displayName || g.name;
+
+                    return (
+                      <React.Fragment key={g.id}>
+                        <tr
+                          className={`transition-colors cursor-pointer select-none ${
+                            isExpanded ? 'bg-[#FAF6EE]/50 dark:bg-[#2A1738]/50' : 'hover:bg-[#FAF6EE]/30 dark:hover:bg-[#2A1738]/30'
+                          }`}
+                          onClick={() => toggleInviteExpand(g.id)}
                         >
-                          <Eye className="w-3.5 h-3.5" />
-                          <span>Ver</span>
-                        </button>
-                      </td>
-                    </tr>
-                  ))
+                          <td className="py-4 px-4 font-bold align-top w-full md:w-auto">
+                            <div className="flex items-center gap-2.5">
+                              {/* Avatar circular com contorno cinza e ícone de envelope */}
+                              <div className="w-8 h-8 rounded-full bg-[#FAF6EE] dark:bg-[#2A1738] border border-[#24152F]/15 dark:border-[#3F2553] flex items-center justify-center text-[#24152F] dark:text-[#F7F1E5] flex-shrink-0 shadow-2xs">
+                                <Mail className="w-4 h-4 text-[#24152F] dark:text-[#F7F1E5]" />
+                              </div>
+
+                              <div className="flex items-center gap-2 min-w-0">
+                                <span className="font-bold text-[#24152F] dark:text-[#F7F1E5] text-xs sm:text-sm">
+                                  {personName}
+                                </span>
+
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    toggleInviteExpand(g.id);
+                                  }}
+                                  className="p-1 rounded-md text-[#24152F]/50 dark:text-[#D2C4DC]/50 hover:text-[#24152F] dark:hover:text-[#F7F1E5] hover:bg-black/5 dark:hover:bg-white/5 transition-colors cursor-pointer"
+                                  title={isExpanded ? 'Recolher convite' : 'Expandir convidados'}
+                                >
+                                  {isExpanded ? (
+                                    <ChevronUp className="w-4 h-4" />
+                                  ) : (
+                                    <ChevronDown className="w-4 h-4" />
+                                  )}
+                                </button>
+                              </div>
+                            </div>
+
+                            {/* Linha Expandida empilhada abaixo do nome do convite (indentada) */}
+                            {isExpanded && (
+                              <div className="mt-3.5 pl-10 space-y-2.5 max-w-sm animate-in fade-in duration-150" onClick={(e) => e.stopPropagation()}>
+                                <div className="space-y-1.5 max-w-sm">
+                                  {members.map((mem) => {
+                                    const isConfirmed = mem.status === 'confirmed';
+                                    const isDeclined = mem.status === 'declined';
+                                    const hasResponse = isConfirmed || isDeclined;
+
+                                    return (
+                                      <div
+                                        key={mem.id}
+                                        className="flex flex-col sm:flex-row sm:items-center sm:justify-between items-start gap-1 sm:gap-2.5 py-1.5 px-2.5 rounded-xl bg-white dark:bg-[#1E1128] border border-[#24152F]/10 dark:border-[#3F2553] shadow-2xs"
+                                      >
+                                        <div className="flex items-center gap-2.5 min-w-0">
+                                          {/* Avatar circular com ícone de pessoa */}
+                                          <div className="relative flex-shrink-0">
+                                            <div className="w-7 h-7 rounded-full bg-[#FAF6EE] dark:bg-[#2A1738] border border-[#24152F]/15 dark:border-[#3F2553] flex items-center justify-center text-[#24152F] dark:text-[#F7F1E5]">
+                                              {mem.category === 'Criança' ? (
+                                                <Baby className="w-3.5 h-3.5" />
+                                              ) : (
+                                                <User className="w-3.5 h-3.5" />
+                                              )}
+                                            </div>
+
+                                            {/* Badge de status no canto SOMENTE se houver resposta */}
+                                            {hasResponse && (
+                                              <span
+                                                className={`absolute -bottom-1 -right-1 w-3.5 h-3.5 rounded-full flex items-center justify-center text-[8px] font-black border border-white dark:border-[#1E1128] ${
+                                                  isConfirmed ? 'bg-emerald-600 text-white' : 'bg-rose-600 text-white'
+                                                }`}
+                                                title={isConfirmed ? 'Confirmado' : 'Ausente'}
+                                              >
+                                                {isConfirmed ? '✔' : '✖'}
+                                              </span>
+                                            )}
+                                          </div>
+
+                                          {/* Nome em negrito */}
+                                          <span className="font-bold text-xs text-[#24152F] dark:text-[#F7F1E5] truncate">
+                                            {mem.name}
+                                          </span>
+                                        </div>
+
+                                        {/* Pill com contorno indicando Adulto ou Criança (no mobile abaixo do nome, no desktop à direita) */}
+                                        <div className="pl-9.5 sm:pl-0 flex-shrink-0">
+                                          <span
+                                            className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-bold border ${
+                                              mem.category === 'Criança'
+                                                ? 'border-amber-500/60 text-amber-900 dark:text-amber-300 bg-amber-50/50 dark:bg-amber-950/30'
+                                                : 'border-[#24152F]/25 dark:border-[#3F2553] text-[#24152F] dark:text-[#F7F1E5] bg-white dark:bg-[#1E1128]'
+                                            }`}
+                                          >
+                                            {mem.category}
+                                          </span>
+                                        </div>
+                                      </div>
+                                    );
+                                  })}
+                                </div>
+                              </div>
+                            )}
+                          </td>
+                          <td className="py-3.5 px-3 align-middle hidden md:table-cell">
+                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-[#E8F0E4] border border-[#A3C79E] text-[#1E3B1E]">
+                              {g.group || 'Geral'}
+                            </span>
+                          </td>
+                          <td className="py-3.5 px-3 align-middle hidden md:table-cell">
+                            {g.status === 'confirmed' ? (
+                              <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold bg-[#E8F0E4] border border-[#A3C79E] text-[#1E3B1E]">
+                                Confirmado
+                              </span>
+                            ) : g.status === 'declined' ? (
+                              <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold bg-rose-50 border border-rose-300 text-rose-800">
+                                Ausente
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-gray-100 border border-gray-300 text-[#24152F]/60">
+                                Sem resposta
+                              </span>
+                            )}
+                          </td>
+                          <td className="py-3.5 px-3 align-middle text-[#24152F]/80 dark:text-[#D2C4DC]/80 font-medium hidden md:table-cell">
+                            {guestCountText}
+                          </td>
+                          <td className="py-3.5 px-4 align-middle text-right hidden md:table-cell" onClick={(e) => e.stopPropagation()}>
+                            <button
+                              type="button"
+                              onClick={() => setSelectedGuestForDetail(g)}
+                              className="px-3 py-1.5 rounded-xl border border-[#24152F]/20 dark:border-[#3F2553] hover:bg-[#24152F] hover:text-[#F7F1E5] dark:hover:bg-[#DFFF5F] dark:hover:text-[#180D20] text-[#24152F] dark:text-[#F7F1E5] font-semibold text-xs inline-flex items-center gap-1.5 transition-colors cursor-pointer shadow-2xs"
+                              title="Visualizar ficha"
+                            >
+                              <Eye className="w-3.5 h-3.5" />
+                              <span>Ver</span>
+                            </button>
+                          </td>
+                        </tr>
+                      </React.Fragment>
+                    );
+                  })
                 )}
               </tbody>
             </table>
@@ -679,7 +941,7 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
                   <p className="font-bold text-[#24152F] dark:text-[#F7F1E5] mt-0.5">
                     {selectedGuestForDetail.status === 'confirmed'
                       ? 'Confirmado'
-                      : 'Não Comparecerá'}
+                      : 'Ausente'}
                   </p>
                 </div>
 
@@ -746,6 +1008,139 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
                 className="w-full py-2.5 rounded-xl bg-[#24152F] dark:bg-[#DFFF5F] text-[#F7F1E5] dark:text-[#180D20] font-semibold text-xs cursor-pointer hover:bg-[#180D20] dark:hover:bg-[#CEF04A] transition-colors"
               >
                 Fechar Ficha
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Filtrar (Item 3 do User Request) */}
+      {isFilterModalOpen && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#24152F]/70 dark:bg-black/80 backdrop-blur-xs animate-in fade-in duration-150"
+        >
+          <div className="w-full max-w-md bg-white dark:bg-[#1E1128] rounded-2xl border border-[#24152F]/15 dark:border-[#3F2553] p-5 sm:p-6 shadow-2xl space-y-5 animate-in zoom-in-95 duration-100">
+            {/* Cabeçalho com título "Filtrar" e botão X */}
+            <div className="flex items-center justify-between pb-3 border-b border-[#24152F]/10 dark:border-[#3F2553]">
+              <div className="flex items-center gap-2">
+                <SlidersHorizontal className="w-4 h-4 text-[#24152F] dark:text-[#F7F1E5]" />
+                <h3 className="text-base font-bold text-[#24152F] dark:text-[#F7F1E5]">Filtrar</h3>
+              </div>
+              <button
+                type="button"
+                id="btn-close-filter-modal-client"
+                onClick={() => setIsFilterModalOpen(false)}
+                className="w-8 h-8 rounded-full bg-[#FAF6EE] dark:bg-[#2A1738] text-[#24152F]/70 dark:text-[#D2C4DC]/80 hover:text-[#24152F] dark:hover:text-[#F7F1E5] hover:bg-[#EDE4D3] dark:hover:bg-[#321C42] flex items-center justify-center transition-colors cursor-pointer"
+                title="Fechar modal de filtros"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="space-y-4 text-xs">
+              {/* 1. Status — Dropdown */}
+              <div className="space-y-1.5">
+                <label className="block font-bold text-[#24152F] dark:text-[#F7F1E5]">Status</label>
+                <select
+                  value={draftFilterStatus}
+                  onChange={(e) => setDraftFilterStatus(e.target.value as any)}
+                  className="w-full px-3 py-2 rounded-xl border border-[#24152F]/20 dark:border-[#3F2553] bg-[#FAF6EE]/50 dark:bg-[#2A1738] text-xs font-semibold text-[#24152F] dark:text-[#F7F1E5] focus:outline-none focus:ring-1 focus:ring-[#DFFF5F]"
+                >
+                  <option value="all">Todos</option>
+                  <option value="confirmed">Confirmado</option>
+                  <option value="declined">Ausente</option>
+                </select>
+              </div>
+
+              {/* 2. Faixa etária — Radio buttons */}
+              <div className="space-y-1.5">
+                <label className="block font-bold text-[#24152F] dark:text-[#F7F1E5]">Faixa etária</label>
+                <div className="grid grid-cols-3 gap-2">
+                  {[
+                    { id: 'ambos', label: 'Ambos' },
+                    { id: 'adulto', label: 'Adulto' },
+                    { id: 'crianca', label: 'Criança' },
+                  ].map((option) => (
+                    <label
+                      key={option.id}
+                      className={`flex items-center justify-center gap-2 p-2 rounded-xl border cursor-pointer font-semibold transition-colors ${
+                        draftFilterAgeCategory === option.id
+                          ? 'bg-[#E8F0E4] dark:bg-emerald-950/40 border-[#A3C79E] dark:border-emerald-600 text-[#1E3B1E] dark:text-emerald-300'
+                          : 'bg-white dark:bg-[#2A1738] border-[#24152F]/15 dark:border-[#3F2553] text-[#24152F]/70 dark:text-[#D2C4DC]/80 hover:bg-[#FAF6EE] dark:hover:bg-[#321C42]'
+                      }`}
+                    >
+                      <input
+                        type="radio"
+                        name="draftFilterAgeCategoryClient"
+                        value={option.id}
+                        checked={draftFilterAgeCategory === option.id}
+                        onChange={() => setDraftFilterAgeCategory(option.id as any)}
+                        className="accent-[#24152F] dark:accent-[#DFFF5F]"
+                      />
+                      <span>{option.label}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+
+              {/* 3. Grupo — Chips selecionáveis (múltipla seleção) */}
+              <div className="space-y-1.5">
+                <label className="block font-bold text-[#24152F] dark:text-[#F7F1E5]">Grupo</label>
+                <div className="flex flex-wrap gap-2 pt-0.5">
+                  {availableGroups.map((group) => {
+                    const isSelected = draftFilterSelectedGroups.includes(group);
+                    return (
+                      <button
+                        key={group}
+                        type="button"
+                        onClick={() => {
+                          setDraftFilterSelectedGroups((prev) =>
+                            isSelected
+                              ? prev.filter((g) => g !== group)
+                              : [...prev, group]
+                          );
+                        }}
+                        className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition-all cursor-pointer ${
+                          isSelected
+                            ? 'bg-[#E8F0E4] dark:bg-emerald-950/40 border-[#A3C79E] dark:border-emerald-600 text-[#1E3B1E] dark:text-emerald-300 shadow-2xs font-bold'
+                            : 'bg-[#FAF6EE] dark:bg-[#2A1738] border-[#24152F]/15 dark:border-[#3F2553] text-[#24152F]/70 dark:text-[#D2C4DC]/80 hover:bg-[#FAF6EE]/80 dark:hover:bg-[#321C42]'
+                        }`}
+                      >
+                        {isSelected && '✓ '}
+                        {group}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+
+            {/* Botões do modal: Limpar filtros & Aplicar filtros */}
+            <div className="flex items-center justify-between gap-3 pt-3 border-t border-[#24152F]/10 dark:border-[#3F2553]">
+              <button
+                type="button"
+                onClick={() => {
+                  setDraftFilterStatus('all');
+                  setDraftFilterAgeCategory('ambos');
+                  setDraftFilterSelectedGroups([]);
+                }}
+                className="px-4 py-2 rounded-xl text-xs font-semibold text-[#24152F]/70 dark:text-[#D2C4DC]/70 hover:text-rose-700 dark:hover:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/30 border border-transparent transition-colors cursor-pointer"
+              >
+                Limpar filtros
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setFilterStatus(draftFilterStatus);
+                  setFilterAgeCategory(draftFilterAgeCategory);
+                  setFilterSelectedGroups(draftFilterSelectedGroups);
+                  setIsFilterModalOpen(false);
+                }}
+                className="px-5 py-2.5 rounded-xl bg-[#24152F] dark:bg-[#DFFF5F] text-[#F7F1E5] dark:text-[#180D20] text-xs font-bold hover:bg-[#180D20] dark:hover:bg-[#CEF04A] transition-colors cursor-pointer shadow-xs border border-[#3F2553] dark:border-[#DFFF5F]"
+              >
+                Aplicar filtros
               </button>
             </div>
           </div>

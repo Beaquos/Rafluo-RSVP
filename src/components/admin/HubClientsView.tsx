@@ -13,6 +13,7 @@ import {
   Tag,
   CheckCircle2,
   FileText,
+  SlidersHorizontal,
 } from 'lucide-react';
 import { ClientData } from '../../data/mockData';
 import { formatDateBR } from '../../utils/dateUtils';
@@ -37,7 +38,9 @@ export const HubClientsView: React.FC<HubClientsViewProps> = ({
   onShowToast,
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
-  const [typeFilter, setTypeFilter] = useState<string>('all');
+  const [filterSelectedTypes, setFilterSelectedTypes] = useState<string[]>([]);
+  const [draftSelectedTypes, setDraftSelectedTypes] = useState<string[]>([]);
+  const [isFilterModalOpen, setIsFilterModalOpen] = useState(false);
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [modalMode, setModalMode] = useState<'create' | 'edit' | 'view'>('create');
@@ -169,7 +172,8 @@ export const HubClientsView: React.FC<HubClientsViewProps> = ({
       c.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
       c.phone.includes(searchTerm);
 
-    const matchesType = typeFilter === 'all' || c.invitationType === typeFilter;
+    const matchesType =
+      filterSelectedTypes.length === 0 || filterSelectedTypes.includes(c.invitationType);
 
     return matchesSearch && matchesType;
   });
@@ -215,44 +219,54 @@ export const HubClientsView: React.FC<HubClientsViewProps> = ({
       </div>
 
       {/* Filter and Search Bar */}
-      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
-        <div className="relative flex-1 max-w-md">
-          <input
-            type="text"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            placeholder="Buscar por nome, e-mail ou telefone..."
-            className="w-full pl-9 pr-3.5 py-2 text-xs sm:text-sm rounded-xl border border-[#24152F]/15 dark:border-[#3F2553] bg-white dark:bg-[#1E1128] text-[#24152F] dark:text-[#F7F1E5] placeholder:text-[#24152F]/40 focus:outline-none focus:ring-2 focus:ring-[#24152F]"
-          />
-          <Search className="w-4 h-4 text-[#24152F]/40 absolute left-3 top-2.5 sm:top-3" />
-        </div>
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 p-3 rounded-2xl bg-[#FAF6EE]/60 dark:bg-[#1E1128] border border-[#24152F]/10 dark:border-[#3F2553]">
+        <div className="flex items-center gap-2.5 flex-1 max-w-lg">
+          <div className="relative flex-1">
+            <input
+              type="text"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              placeholder="Buscar por nome, e-mail ou telefone..."
+              className="w-full pl-9 pr-3.5 py-2 text-xs sm:text-sm rounded-xl border border-[#24152F]/15 dark:border-[#3F2553] bg-white dark:bg-[#120919] text-[#24152F] dark:text-[#F7F1E5] placeholder:text-[#24152F]/40 focus:outline-none focus:ring-2 focus:ring-[#24152F]"
+            />
+            <Search className="w-4 h-4 text-[#24152F]/40 absolute left-3 top-2.5 sm:top-3" />
+          </div>
 
-        <div className="flex items-center gap-2 overflow-x-auto text-xs">
           <button
             type="button"
-            onClick={() => setTypeFilter('all')}
-            className={`px-3 py-1.5 rounded-lg font-semibold whitespace-nowrap transition-colors cursor-pointer ${
-              typeFilter === 'all'
-                ? 'bg-[#24152F] text-[#F7F1E5] dark:bg-[#DFFF5F] dark:text-[#180D20]'
-                : 'bg-white dark:bg-[#1E1128] border border-[#24152F]/15 dark:border-[#3F2553] text-[#24152F]/70 dark:text-[#D2C4DC]'
+            id="btn-open-client-filter-modal"
+            onClick={() => {
+              setDraftSelectedTypes([...filterSelectedTypes]);
+              setIsFilterModalOpen(true);
+            }}
+            className={`relative flex items-center justify-center p-2.5 h-10 w-10 rounded-xl border text-xs font-semibold transition-colors cursor-pointer flex-shrink-0 shadow-2xs ${
+              filterSelectedTypes.length > 0
+                ? 'bg-[#24152F] text-[#F7F1E5] border-[#24152F]'
+                : 'bg-white dark:bg-[#1E1128] border-[#24152F]/20 dark:border-[#3F2553] text-[#24152F] dark:text-[#F7F1E5] hover:bg-[#FAF6EE] dark:hover:bg-[#2A1738]'
             }`}
+            title="Filtrar clientes"
           >
-            Todos
+            <SlidersHorizontal className={`w-4 h-4 ${filterSelectedTypes.length > 0 ? 'text-[#DFFF5F]' : 'text-[#24152F] dark:text-[#F7F1E5]'}`} />
+            {filterSelectedTypes.length > 0 && (
+              <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-[#DFFF5F] text-[#180D20] text-[10px] font-black flex items-center justify-center">
+                {filterSelectedTypes.length}
+              </span>
+            )}
           </button>
-          {INVITATION_TYPES.map((type) => (
+        </div>
+
+        {/* Resumo de clientes exibidos */}
+        <div className="text-xs text-[#24152F]/65 dark:text-[#D2C4DC]/70 font-medium flex items-center gap-2 justify-end">
+          <span>Exibindo <strong>{filteredClients.length}</strong> de {clients.length}</span>
+          {filterSelectedTypes.length > 0 && (
             <button
-              key={type}
               type="button"
-              onClick={() => setTypeFilter(type)}
-              className={`px-3 py-1.5 rounded-lg font-semibold whitespace-nowrap transition-colors cursor-pointer ${
-                typeFilter === type
-                  ? 'bg-[#24152F] text-[#F7F1E5] dark:bg-[#DFFF5F] dark:text-[#180D20]'
-                  : 'bg-white dark:bg-[#1E1128] border border-[#24152F]/15 dark:border-[#3F2553] text-[#24152F]/70 dark:text-[#D2C4DC]'
-              }`}
+              onClick={() => setFilterSelectedTypes([])}
+              className="text-[11px] text-rose-700 dark:text-rose-400 underline font-semibold hover:text-rose-800 cursor-pointer ml-1"
             >
-              {type}
+              Limpar filtros
             </button>
-          ))}
+          )}
         </div>
       </div>
 
@@ -502,6 +516,88 @@ export const HubClientsView: React.FC<HubClientsViewProps> = ({
                 )}
               </div>
             </form>
+          </div>
+        </div>
+      )}
+      {/* Modal Filtrar Clientes (Item 2 do User Request) */}
+      {isFilterModalOpen && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#24152F]/70 backdrop-blur-xs animate-in fade-in duration-150"
+        >
+          <div className="w-full max-w-md bg-white dark:bg-[#1E1128] rounded-2xl border border-[#24152F]/15 dark:border-[#3F2553] p-5 sm:p-6 shadow-2xl space-y-5 animate-in zoom-in-95 duration-100">
+            {/* Cabeçalho */}
+            <div className="flex items-center justify-between pb-3 border-b border-[#24152F]/10 dark:border-[#3F2553]">
+              <div className="flex items-center gap-2">
+                <SlidersHorizontal className="w-4 h-4 text-[#24152F] dark:text-[#DFFF5F]" />
+                <h3 className="text-base font-bold text-[#24152F] dark:text-[#F7F1E5]">Filtrar</h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsFilterModalOpen(false)}
+                className="w-8 h-8 rounded-full bg-[#FAF6EE] dark:bg-[#2A1738] text-[#24152F]/70 dark:text-[#D2C4DC] hover:text-[#24152F] hover:bg-[#EDE4D3] flex items-center justify-center transition-colors cursor-pointer"
+                title="Fechar modal de filtros"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="space-y-4 text-xs">
+              {/* Tipo de Convite — Chips selecionáveis */}
+              <div className="space-y-2">
+                <label className="block font-bold text-[#24152F] dark:text-[#F7F1E5]">
+                  Tipo de Convite
+                </label>
+                <div className="flex flex-wrap gap-2 pt-0.5">
+                  {INVITATION_TYPES.map((type) => {
+                    const isSelected = draftSelectedTypes.includes(type);
+                    return (
+                      <button
+                        key={type}
+                        type="button"
+                        onClick={() => {
+                          setDraftSelectedTypes((prev) =>
+                            isSelected ? prev.filter((t) => t !== type) : [...prev, type]
+                          );
+                        }}
+                        className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition-all cursor-pointer ${
+                          isSelected
+                            ? 'bg-[#E8F0E4] border-[#A3C79E] text-[#1E3B1E] shadow-2xs font-bold'
+                            : 'bg-[#FAF6EE] dark:bg-[#2A1738] border-[#24152F]/15 dark:border-[#3F2553] text-[#24152F]/70 dark:text-[#D2C4DC] hover:bg-[#FAF6EE]/80'
+                        }`}
+                      >
+                        {isSelected && '✓ '}
+                        {type}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+
+            {/* Botões do modal: Limpar filtros & Aplicar filtros */}
+            <div className="flex items-center justify-between gap-3 pt-3 border-t border-[#24152F]/10 dark:border-[#3F2553]">
+              <button
+                type="button"
+                onClick={() => {
+                  setDraftSelectedTypes([]);
+                }}
+                className="px-4 py-2 rounded-xl text-xs font-semibold text-[#24152F]/70 dark:text-[#D2C4DC]/70 hover:text-rose-700 hover:bg-rose-50 dark:hover:bg-rose-950/40 border border-transparent transition-colors cursor-pointer"
+              >
+                Limpar filtros
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setFilterSelectedTypes(draftSelectedTypes);
+                  setIsFilterModalOpen(false);
+                }}
+                className="px-5 py-2.5 rounded-xl bg-[#24152F] text-[#F7F1E5] dark:bg-[#DFFF5F] dark:text-[#180D20] text-xs font-bold hover:bg-[#180D20] transition-colors cursor-pointer shadow-xs border border-[#3F2553]"
+              >
+                Aplicar filtros
+              </button>
+            </div>
           </div>
         </div>
       )}

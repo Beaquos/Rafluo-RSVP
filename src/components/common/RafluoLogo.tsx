@@ -94,7 +94,7 @@ export const RafluoLogo: React.FC<RafluoLogoProps> = ({
               className={`font-black tracking-tight ${sizeClasses.text} ${
                 isDark ? 'text-[#F7F1E5]' : 'text-[#24152F]'
               }`}
-              style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}
+              style={{ fontFamily: "'Montserrat', sans-serif" }}
             >
               Rafluo
             </span>
@@ -106,6 +106,7 @@ export const RafluoLogo: React.FC<RafluoLogoProps> = ({
               className={`mt-1 font-medium tracking-normal ${sizeClasses.descriptor} ${
                 isDark ? 'text-[#D2C4DC]' : 'text-[#60526B]'
               }`}
+              style={{ fontFamily: "'Inter', sans-serif" }}
             >
               Gestão inteligente de confirmações.
             </span>
@@ -118,6 +119,7 @@ export const RafluoLogo: React.FC<RafluoLogoProps> = ({
           className={`mt-1.5 font-medium ${sizeClasses.origin} ${
             isDark ? 'text-[#D2C4DC]' : 'text-[#8E7E9A]'
           }`}
+          style={{ fontFamily: "'Inter', sans-serif" }}
         >
           Desenvolvido com carinho por{' '}
           <strong className={isDark ? 'text-[#D2C4DC] font-semibold' : 'text-[#4E395B]'}>

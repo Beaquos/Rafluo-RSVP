@@ -29,6 +29,18 @@ export interface EventData {
     accent: string;
     secondary: string;
   };
+  // Personalização da Página de Confirmação (Cards opcionais)
+  showCoverImage?: boolean;
+  showWelcomeMessage?: boolean;
+  showGiftList?: boolean;
+  showCountdown?: boolean;
+  coverImage?: string;
+  welcomeMessage?: string;
+  giftListType?: 'link' | 'items' | 'none';
+  giftListUrl?: string;
+  giftListItems?: string;
+  giftListItemsList?: string[];
+  childAgeLimit?: number;
 }
 
 export interface ClientData {
@@ -39,6 +51,15 @@ export interface ClientData {
   invitationType: 'Aniversário Infantil' | 'Aniversário Adulto' | 'Chá de Bebê' | 'Chá de Fraldas' | 'Chá de Bebê ou Fraldas' | 'Outros';
   createdAt: string;
   notes?: string;
+}
+
+export interface InviteMember {
+  id: string;
+  name: string;
+  category: 'Adulto' | 'Criança';
+  status: 'confirmed' | 'declined' | 'pending' | null;
+  isPrimary?: boolean;
+  age?: number;
 }
 
 export interface GuestData {
@@ -57,6 +78,9 @@ export interface GuestData {
   companionCount: number;
   companionNames: string[];
   answers: Record<string, any>;
+  // Nova estrutura de Convites agrupados (Itens 5, 6, 7 e 12)
+  inviteName?: string;
+  members?: InviteMember[];
 }
 
 export interface ManagerData {
@@ -105,6 +129,17 @@ export const INITIAL_EVENTS: EventData[] = [
     status: 'active',
     allowResponseEdit: true,
     preventDuplicateResponses: true,
+    coverImage: 'https://images.unsplash.com/photo-1519741497674-611481863552?auto=format&fit=crop&w=1200&q=80',
+    welcomeMessage: 'É uma alegria enorme poder celebrar este dia tão especial com você! Por favor, confirme sua presença até o dia 10 de outubro.',
+    showCoverImage: true,
+    showWelcomeMessage: true,
+    showCountdown: true,
+    showGiftList: true,
+    giftListType: 'items',
+    giftListUrl: 'https://listadepresentes.com/marina-silva',
+    giftListItems: 'Jogo de Pratos de Porcelana\nFritadeira Elétrica Airfryer\nAparelho de Jantar 30 Peças',
+    giftListItemsList: ['Jogo de Pratos de Porcelana', 'Fritadeira Elétrica Airfryer', 'Aparelho de Jantar 30 Peças', 'Cafeteira Nespresso'],
+    childAgeLimit: 10,
   },
   {
     id: 'ev-02',
@@ -124,6 +159,13 @@ export const INITIAL_EVENTS: EventData[] = [
     status: 'active',
     allowResponseEdit: true,
     preventDuplicateResponses: true,
+    coverImage: 'https://images.unsplash.com/photo-1530103862676-de8c9debad1d?auto=format&fit=crop&w=1200&q=80',
+    welcomeMessage: 'Venha se divertir com a gente nos 7 aninhos da Sophia! Recreação mágica e muita alegria para toda a família.',
+    showCountdown: true,
+    giftListType: 'items',
+    giftListUrl: '',
+    giftListItems: 'Jogos educativos, Livros ilustrados infantis, Roupas tamanho 8',
+    childAgeLimit: 10,
   },
   {
     id: 'ev-03',
@@ -143,6 +185,13 @@ export const INITIAL_EVENTS: EventData[] = [
     status: 'draft',
     allowResponseEdit: true,
     preventDuplicateResponses: true,
+    coverImage: 'https://images.unsplash.com/photo-1515934751635-c81c6bc9a2d8?auto=format&fit=crop&w=1200&q=80',
+    welcomeMessage: 'O Theo está a caminho! Preparamos um almoço especial para comemorar com familiares e amigos queridos.',
+    showCountdown: true,
+    giftListType: 'items',
+    giftListUrl: '',
+    giftListItems: 'Fraldas Pampers M e G, Toalhinhas umedecidas, Termômetro digital',
+    childAgeLimit: 8,
   },
   {
     id: 'ev-04',
@@ -162,6 +211,8 @@ export const INITIAL_EVENTS: EventData[] = [
     status: 'closed',
     allowResponseEdit: false,
     preventDuplicateResponses: true,
+    showCountdown: false,
+    giftListType: 'none',
   },
 ];
 
@@ -290,6 +341,7 @@ export const INITIAL_GUESTS: GuestData[] = [
     eventId: 'ev-01',
     name: 'Carlos Eduardo Mendes',
     displayName: 'Carlos e Juliana Mendes',
+    inviteName: 'Carlos e Juliana Mendes',
     phone: '(61) 98765-4321',
     email: 'carlos.mendes@email.com',
     group: 'Padrinhos',
@@ -300,6 +352,10 @@ export const INITIAL_GUESTS: GuestData[] = [
     respondedAt: '2026-09-21 10:14',
     companionCount: 1,
     companionNames: ['Juliana Mendes'],
+    members: [
+      { id: 'm-g01-1', name: 'Carlos Eduardo Mendes', category: 'Adulto', status: 'confirmed', isPrimary: true },
+      { id: 'm-g01-2', name: 'Juliana Mendes', category: 'Adulto', status: 'confirmed' },
+    ],
     answers: {
       q_presence: 'sim',
       q_has_companions: 'sim',
@@ -314,6 +370,7 @@ export const INITIAL_GUESTS: GuestData[] = [
     eventId: 'ev-01',
     name: 'Mariana Duarte',
     displayName: 'Família Duarte',
+    inviteName: 'Família Duarte',
     phone: '(61) 99123-8877',
     email: 'mariana.duarte@email.com',
     group: 'Família Noiva',
@@ -324,6 +381,11 @@ export const INITIAL_GUESTS: GuestData[] = [
     respondedAt: '2026-09-20 18:32',
     companionCount: 2,
     companionNames: ['Lucas Duarte', 'Beatriz Duarte'],
+    members: [
+      { id: 'm-g02-1', name: 'Mariana Duarte', category: 'Adulto', status: 'confirmed', isPrimary: true },
+      { id: 'm-g02-2', name: 'Lucas Duarte', category: 'Adulto', status: 'confirmed' },
+      { id: 'm-g02-3', name: 'Beatriz Duarte', category: 'Criança', status: 'confirmed' },
+    ],
     answers: {
       q_presence: 'sim',
       q_has_companions: 'sim',
@@ -338,9 +400,10 @@ export const INITIAL_GUESTS: GuestData[] = [
     eventId: 'ev-01',
     name: 'Rafael Augusto Prado',
     displayName: 'Rafael Prado',
+    inviteName: 'Rafael Augusto Prado',
     phone: '(11) 97654-3210',
     email: 'rafael.prado@email.com',
-    group: 'Amigos de Faculdade',
+    group: 'Amigos',
     maxGuests: 1,
     rsvpCode: 'RAF-8L2W5',
     notes: 'Mora em SP, estará viajando a trabalho na data.',
@@ -348,6 +411,9 @@ export const INITIAL_GUESTS: GuestData[] = [
     respondedAt: '2026-09-19 14:05',
     companionCount: 0,
     companionNames: [],
+    members: [
+      { id: 'm-g03-1', name: 'Rafael Augusto Prado', category: 'Adulto', status: 'declined', isPrimary: true },
+    ],
     answers: {
       q_presence: 'nao',
       q_message: 'Infelizmente estarei fora do país nessa semana, mas desejo toda felicidade do mundo a vocês!',
@@ -358,6 +424,7 @@ export const INITIAL_GUESTS: GuestData[] = [
     eventId: 'ev-01',
     name: 'Ana Beatriz Souza',
     displayName: 'Dra. Ana Beatriz',
+    inviteName: 'Dra. Ana Beatriz Souza',
     phone: '(61) 99881-2233',
     email: 'anabeatriz@hospital.com',
     group: 'Trabalho',
@@ -368,6 +435,9 @@ export const INITIAL_GUESTS: GuestData[] = [
     respondedAt: '2026-09-22 14:10',
     companionCount: 0,
     companionNames: [],
+    members: [
+      { id: 'm-g04-1', name: 'Ana Beatriz Souza', category: 'Adulto', status: 'confirmed', isPrimary: true },
+    ],
     answers: {
       q_presence: 'sim',
       q_message: 'Parabéns ao casal! Estarei lá com certeza.',
@@ -378,9 +448,10 @@ export const INITIAL_GUESTS: GuestData[] = [
     eventId: 'ev-01',
     name: 'Henrique Faria e Convidada',
     displayName: 'Henrique Faria',
+    inviteName: 'Henrique Faria e Convidada',
     phone: '(61) 98444-5566',
     email: 'henrique.faria@email.com',
-    group: 'Amigos de Infância',
+    group: 'Amigos',
     maxGuests: 1,
     rsvpCode: 'RAF-2T8Y1',
     notes: 'Convite entregue pessoalmente.',
@@ -388,6 +459,10 @@ export const INITIAL_GUESTS: GuestData[] = [
     respondedAt: '2026-09-23 09:20',
     companionCount: 1,
     companionNames: ['Larissa Costa'],
+    members: [
+      { id: 'm-g05-1', name: 'Henrique Faria', category: 'Adulto', status: 'confirmed', isPrimary: true },
+      { id: 'm-g05-2', name: 'Larissa Costa', category: 'Adulto', status: 'confirmed' },
+    ],
     answers: {
       q_presence: 'sim',
       q_companions_count: '1',
@@ -398,6 +473,7 @@ export const INITIAL_GUESTS: GuestData[] = [
     eventId: 'ev-02',
     name: 'Isabela Ribeiro',
     displayName: 'Isa Ribeiro',
+    inviteName: 'Isabela Ribeiro',
     phone: '(61) 98111-2233',
     email: 'isabela.rib@email.com',
     group: 'Amigas de Escola',
@@ -408,6 +484,9 @@ export const INITIAL_GUESTS: GuestData[] = [
     respondedAt: '2026-09-20 16:45',
     companionCount: 0,
     companionNames: [],
+    members: [
+      { id: 'm-g06-1', name: 'Isabela Ribeiro', category: 'Criança', status: 'confirmed', isPrimary: true },
+    ],
     answers: {
       q_presence: 'sim',
     },
@@ -417,6 +496,7 @@ export const INITIAL_GUESTS: GuestData[] = [
     eventId: 'ev-02',
     name: 'Felipe Valente',
     displayName: 'Felipe Valente e Família',
+    inviteName: 'Felipe Valente e Família',
     phone: '(61) 99222-3344',
     email: 'felipe.valente@email.com',
     group: 'Família',
@@ -427,6 +507,11 @@ export const INITIAL_GUESTS: GuestData[] = [
     respondedAt: '2026-09-21 11:30',
     companionCount: 2,
     companionNames: ['Patrícia Valente', 'Enzo Valente'],
+    members: [
+      { id: 'm-g07-1', name: 'Felipe Valente', category: 'Adulto', status: 'confirmed', isPrimary: true },
+      { id: 'm-g07-2', name: 'Patrícia Valente', category: 'Adulto', status: 'confirmed' },
+      { id: 'm-g07-3', name: 'Enzo Valente', category: 'Criança', status: 'confirmed' },
+    ],
     answers: {
       q_presence: 'sim',
       q_companions_count: '2',

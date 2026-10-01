@@ -39,6 +39,8 @@ export const getEventTabSlug = (section: NavSection): string => {
       return 'convidados';
     case 'form-builder':
       return 'formulario';
+    case 'guest-link':
+      return 'link-convite';
     case 'managers':
       return 'responsaveis';
     case 'analytics':
@@ -67,6 +69,10 @@ export const parseEventTabSlug = (tabSlug?: string): NavSection => {
     case 'form-builder':
     case 'perguntas':
       return 'form-builder';
+    case 'link-convite':
+    case 'guest-link':
+    case 'convite-link':
+      return 'guest-link';
     case 'responsaveis':
     case 'managers':
       return 'managers';

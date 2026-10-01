@@ -65,6 +65,9 @@ const EVENT_SECTION_TITLES: Record<NavSection, { title: string }> = {
   guests: {
     title: 'Convidados',
   },
+  'guest-link': {
+    title: 'Página de Confirmação',
+  },
   managers: {
     title: 'Responsáveis',
   },

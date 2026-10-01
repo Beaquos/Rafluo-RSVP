@@ -33,6 +33,7 @@ import {
   INITIAL_CLIENTS,
   EventData,
   GuestData,
+  InviteMember,
   ClientData,
   FormQuestionData,
   ManagerData,
@@ -129,6 +130,7 @@ export default function App() {
   const [isEventModalOpen, setIsEventModalOpen] = useState(false);
   const [editingEvent, setEditingEvent] = useState<EventData | null>(null);
   const [isGuestModalOpen, setIsGuestModalOpen] = useState(false);
+  const [editingGuest, setEditingGuest] = useState<GuestData | null>(null);
   const [isImportCsvModalOpen, setIsImportCsvModalOpen] = useState(false);
   const [isQuestionModalOpen, setIsQuestionModalOpen] = useState(false);
   const [editingQuestion, setEditingQuestion] = useState<FormQuestionData | null>(null);
@@ -298,7 +300,15 @@ export default function App() {
 
     setActiveEventId(updated.id);
     setToastMessage(`Evento "${updated.name || 'Novo Evento'}" salvo com sucesso!`);
-    navigateTo(getEventPath(updated, 'overview'));
+    if (isNew) {
+      navigateTo(getEventPath(updated, 'overview'));
+    }
+  };
+
+  const handleSaveEventCustomization = (updated: EventData) => {
+    setEvents((prev) => prev.map((e) => (e.id === updated.id ? updated : e)));
+    setToastMessage('Personalização da página salva com sucesso!');
+    // Mantém o usuário exatamente na seção em que estava realizando a configuração, sem alterar rota ou redirecionar
   };
 
   const handleDeleteEvent = (eventId: string) => {
@@ -322,13 +332,26 @@ export default function App() {
     setToastMessage(`Evento "${eventToDelete.name}" e dados vinculados excluídos com sucesso.`);
   };
 
-  const handleAddGuest = (newGuest: GuestData) => {
+  const handleSaveGuest = (savedGuest: GuestData) => {
     const guestWithEvent = {
-      ...newGuest,
+      ...savedGuest,
       eventId: activeEvent.id,
     };
-    setGuests((prev) => [guestWithEvent, ...prev]);
-    setToastMessage(`Convidado "${newGuest.name}" cadastrado com sucesso!`);
+    setGuests((prev) => {
+      const exists = prev.some((g) => g.id === savedGuest.id);
+      if (exists) {
+        return prev.map((g) => (g.id === savedGuest.id ? guestWithEvent : g));
+      }
+      return [guestWithEvent, ...prev];
+    });
+    setToastMessage(`Convite "${savedGuest.inviteName || savedGuest.name}" salvo com sucesso!`);
+    setEditingGuest(null);
+  };
+
+  const handleDeleteGuest = (guestId: string) => {
+    const target = guests.find((g) => g.id === guestId);
+    setGuests((prev) => prev.filter((g) => g.id !== guestId));
+    setToastMessage(`Convite "${target?.inviteName || target?.name || ''}" excluído com sucesso.`);
   };
 
   const handleImportGuests = (newGuests: GuestData[]) => {
@@ -416,7 +439,9 @@ export default function App() {
     status: 'confirmed' | 'declined',
     companionCount: number,
     companionNames: string[],
-    answers: Record<string, any>
+    answers: Record<string, any>,
+    guestInfo?: { name: string; phone: string; email: string },
+    members?: InviteMember[]
   ) => {
     const updatedTimestamp = new Date().toISOString().split('T')[0];
 
@@ -425,11 +450,16 @@ export default function App() {
         g.id === guestId
           ? {
               ...g,
+              name: guestInfo?.name || g.name,
+              displayName: guestInfo?.name || g.displayName,
+              phone: guestInfo?.phone || g.phone,
+              email: guestInfo?.email || g.email,
               status,
               companionCount,
               companionNames,
               respondedAt: updatedTimestamp,
               answers: { ...g.answers, ...answers },
+              members: members || g.members,
             }
           : g
       )
@@ -449,7 +479,8 @@ export default function App() {
     companionCount: number,
     companionNames: string[],
     answers: Record<string, any>,
-    guestInfo?: { name: string; phone: string; email: string }
+    guestInfo?: { name: string; phone: string; email: string },
+    members?: InviteMember[]
   ) => {
     if (!route.matchedEvent) return;
     const targetEvent = route.matchedEvent;
@@ -483,6 +514,7 @@ export default function App() {
           companionNames,
           respondedAt: updatedTimestamp,
           answers: { ...existing.answers, ...answers },
+          members: members || existing.members,
         };
 
         setGuests((prev) => prev.map((g, idx) => (idx === existingIndex ? updatedGuest : g)));
@@ -499,6 +531,7 @@ export default function App() {
       eventId: targetEvent.id,
       name: newName,
       displayName: newName,
+      inviteName: newName,
       phone: guestInfo?.phone || '',
       email: guestInfo?.email || '',
       group: 'Geral',
@@ -510,6 +543,7 @@ export default function App() {
       companionCount,
       companionNames,
       answers,
+      members,
     };
 
     setGuests((prev) => [newGuest, ...prev]);
@@ -655,9 +689,9 @@ export default function App() {
       <>
         <Toast message={toastMessage} onClose={() => setToastMessage(null)} />
         <GuestRsvpView
-          event={route.matchedEvent}
+          event={events.find((e) => e.id === route.matchedEvent!.id) || route.matchedEvent}
           guest={null}
-          questions={eventQuestions.length > 0 ? eventQuestions : questions}
+          questions={eventQuestions}
           onBackToAdmin={() => navigateTo('/dashboard')}
           onSubmitRsvp={handlePublicRsvpSubmit}
           isPublicMode={true}
@@ -676,9 +710,9 @@ export default function App() {
       <>
         <Toast message={toastMessage} onClose={() => setToastMessage(null)} />
         <GuestRsvpView
-          event={route.matchedEvent!}
+          event={events.find((e) => e.id === route.matchedEvent!.id) || route.matchedEvent!}
           guest={route.matchedGuest}
-          questions={eventQuestions.length > 0 ? eventQuestions : questions}
+          questions={eventQuestions}
           onBackToAdmin={() => navigateTo('/dashboard')}
           onSubmitRsvp={handleSubmitGuestRsvp}
           isPublicMode={true}
@@ -842,7 +876,16 @@ export default function App() {
             }}
             onDeleteQuestion={handleDeleteQuestion}
             guests={activeEventGuests}
-            onAddGuest={() => setIsGuestModalOpen(true)}
+            onAddGuest={() => {
+              setEditingGuest(null);
+              setIsGuestModalOpen(true);
+            }}
+            onEditGuest={(g) => {
+              setEditingGuest(g);
+              setIsGuestModalOpen(true);
+            }}
+            onDeleteGuest={handleDeleteGuest}
+            onSaveEventCustomization={handleSaveEventCustomization}
             onImportCsv={() => setIsImportCsvModalOpen(true)}
             onOpenWhatsApp={handleOpenWhatsApp}
             onOpenGuestDetails={handleOpenGuestDetails}
@@ -887,8 +930,12 @@ export default function App() {
 
         <GuestModal
           isOpen={isGuestModalOpen}
-          onClose={() => setIsGuestModalOpen(false)}
-          onSave={handleAddGuest}
+          onClose={() => {
+            setIsGuestModalOpen(false);
+            setEditingGuest(null);
+          }}
+          onSave={handleSaveGuest}
+          guest={editingGuest}
           defaultMaxGuests={activeEvent.maxGuestsPerInvite}
         />
 

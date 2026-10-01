@@ -5,6 +5,7 @@ import {
   CheckCircle2,
   ArrowRight,
   TrendingUp,
+  Clock,
 } from 'lucide-react';
 import { EventData, GuestData } from '../../data/mockData';
 import { AdminUser } from '../../types/user';
@@ -17,6 +18,32 @@ interface HubDashboardViewProps {
   guests: GuestData[];
   onSelectEvent: (event: EventData) => void;
   onNavigateToEvents: () => void;
+}
+
+// Helper to calculate days remaining for the event
+function getDaysRemaining(dateStr: string): string {
+  if (!dateStr) return '';
+  const parts = dateStr.split('-');
+  if (parts.length < 3) return '';
+  const eventDate = new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2], 10));
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  eventDate.setHours(0, 0, 0, 0);
+
+  const diffTime = eventDate.getTime() - today.getTime();
+  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+  if (diffDays === 1) {
+    return 'Falta 1 dia';
+  } else if (diffDays > 1) {
+    return `Faltam ${diffDays} dias`;
+  } else if (diffDays === 0) {
+    return 'Hoje';
+  } else if (diffDays === -1) {
+    return 'Realizado ontem';
+  } else {
+    return `Realizado há ${Math.abs(diffDays)} dias`;
+  }
 }
 
 export const HubDashboardView: React.FC<HubDashboardViewProps> = ({
@@ -188,9 +215,10 @@ export const HubDashboardView: React.FC<HubDashboardViewProps> = ({
                           {formatDateBR(ev.date)}
                         </span>
                         <span>•</span>
-                        <span className="truncate">{ev.type}</span>
-                        <span>•</span>
-                        <span>{evTotalGuests} convites</span>
+                        <span className="inline-flex items-center gap-1 font-medium text-[#3F2553] dark:text-[#DFFF5F]">
+                          <Clock className="w-3.5 h-3.5 text-[#3F2553]/80 dark:text-[#DFFF5F]" />
+                          <span>{getDaysRemaining(ev.date)}</span>
+                        </span>
                       </div>
                     </div>
                   </div>

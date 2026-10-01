@@ -131,8 +131,8 @@ export const MasterEventsHub: React.FC<MasterEventsHubProps> = ({
         <div className="bg-white p-3.5 sm:p-5 rounded-2xl border border-[#24152F]/15 shadow-xs flex flex-col justify-between hover:border-[#24152F]/40 transition-all">
           <div className="flex items-center justify-between text-[#24152F] text-xs font-bold">
             <span className="truncate pr-1">Total Eventos</span>
-            <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-[#24152F]/10 text-[#24152F] flex items-center justify-center shadow-xs flex-shrink-0">
-              <Calendar className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[#24152F]" />
+            <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-[#24152F] text-[#DFFF5F] flex items-center justify-center shadow-xs flex-shrink-0">
+              <Calendar className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[#DFFF5F]" />
             </div>
           </div>
           <div className="mt-2.5 sm:mt-3">
@@ -159,8 +159,8 @@ export const MasterEventsHub: React.FC<MasterEventsHubProps> = ({
         <div className="bg-white p-3.5 sm:p-5 rounded-2xl border border-[#24152F]/15 shadow-xs flex flex-col justify-between hover:border-[#24152F]/40 transition-all">
           <div className="flex items-center justify-between text-[#24152F] text-xs font-bold">
             <span className="truncate pr-1">Total Convidados</span>
-            <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-[#24152F]/10 text-[#24152F] flex items-center justify-center shadow-xs flex-shrink-0">
-              <Users className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[#24152F]" />
+            <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-[#24152F] text-[#DFFF5F] flex items-center justify-center shadow-xs flex-shrink-0">
+              <Users className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[#DFFF5F]" />
             </div>
           </div>
           <div className="mt-2.5 sm:mt-3">
@@ -170,8 +170,7 @@ export const MasterEventsHub: React.FC<MasterEventsHubProps> = ({
         </div>
 
         {/* Confirmações Gerais */}
-        <div className="bg-white p-3.5 sm:p-5 rounded-2xl border border-[#DFFF5F]/80 shadow-xs flex flex-col justify-between hover:border-[#DFFF5F] transition-all relative overflow-hidden">
-          <div className="absolute top-0 right-0 w-24 h-24 bg-[#DFFF5F]/15 rounded-full blur-xl pointer-events-none" />
+        <div className="bg-white p-3.5 sm:p-5 rounded-2xl border border-[#24152F]/15 shadow-xs flex flex-col justify-between hover:border-[#24152F]/40 transition-all">
           <div className="flex items-center justify-between text-[#24152F] text-xs font-bold">
             <span className="truncate pr-1">Confirmados</span>
             <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-[#DFFF5F] text-[#180D20] flex items-center justify-center shadow-xs flex-shrink-0">
@@ -180,7 +179,7 @@ export const MasterEventsHub: React.FC<MasterEventsHubProps> = ({
           </div>
           <div className="mt-2.5 sm:mt-3">
             <p className="text-xl sm:text-2xl lg:text-3xl font-bold text-[#24152F] tracking-tight">{totalConfirmed}</p>
-            <p className="text-[10px] sm:text-[11px] text-[#24152F]/70 mt-0.5 font-medium">Presenças confirmadas</p>
+            <p className="text-[10px] sm:text-[11px] text-[#24152F]/60 mt-0.5 font-medium">Presenças confirmadas</p>
           </div>
         </div>
       </div>
@@ -476,10 +475,10 @@ export const MasterEventsHub: React.FC<MasterEventsHubProps> = ({
                       type="button"
                       id={`btn-access-event-${ev.id}`}
                       onClick={() => onSelectEvent(ev)}
-                      className="flex-1 h-10 sm:h-11 px-3 sm:px-3.5 rounded-xl bg-[#24152F] hover:bg-[#180D20] text-[#F7F1E5] text-xs font-semibold transition-all cursor-pointer shadow-xs border border-[#3F2553] flex items-center justify-between group active:scale-98"
+                      className="flex-1 h-10 sm:h-11 px-3 sm:px-3.5 rounded-xl bg-[#24152F] hover:bg-[#180D20] text-[#F7F1E5] text-xs font-semibold font-heading transition-all cursor-pointer shadow-xs border border-[#3F2553] flex items-center justify-between group active:scale-98"
                       title="Acessar evento"
                     >
-                      <span className="truncate font-semibold text-xs text-[#F7F1E5]">Acessar evento</span>
+                      <span className="truncate font-semibold font-heading text-xs text-[#F7F1E5]">Acessar evento</span>
                       <div className="w-5 h-5 sm:w-6 sm:h-6 rounded-lg bg-[#DFFF5F] text-[#180D20] flex items-center justify-center flex-shrink-0 group-hover:translate-x-0.5 transition-transform shadow-2xs">
                         <ArrowRight className="w-3.5 h-3.5 stroke-[2.5]" />
                       </div>

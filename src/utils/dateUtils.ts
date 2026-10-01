@@ -217,3 +217,46 @@ const convertBRToYMD = (brDate: string): string => {
   }
   return brDate;
 };
+
+/**
+ * Retorna a contagem de dias restantes até o evento no formato "Faltam X dias".
+ * Exemplo: "Faltam 15 dias"
+ */
+export const getDaysRemainingText = (dateStr: string | null | undefined): string => {
+  if (!dateStr) return '';
+  try {
+    const trimmed = dateStr.trim();
+    let y = 0;
+    let m = 0;
+    let d = 0;
+
+    const ymd = trimmed.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
+    if (ymd) {
+      y = parseInt(ymd[1], 10);
+      m = parseInt(ymd[2], 10) - 1;
+      d = parseInt(ymd[3], 10);
+    } else {
+      const dmy = trimmed.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})/);
+      if (dmy) {
+        d = parseInt(dmy[1], 10);
+        m = parseInt(dmy[2], 10) - 1;
+        y = dmy[3].length === 2 ? 2000 + parseInt(dmy[3], 10) : parseInt(dmy[3], 10);
+      }
+    }
+
+    if (!y) return '';
+
+    const target = new Date(y, m, d);
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const diffMs = target.getTime() - today.getTime();
+    const diffDays = Math.round(diffMs / (1000 * 60 * 60 * 24));
+
+    if (diffDays === 1) return 'Falta 1 dia';
+    if (diffDays > 1) return `Faltam ${diffDays} dias`;
+    if (diffDays === 0) return 'Faltam 0 dias';
+    return 'Encerrado';
+  } catch {
+    return '';
+  }
+};

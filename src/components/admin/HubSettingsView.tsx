@@ -7,8 +7,6 @@ import {
   Phone,
   MapPin,
   Instagram,
-  Linkedin,
-  Facebook,
   Upload,
   Trash2,
   Image as ImageIcon,
@@ -16,13 +14,6 @@ import {
   RotateCcw,
 } from 'lucide-react';
 import { WhatsAppIcon } from '../common/WhatsAppIcon';
-
-// Official X brand icon (Item 5)
-const XBrandIcon: React.FC<React.SVGProps<SVGSVGElement>> = ({ className = 'w-3.5 h-3.5', ...props }) => (
-  <svg viewBox="0 0 24 24" fill="currentColor" className={className} {...props}>
-    <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
-  </svg>
-);
 
 interface HubSettingsViewProps {
   onShowToast: (message: string) => void;
@@ -528,59 +519,8 @@ export const HubSettingsView: React.FC<HubSettingsViewProps> = ({ onShowToast })
                   />
                 </div>
 
-                {/* X (Twitter) */}
-                <div>
-                  <label className="block text-xs font-bold mb-1 flex items-center gap-1.5 text-[#24152F] dark:text-[#F7F1E5]">
-                    <XBrandIcon className="w-3.5 h-3.5 text-current" />
-                    <span>X (Twitter)</span>
-                  </label>
-                  <input
-                    type="text"
-                    value={companyData.twitter}
-                    onChange={(e) =>
-                      setCompanyData({ ...companyData, twitter: e.target.value })
-                    }
-                    placeholder="@usuario ou link"
-                    className="w-full px-3.5 py-2 rounded-xl border border-[#24152F]/20 dark:border-[#3F2553] bg-white dark:bg-[#120919] text-[#24152F] dark:text-[#F7F1E5] focus:outline-none focus:ring-2 focus:ring-[#24152F]"
-                  />
-                </div>
-
-                {/* LinkedIn */}
-                <div>
-                  <label className="block text-xs font-bold mb-1 flex items-center gap-1.5 text-[#24152F] dark:text-[#F7F1E5]">
-                    <Linkedin className="w-3.5 h-3.5 text-current" />
-                    <span>LinkedIn</span>
-                  </label>
-                  <input
-                    type="text"
-                    value={companyData.linkedin}
-                    onChange={(e) =>
-                      setCompanyData({ ...companyData, linkedin: e.target.value })
-                    }
-                    placeholder="Link do perfil ou empresa"
-                    className="w-full px-3.5 py-2 rounded-xl border border-[#24152F]/20 dark:border-[#3F2553] bg-white dark:bg-[#120919] text-[#24152F] dark:text-[#F7F1E5] focus:outline-none focus:ring-2 focus:ring-[#24152F]"
-                  />
-                </div>
-
-                {/* Facebook */}
-                <div>
-                  <label className="block text-xs font-bold mb-1 flex items-center gap-1.5 text-[#24152F] dark:text-[#F7F1E5]">
-                    <Facebook className="w-3.5 h-3.5 text-current" />
-                    <span>Facebook</span>
-                  </label>
-                  <input
-                    type="text"
-                    value={companyData.facebook}
-                    onChange={(e) =>
-                      setCompanyData({ ...companyData, facebook: e.target.value })
-                    }
-                    placeholder="Link do perfil ou página"
-                    className="w-full px-3.5 py-2 rounded-xl border border-[#24152F]/20 dark:border-[#3F2553] bg-white dark:bg-[#120919] text-[#24152F] dark:text-[#F7F1E5] focus:outline-none focus:ring-2 focus:ring-[#24152F]"
-                  />
-                </div>
-
                 {/* WhatsApp */}
-                <div className="sm:col-span-2">
+                <div>
                   <label className="block text-xs font-bold mb-1 flex items-center gap-1.5 text-[#24152F] dark:text-[#F7F1E5]">
                     <WhatsAppIcon className="w-3.5 h-3.5 text-current" />
                     <span>WhatsApp</span>

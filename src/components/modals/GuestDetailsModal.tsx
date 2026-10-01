@@ -107,12 +107,12 @@ export const GuestDetailsModal: React.FC<GuestDetailsModalProps> = ({
               </div>
               <div className="min-w-0">
                 <span className="text-[11px] font-bold uppercase tracking-wider text-rose-800/80 block">
-                  Ausência Registrada
+                  Status: Ausente
                 </span>
                 <p className="text-sm font-bold text-rose-900 truncate">
                   {formattedRespondedAt
                     ? `Registrado em ${formattedRespondedAt}`
-                    : 'Não comparecerá ao evento'}
+                    : 'Ausente no evento'}
                 </p>
               </div>
             </div>

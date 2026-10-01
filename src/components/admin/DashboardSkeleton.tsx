@@ -17,6 +17,9 @@ import {
   Trash2,
   Eye,
   Check,
+  X,
+  Plus,
+  SlidersHorizontal,
   ArrowLeft,
   ArrowRight,
   LayoutGrid,
@@ -28,12 +31,25 @@ import {
   Palette,
   RotateCcw,
   MoreHorizontal,
+  Mail,
+  MoreVertical,
+  ArrowDownAZ,
+  ChevronUp,
+  ChevronRight,
+  Baby,
+  User,
+  Sparkles,
+  Timer,
+  Gift,
+  MessageSquare,
+  Image as ImageIcon,
 } from 'lucide-react';
 import { NavSection } from '../../types/navigation';
 import { EventData, GuestData, FormQuestionData, ManagerData } from '../../data/mockData';
 import { copyToClipboard, getEventRsvpUrl, getGuestRsvpUrl, getClientPanelUrl } from '../../utils/linkUtils';
 import { formatDateBR, formatDateTimeBR } from '../../utils/dateUtils';
 import { exportReportToXLSX, exportReportToPDF } from '../../utils/reportExportUtils';
+import { getInviteMembers, getInviteGuestCountText, getInviteResponseCounts } from '../../utils/inviteUtils';
 import { ExportDataDropdown } from '../common/ExportDataDropdown';
 import { WhatsAppIcon } from '../common/WhatsAppIcon';
 import { WhatsAppModal } from '../modals/WhatsAppModal';
@@ -49,6 +65,9 @@ interface DashboardSkeletonProps {
   onDeleteQuestion: (id: string) => void;
   guests: GuestData[];
   onAddGuest: () => void;
+  onEditGuest?: (guest: GuestData) => void;
+  onDeleteGuest?: (guestId: string) => void;
+  onSaveEventCustomization?: (event: EventData) => void;
   onImportCsv: () => void;
   onOpenWhatsApp: (guest: GuestData) => void;
   onOpenGuestDetails: (guest: GuestData) => void;
@@ -75,6 +94,9 @@ export const DashboardSkeleton: React.FC<DashboardSkeletonProps> = ({
   onDeleteQuestion,
   guests,
   onAddGuest,
+  onEditGuest,
+  onDeleteGuest,
+  onSaveEventCustomization,
   onImportCsv,
   onOpenWhatsApp,
   onOpenGuestDetails,
@@ -97,6 +119,10 @@ export const DashboardSkeleton: React.FC<DashboardSkeletonProps> = ({
   const [selectedManagerForWhatsApp, setSelectedManagerForWhatsApp] = useState<ManagerData | null>(null);
   const [openManagerActionId, setOpenManagerActionId] = useState<string | null>(null);
   const managerActionRef = useRef<HTMLDivElement>(null);
+  const [openInviteActionId, setOpenInviteActionId] = useState<string | null>(null);
+  const inviteActionRef = useRef<HTMLDivElement>(null);
+  const [expandedInviteIds, setExpandedInviteIds] = useState<string[]>([]);
+  const [isSortAZ, setIsSortAZ] = useState<boolean>(false);
   const [isShareDropdownOpen, setIsShareDropdownOpen] = useState(false);
   const shareDropdownRef = useRef<HTMLDivElement>(null);
 
@@ -111,6 +137,81 @@ export const DashboardSkeleton: React.FC<DashboardSkeletonProps> = ({
     );
   });
 
+  // Subtab inside Dados do Evento
+  const [eventDataSubTab, setEventDataSubTab] = useState<'info' | 'form'>('info');
+
+  // Filter Modal States (Item 5)
+  const [isFilterModalOpen, setIsFilterModalOpen] = useState(false);
+  const [filterStatus, setFilterStatus] = useState<'all' | 'confirmed' | 'declined'>('all');
+  const [filterAgeCategory, setFilterAgeCategory] = useState<'ambos' | 'adulto' | 'crianca'>('ambos');
+  const [filterSelectedGroups, setFilterSelectedGroups] = useState<string[]>([]);
+
+  // Draft filters inside the modal
+  const [draftFilterStatus, setDraftFilterStatus] = useState<'all' | 'confirmed' | 'declined'>('all');
+  const [draftFilterAgeCategory, setDraftFilterAgeCategory] = useState<'ambos' | 'adulto' | 'crianca'>('ambos');
+  const [draftFilterSelectedGroups, setDraftFilterSelectedGroups] = useState<string[]>([]);
+
+  // State for Página de Confirmação (Itens 6 a 9: Cards opcionais)
+  const [inviteCustomization, setInviteCustomization] = useState({
+    coverImage: event.coverImage || '',
+    welcomeMessage: event.welcomeMessage || '',
+    showCoverImage: event.showCoverImage ?? true,
+    showWelcomeMessage: event.showWelcomeMessage ?? true,
+    showCountdown: event.showCountdown ?? true,
+    showGiftList: event.showGiftList ?? true,
+    giftListType: (event.giftListType === 'none' ? 'items' : event.giftListType || 'items') as 'link' | 'items',
+    giftListUrl: event.giftListUrl || '',
+    giftListItems: event.giftListItems || '',
+    giftListItemsList: event.giftListItemsList && event.giftListItemsList.length > 0
+      ? [...event.giftListItemsList]
+      : (event.giftListItems ? event.giftListItems.split('\n').filter((s) => s.trim().length > 0) : ['Jogo de Pratos de Porcelana', 'Fritadeira Elétrica Airfryer', 'Aparelho de Jantar 30 Peças']),
+    childAgeLimit: event.childAgeLimit || 10,
+  });
+
+  useEffect(() => {
+    setInviteCustomization({
+      coverImage: event.coverImage || '',
+      welcomeMessage: event.welcomeMessage || '',
+      showCoverImage: event.showCoverImage ?? true,
+      showWelcomeMessage: event.showWelcomeMessage ?? true,
+      showCountdown: event.showCountdown ?? true,
+      showGiftList: event.showGiftList ?? true,
+      giftListType: (event.giftListType === 'none' ? 'items' : event.giftListType || 'items') as 'link' | 'items',
+      giftListUrl: event.giftListUrl || '',
+      giftListItems: event.giftListItems || '',
+      giftListItemsList: event.giftListItemsList && event.giftListItemsList.length > 0
+        ? [...event.giftListItemsList]
+        : (event.giftListItems ? event.giftListItems.split('\n').filter((s) => s.trim().length > 0) : ['Jogo de Pratos de Porcelana', 'Fritadeira Elétrica Airfryer', 'Aparelho de Jantar 30 Peças']),
+      childAgeLimit: event.childAgeLimit || 10,
+    });
+  }, [event]);
+
+  const handleUpdateCustomization = (partial: Partial<typeof inviteCustomization>) => {
+    const next = { ...inviteCustomization, ...partial };
+    setInviteCustomization(next);
+    const updated: EventData = {
+      ...event,
+      coverImage: next.coverImage,
+      welcomeMessage: next.welcomeMessage,
+      showCoverImage: next.showCoverImage,
+      showWelcomeMessage: next.showWelcomeMessage,
+      showCountdown: next.showCountdown,
+      showGiftList: next.showGiftList,
+      giftListType: next.showGiftList ? next.giftListType : 'none',
+      giftListUrl: next.giftListUrl,
+      giftListItems: next.giftListItemsList.join('\n'),
+      giftListItemsList: next.giftListItemsList,
+      childAgeLimit: next.childAgeLimit,
+    };
+    if (onSaveEventCustomization) {
+      onSaveEventCustomization(updated);
+    } else {
+      Object.assign(event, updated);
+    }
+  };
+
+  const [newGiftItemText, setNewGiftItemText] = useState('');
+
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
       if (
@@ -124,6 +225,12 @@ export const DashboardSkeleton: React.FC<DashboardSkeletonProps> = ({
         !managerActionRef.current.contains(e.target as Node)
       ) {
         setOpenManagerActionId(null);
+      }
+      if (
+        inviteActionRef.current &&
+        !inviteActionRef.current.contains(e.target as Node)
+      ) {
+        setOpenInviteActionId(null);
       }
     };
     document.addEventListener('mousedown', handleClickOutside);
@@ -163,16 +270,76 @@ export const DashboardSkeleton: React.FC<DashboardSkeletonProps> = ({
   const totalConvidados = confirmedGuests.length + totalCompanions + declinedGuests.length;
   const confirmedRate = totalConvidados > 0 ? Math.round((totalAttending / totalConvidados) * 100) : 0;
 
-  // Filtered guests
+  const toggleInviteExpand = (id: string) => {
+    setExpandedInviteIds((prev) =>
+      prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]
+    );
+  };
+
+  // Available groups for filter chips
+  const availableGroups = React.useMemo(() => {
+    const list = ['Amigos', 'Família'];
+    guests.forEach((g) => {
+      if (g.group && !list.includes(g.group)) {
+        list.push(g.group);
+      }
+    });
+    return list;
+  }, [guests]);
+
+  // Active filters count for filter button badge
+  const activeFiltersCount =
+    (filterStatus !== 'all' ? 1 : 0) +
+    (filterAgeCategory !== 'ambos' ? 1 : 0) +
+    (filterSelectedGroups.length > 0 ? 1 : 0);
+  const hasActiveFilters = activeFiltersCount > 0;
+
+  // Filtered and sorted guests (lista de convidados)
   const filteredGuests = guests.filter((g) => {
+    const personName = (g.name || '').toLowerCase();
+    const group = (g.group || '').toLowerCase();
+    const code = (g.rsvpCode || '').toLowerCase();
+    const query = guestSearch.toLowerCase();
     const matchesSearch =
-      g.name.toLowerCase().includes(guestSearch.toLowerCase()) ||
-      g.group.toLowerCase().includes(guestSearch.toLowerCase()) ||
-      g.rsvpCode.toLowerCase().includes(guestSearch.toLowerCase());
+      personName.includes(query) ||
+      group.includes(query) ||
+      code.includes(query);
 
     if (!matchesSearch) return false;
-    if (guestStatusFilter === 'all') return true;
-    return g.status === guestStatusFilter;
+
+    // Filter by status (Confirmado / Ausente)
+    if (filterStatus === 'confirmed') {
+      if (g.status !== 'confirmed') return false;
+    } else if (filterStatus === 'declined') {
+      if (g.status !== 'declined') return false;
+    }
+
+    // Filter by age category (Adulto / Criança)
+    if (filterAgeCategory !== 'ambos') {
+      const mems = getInviteMembers(g);
+      if (filterAgeCategory === 'adulto' && !mems.some((m) => m.category === 'Adulto')) {
+        return false;
+      }
+      if (filterAgeCategory === 'crianca' && !mems.some((m) => m.category === 'Criança')) {
+        return false;
+      }
+    }
+
+    // Filter by group (multiple selection chips)
+    if (filterSelectedGroups.length > 0) {
+      if (!filterSelectedGroups.includes(g.group)) {
+        return false;
+      }
+    }
+
+    return true;
+  });
+
+  const sortedGuests = [...filteredGuests].sort((a, b) => {
+    if (!isSortAZ) return 0;
+    const nameA = (a.name || '').toLowerCase();
+    const nameB = (b.name || '').toLowerCase();
+    return nameA.localeCompare(nameB);
   });
 
   return (
@@ -269,14 +436,14 @@ export const DashboardSkeleton: React.FC<DashboardSkeletonProps> = ({
           {/* Metrics Row (4 Cards) with highlighted icon badges */}
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-3.5">
             {/* Total Convidados */}
-            <div className="bg-white p-3.5 sm:p-4 rounded-2xl border border-[#24152F]/15 shadow-xs flex flex-col justify-between hover:border-[#24152F]/30 transition-all">
+            <div className="bg-white p-3.5 sm:p-5 rounded-2xl border border-[#24152F]/15 shadow-xs flex flex-col justify-between hover:border-[#24152F]/40 transition-all">
               <div className="flex items-center justify-between text-[#24152F] text-xs font-bold">
-                <span className="truncate pr-1">Total Convidados</span>
-                <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-xl bg-[#24152F]/10 text-[#24152F] flex items-center justify-center shadow-xs flex-shrink-0">
-                  <Users className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[#24152F]" />
+                <span className="truncate pr-1" title="Total Convidados">Total Convidados</span>
+                <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-[#24152F] text-[#DFFF5F] flex items-center justify-center shadow-xs flex-shrink-0">
+                  <Users className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[#DFFF5F]" />
                 </div>
               </div>
-              <div className="mt-2.5">
+              <div className="mt-2.5 sm:mt-3">
                 <p className="text-xl sm:text-2xl lg:text-3xl font-bold text-[#24152F] tracking-tight">
                   {totalConvidados}
                 </p>
@@ -285,15 +452,14 @@ export const DashboardSkeleton: React.FC<DashboardSkeletonProps> = ({
             </div>
 
             {/* Confirmados */}
-            <div className="bg-white p-3.5 sm:p-4 rounded-2xl border border-[#DFFF5F]/80 shadow-xs flex flex-col justify-between relative overflow-hidden hover:border-[#DFFF5F] transition-all">
-              <div className="absolute top-0 right-0 w-16 h-16 bg-[#DFFF5F]/20 rounded-full blur-xl pointer-events-none" />
+            <div className="bg-white p-3.5 sm:p-5 rounded-2xl border border-[#24152F]/15 shadow-xs flex flex-col justify-between hover:border-[#24152F]/40 transition-all">
               <div className="flex items-center justify-between text-[#24152F] text-xs font-bold">
                 <span className="truncate pr-1">Confirmados</span>
-                <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-xl bg-[#DFFF5F] text-[#180D20] flex items-center justify-center shadow-xs ring-1 ring-[#DFFF5F]/60 flex-shrink-0">
+                <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-[#DFFF5F] text-[#180D20] flex items-center justify-center shadow-xs flex-shrink-0">
                   <CheckCircle className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[#180D20]" />
                 </div>
               </div>
-              <div className="mt-2.5">
+              <div className="mt-2.5 sm:mt-3">
                 <div className="flex items-baseline gap-2">
                   <p className="text-xl sm:text-2xl lg:text-3xl font-bold text-[#24152F] tracking-tight">
                     {confirmedGuests.length}
@@ -307,14 +473,14 @@ export const DashboardSkeleton: React.FC<DashboardSkeletonProps> = ({
             </div>
 
             {/* Acompanhantes */}
-            <div className="bg-white p-3.5 sm:p-4 rounded-2xl border border-[#24152F]/15 shadow-xs flex flex-col justify-between hover:border-[#24152F]/30 transition-all">
+            <div className="bg-white p-3.5 sm:p-5 rounded-2xl border border-[#24152F]/15 shadow-xs flex flex-col justify-between hover:border-[#24152F]/40 transition-all">
               <div className="flex items-center justify-between text-[#24152F] text-xs font-bold">
                 <span className="truncate pr-1">Acompanhantes</span>
-                <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-xl bg-[#24152F]/10 text-[#24152F] flex items-center justify-center shadow-xs flex-shrink-0">
-                  <UserPlus className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[#24152F]" />
+                <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-[#24152F] text-[#DFFF5F] flex items-center justify-center shadow-xs flex-shrink-0">
+                  <UserPlus className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[#DFFF5F]" />
                 </div>
               </div>
-              <div className="mt-2.5">
+              <div className="mt-2.5 sm:mt-3">
                 <p className="text-xl sm:text-2xl lg:text-3xl font-bold text-[#24152F] tracking-tight">
                   +{totalCompanions}
                 </p>
@@ -324,15 +490,15 @@ export const DashboardSkeleton: React.FC<DashboardSkeletonProps> = ({
               </div>
             </div>
 
-            {/* Não Comparecem */}
-            <div className="bg-white p-3.5 sm:p-4 rounded-2xl border border-rose-200 shadow-xs flex flex-col justify-between hover:border-rose-300 transition-all">
+            {/* Ausentes */}
+            <div className="bg-white p-3.5 sm:p-5 rounded-2xl border border-rose-200 shadow-xs flex flex-col justify-between hover:border-rose-300 transition-all">
               <div className="flex items-center justify-between text-rose-900 text-xs font-bold">
-                <span className="truncate pr-1">Não Comparecem</span>
-                <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-xl bg-rose-100 text-rose-900 flex items-center justify-center shadow-xs flex-shrink-0">
+                <span className="truncate pr-1">Ausentes</span>
+                <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-rose-100 text-rose-900 flex items-center justify-center shadow-xs flex-shrink-0">
                   <XCircle className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-rose-900" />
                 </div>
               </div>
-              <div className="mt-2.5">
+              <div className="mt-2.5 sm:mt-3">
                 <p className="text-xl sm:text-2xl lg:text-3xl font-bold text-rose-900 tracking-tight">
                   {declinedGuests.length}
                 </p>
@@ -345,9 +511,9 @@ export const DashboardSkeleton: React.FC<DashboardSkeletonProps> = ({
           <div className="bg-white rounded-2xl border border-[#24152F]/10 p-4 sm:p-6 shadow-xs space-y-4">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-[#24152F]/10">
               <div>
-                <h3 className="text-base sm:text-lg font-bold text-[#24152F]">Respostas Recentemente</h3>
+                <h3 className="text-base sm:text-lg font-bold text-[#24152F]">Respostas Recentes</h3>
                 <p className="text-xs text-[#24152F]/60 mt-0.5">
-                  Acompanhe as últimas confirmações e recusas registradas pelos convidados
+                  Acompanhe as últimas confirmações e ausências registradas pelos convidados
                 </p>
               </div>
               <button
@@ -359,78 +525,164 @@ export const DashboardSkeleton: React.FC<DashboardSkeletonProps> = ({
               </button>
             </div>
 
-            <div className="overflow-x-auto rounded-xl border border-[#24152F]/10 bg-white">
-              <table className="w-full text-left text-xs whitespace-nowrap min-w-[560px]">
-                <thead className="bg-[#F7F1E5] border-b border-[#24152F]/10 text-[#24152F]/70 font-semibold">
+            <div className="overflow-hidden md:overflow-x-auto rounded-xl border border-[#24152F]/10 bg-white">
+              <table className="w-full text-left text-xs md:whitespace-nowrap md:min-w-[560px]">
+                <thead className="bg-[#F7F1E5] border-b border-[#24152F]/10 text-[#24152F]/80 font-bold">
                   <tr>
-                    <th className="py-2.5 px-3">Convidado</th>
-                    <th className="py-2.5 px-3">Status</th>
-                    <th className="py-2.5 px-3 text-center">Acompanhantes</th>
-                    <th className="py-2.5 px-3">Data e Hora</th>
-                    <th className="py-2.5 px-3 text-right">Ações</th>
+                    <th className="py-3 px-4 w-full md:w-auto">Nome Convidado</th>
+                    <th className="py-3 px-3 hidden md:table-cell">Tag (Grupo)</th>
+                    <th className="py-3 px-3 hidden md:table-cell">Status</th>
+                    <th className="py-3 px-3 hidden md:table-cell">Nº convidados</th>
+                    <th className="py-3 px-4 text-right hidden md:table-cell">Ficha</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-[#24152F]/5 text-[#24152F]">
-                  {guests.slice(0, 5).map((g) => (
-                    <tr key={g.id} className="hover:bg-[#F7F1E5]/50 transition-colors">
-                      <td className="py-3 px-3 font-medium">
-                        <span className="font-semibold text-[#24152F]">{g.name}</span>
-                        <span className="block text-[10px] text-[#24152F]/50 font-mono">
-                          Código: {g.rsvpCode}
-                        </span>
-                      </td>
-                      <td className="py-3 px-3">
-                        {g.status === 'confirmed' ? (
-                          <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-[#DFFF5F] text-[#180D20]">
-                            Confirmado
-                          </span>
-                        ) : g.status === 'declined' ? (
-                          <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-[#24152F]/10 text-[#24152F]/70">
-                            Recusado
-                          </span>
-                        ) : (
-                          <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-900 border border-amber-200">
-                            Pendente
-                          </span>
-                        )}
-                      </td>
-                      <td className="py-3 px-3 text-center">
-                        {g.status === 'confirmed' ? (
-                          <span className="inline-flex items-center justify-center px-2 py-0.5 rounded-md font-bold text-xs bg-[#FAF6EE] text-[#24152F] border border-[#24152F]/10">
-                            {g.companionCount || 0}
-                          </span>
-                        ) : (
-                          <span className="text-[#24152F]/40">—</span>
-                        )}
-                      </td>
-                      <td className="py-3 px-3 text-[#24152F]/75 font-medium">
-                        {g.respondedAt ? formatDateTimeBR(g.respondedAt) : 'Pendente'}
-                      </td>
-                      <td className="py-3 px-3 text-right">
-                        <div className="inline-flex items-center gap-1.5 justify-end">
-                          <button
-                            type="button"
-                            onClick={() => onOpenGuestDetails(g)}
-                            className="w-8 h-8 rounded-lg bg-white hover:bg-[#24152F] text-[#24152F] hover:text-[#F7F1E5] border border-[#24152F]/20 flex items-center justify-center transition-all shadow-2xs active:scale-95 cursor-pointer"
-                            title="Ver Ficha de Resposta"
-                            aria-label="Ver Ficha de Resposta"
-                          >
-                            <Eye className="w-4 h-4" />
-                          </button>
+                  {guests.slice(0, 5).map((g) => {
+                    const members = getInviteMembers(g);
+                    const guestCountText = getInviteGuestCountText(members);
+                    const isExpanded = expandedInviteIds.includes(g.id);
 
-                          <button
-                            type="button"
-                            onClick={() => onOpenWhatsApp(g)}
-                            className="w-8 h-8 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white border border-emerald-700 flex items-center justify-center transition-all shadow-2xs hover:shadow-xs active:scale-95 cursor-pointer"
-                            title="WhatsApp"
-                            aria-label="WhatsApp"
-                          >
-                            <WhatsAppIcon className="w-4 h-4" />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
+                    return (
+                      <React.Fragment key={g.id}>
+                        <tr
+                          className={`transition-colors cursor-pointer select-none ${
+                            isExpanded ? 'bg-[#FAF6EE]/50' : 'hover:bg-[#FAF6EE]/30'
+                          }`}
+                          onClick={() => toggleInviteExpand(g.id)}
+                        >
+                          <td className="py-4 px-4 font-bold align-top w-full md:w-auto">
+                            <div className="flex items-center gap-2.5">
+                              {/* Avatar circular com contorno cinza e ícone de envelope */}
+                              <div className="w-8 h-8 rounded-full bg-[#FAF6EE] border border-[#24152F]/15 flex items-center justify-center text-[#24152F] flex-shrink-0 shadow-2xs">
+                                <Mail className="w-4 h-4 text-[#24152F]" />
+                              </div>
+
+                              <div className="flex items-center gap-2 min-w-0">
+                                <span className="font-bold text-[#24152F] text-xs sm:text-sm">
+                                  {g.displayName || g.name}
+                                </span>
+
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    toggleInviteExpand(g.id);
+                                  }}
+                                  className="p-1 rounded-md text-[#24152F]/50 hover:text-[#24152F] hover:bg-black/5 transition-colors cursor-pointer"
+                                  title={isExpanded ? 'Recolher convite' : 'Expandir convidados'}
+                                >
+                                  {isExpanded ? (
+                                    <ChevronUp className="w-4 h-4 text-[#24152F]" />
+                                  ) : (
+                                    <ChevronDown className="w-4 h-4 text-[#24152F]" />
+                                  )}
+                                </button>
+                              </div>
+                            </div>
+
+                            {/* Linha Expandida empilhada abaixo do nome do convite (indentada) */}
+                            {isExpanded && (
+                              <div className="mt-3.5 pl-10 space-y-2.5 animate-in fade-in duration-150" onClick={(e) => e.stopPropagation()}>
+                                <div className="space-y-1.5 max-w-sm">
+                                  {members.map((mem) => {
+                                    const isConfirmed = mem.status === 'confirmed';
+                                    const isDeclined = mem.status === 'declined';
+                                    const hasResponse = isConfirmed || isDeclined;
+
+                                    return (
+                                      <div
+                                        key={mem.id}
+                                        className="flex flex-col sm:flex-row sm:items-center sm:justify-between items-start gap-1 sm:gap-2.5 py-1.5 px-2.5 rounded-xl bg-white border border-[#24152F]/10 shadow-2xs"
+                                      >
+                                        <div className="flex items-center gap-2.5 min-w-0">
+                                          {/* Avatar circular com ícone de pessoa */}
+                                          <div className="relative flex-shrink-0">
+                                            <div className="w-7 h-7 rounded-full bg-[#FAF6EE] border border-[#24152F]/15 flex items-center justify-center text-[#24152F]">
+                                              {mem.category === 'Criança' ? (
+                                                <Baby className="w-3.5 h-3.5 text-[#24152F]" />
+                                              ) : (
+                                                <User className="w-3.5 h-3.5 text-[#24152F]" />
+                                              )}
+                                            </div>
+
+                                            {/* Badge de status no canto SOMENTE se houver resposta */}
+                                            {hasResponse && (
+                                              <span
+                                                className={`absolute -bottom-1 -right-1 w-3.5 h-3.5 rounded-full flex items-center justify-center text-[8px] font-black border border-white ${
+                                                  isConfirmed
+                                                    ? 'bg-emerald-600 text-white'
+                                                    : 'bg-rose-600 text-white'
+                                                }`}
+                                                title={isConfirmed ? 'Confirmado' : 'Ausente'}
+                                              >
+                                                {isConfirmed ? '✔' : '✖'}
+                                              </span>
+                                            )}
+                                          </div>
+
+                                          {/* Nome em negrito */}
+                                          <span className="font-bold text-xs text-[#24152F] truncate">
+                                            {mem.name}
+                                          </span>
+                                        </div>
+
+                                        {/* Pill com contorno indicando Adulto ou Criança (no mobile abaixo do nome, no desktop à direita) */}
+                                        <div className="pl-9.5 sm:pl-0 flex-shrink-0">
+                                          <span
+                                            className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-bold border ${
+                                              mem.category === 'Criança'
+                                                ? 'border-amber-500/60 text-amber-900 bg-amber-50/50'
+                                                : 'border-[#24152F]/25 text-[#24152F] bg-white'
+                                            }`}
+                                          >
+                                            {mem.category}
+                                          </span>
+                                        </div>
+                                      </div>
+                                    );
+                                  })}
+                                </div>
+                              </div>
+                            )}
+                          </td>
+                          <td className="py-3.5 px-3 align-middle hidden md:table-cell">
+                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-[#E8F0E4] border border-[#A3C79E] text-[#1E3B1E]">
+                              {g.group || 'Geral'}
+                            </span>
+                          </td>
+                          <td className="py-3.5 px-3 align-middle hidden md:table-cell">
+                            {g.status === 'confirmed' ? (
+                              <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold bg-[#E8F0E4] border border-[#A3C79E] text-[#1E3B1E]">
+                                Confirmado
+                              </span>
+                            ) : g.status === 'declined' ? (
+                              <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold bg-rose-50 border border-rose-300 text-rose-800">
+                                Ausente
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-gray-100 border border-gray-300 text-[#24152F]/60">
+                                Sem resposta
+                              </span>
+                            )}
+                          </td>
+                          <td className="py-3.5 px-3 align-middle text-[#24152F]/80 font-medium hidden md:table-cell">
+                            {guestCountText}
+                          </td>
+                          <td className="py-3.5 px-4 align-middle text-right hidden md:table-cell" onClick={(e) => e.stopPropagation()}>
+                            <button
+                              type="button"
+                              onClick={() => onOpenGuestDetails(g)}
+                              className="px-3 py-1.5 rounded-xl border border-[#24152F]/20 hover:bg-[#24152F] hover:text-[#F7F1E5] text-[#24152F] font-semibold text-xs inline-flex items-center gap-1.5 transition-colors cursor-pointer shadow-2xs"
+                              title="Visualizar ficha"
+                            >
+                              <Eye className="w-3.5 h-3.5" />
+                              <span>Ver</span>
+                            </button>
+                          </td>
+                        </tr>
+                      </React.Fragment>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
@@ -457,22 +709,60 @@ export const DashboardSkeleton: React.FC<DashboardSkeletonProps> = ({
           </div>
 
           <div className="bg-white rounded-2xl border border-[#24152F]/10 p-5 sm:p-6 shadow-xs">
-            {/* SECTION: DADOS DO EVENTO (Itens 16 e 17) */}
-            {currentSection === 'events' && (
+            {/* SECTION: DADOS DO EVENTO (com abas Dados Gerais e Formulário) */}
+            {(currentSection === 'events' || currentSection === 'form-builder') && (
               <div className="space-y-4">
-                <div className="flex items-center justify-between pb-3 border-b border-[#24152F]/10">
-                  <div>
-                    <h3 className="text-base font-bold text-[#24152F]">Dados do Evento</h3>
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-[#24152F]/10">
+                  <div className="flex items-center gap-2 text-xs sm:text-sm">
+                    <button
+                      type="button"
+                      onClick={() => setEventDataSubTab('info')}
+                      className={`flex items-center gap-2 px-4 py-2 rounded-xl font-bold transition-all cursor-pointer ${
+                        eventDataSubTab === 'info' && currentSection !== 'form-builder'
+                          ? 'bg-[#24152F] text-[#F7F1E5] dark:bg-[#DFFF5F] dark:text-[#180D20] shadow-2xs'
+                          : 'text-[#24152F]/70 dark:text-[#D2C4DC] hover:bg-[#FAF6EE] dark:hover:bg-[#2E1B3C]'
+                      }`}
+                    >
+                      <Calendar className="w-4 h-4" />
+                      <span>Dados Gerais</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setEventDataSubTab('form')}
+                      className={`flex items-center gap-2 px-4 py-2 rounded-xl font-bold transition-all cursor-pointer ${
+                        eventDataSubTab === 'form' || currentSection === 'form-builder'
+                          ? 'bg-[#24152F] text-[#F7F1E5] dark:bg-[#DFFF5F] dark:text-[#180D20] shadow-2xs'
+                          : 'text-[#24152F]/70 dark:text-[#D2C4DC] hover:bg-[#FAF6EE] dark:hover:bg-[#2E1B3C]'
+                      }`}
+                    >
+                      <FileText className="w-4 h-4" />
+                      <span>Formulário</span>
+                    </button>
                   </div>
-                  <button
-                    id="btn-edit-event-data"
-                    onClick={onEditEvent}
-                    className="px-3.5 py-2 bg-[#24152F] text-[#F7F1E5] text-xs font-semibold rounded-lg hover:bg-[#180D20] transition-colors shadow-sm border border-[#3F2553] cursor-pointer flex items-center gap-1.5"
-                  >
-                    <Edit3 className="w-3.5 h-3.5 text-[#DFFF5F]" />
-                    <span>Editar Dados</span>
-                  </button>
+
+                  {(eventDataSubTab === 'info' && currentSection !== 'form-builder') ? (
+                    <button
+                      id="btn-edit-event-data"
+                      onClick={onEditEvent}
+                      className="px-3.5 py-2 bg-[#24152F] text-[#F7F1E5] text-xs font-semibold rounded-lg hover:bg-[#180D20] transition-colors shadow-sm border border-[#3F2553] cursor-pointer flex items-center gap-1.5"
+                    >
+                      <Edit3 className="w-3.5 h-3.5 text-[#DFFF5F]" />
+                      <span>Editar Dados</span>
+                    </button>
+                  ) : (
+                    <button
+                      id="btn-add-question-tab"
+                      onClick={onAddQuestion}
+                      className="px-3.5 py-2 bg-[#24152F] text-[#F7F1E5] text-xs font-semibold rounded-lg hover:bg-[#180D20] transition-colors shadow-sm flex items-center gap-1.5 border border-[#3F2553]"
+                    >
+                      + Adicionar Pergunta
+                    </button>
+                  )}
                 </div>
+
+                {/* Subaba 1: Informações Gerais do Evento */}
+                {(eventDataSubTab === 'info' && currentSection !== 'form-builder') && (
+                  <div className="space-y-4">
 
                 <div className="p-5 rounded-2xl border border-[#24152F]/15 bg-[#FAF6EE] space-y-4">
                   <div>
@@ -635,115 +925,124 @@ export const DashboardSkeleton: React.FC<DashboardSkeletonProps> = ({
               </div>
             )}
 
-            {/* SECTION: FORM BUILDER */}
-            {currentSection === 'form-builder' && (
-              <div className="space-y-4">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-[#24152F]/10">
-                  <div>
-                    <h3 className="text-base font-bold text-[#24152F]">Formulários</h3>
-                  </div>
-                  <button
-                    id="btn-add-question-tab"
-                    onClick={onAddQuestion}
-                    className="w-full sm:w-auto justify-center px-3.5 py-2 bg-[#24152F] text-[#F7F1E5] text-xs font-semibold rounded-xl sm:rounded-lg hover:bg-[#180D20] transition-colors shadow-sm flex items-center gap-1.5 border border-[#3F2553]"
-                  >
-                    + Adicionar Pergunta
-                  </button>
-                </div>
-
+              {/* Subaba 2: Gerenciamento do Formulário (Item 11 do User Request) */}
+              {(eventDataSubTab === 'form' || currentSection === 'form-builder') && (
                 <div className="space-y-3">
-                  {questions.map((q, idx) => (
-                    <div
-                      key={q.id}
-                      className={`p-4 rounded-xl border transition-all ${
-                        q.condition
-                          ? 'border-[#24152F]/15 bg-white ml-0 sm:ml-5'
-                          : 'border-[#24152F]/20 bg-[#FAF6EE]'
-                      }`}
-                    >
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="space-y-1">
-                          <div className="flex flex-wrap items-center gap-2">
-                            <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-[#24152F] text-[#F7F1E5]">
-                              #{idx + 1}
-                            </span>
+                  <p className="text-xs text-[#24152F]/65 pb-1">
+                    Adicione e remova campos personalizados para o RSVP deste evento. Todos os campos adicionais são opcionais e configuráveis.
+                  </p>
 
-                            {q.condition && (
-                              <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-[#DFFF5F] text-[#180D20]">
-                                Condicional
+                  {questions.length === 0 ? (
+                    <div className="p-8 rounded-xl border border-dashed border-[#24152F]/20 text-center space-y-2.5 bg-[#FAF6EE]/50">
+                      <FileText className="w-8 h-8 text-[#24152F]/30 mx-auto" />
+                      <p className="text-xs text-[#24152F]/70 font-medium">
+                        Nenhum campo personalizado adicionado a este evento.
+                      </p>
+                      <button
+                        type="button"
+                        onClick={onAddQuestion}
+                        className="px-4 py-2 rounded-xl bg-[#24152F] text-[#F7F1E5] text-xs font-semibold hover:bg-[#180D20] transition-colors cursor-pointer shadow-xs inline-flex items-center gap-1.5"
+                      >
+                        <Plus className="w-3.5 h-3.5 text-[#DFFF5F]" />
+                        <span>Adicionar Pergunta Personalizada</span>
+                      </button>
+                    </div>
+                  ) : (
+                    questions.map((q, idx) => (
+                      <div
+                        key={q.id}
+                        className={`p-4 rounded-xl border transition-all ${
+                          q.condition
+                            ? 'border-[#24152F]/15 bg-white ml-0 sm:ml-5'
+                            : 'border-[#24152F]/20 bg-[#FAF6EE]'
+                        }`}
+                      >
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="space-y-1">
+                            <div className="flex flex-wrap items-center gap-2">
+                              <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-[#24152F] text-[#F7F1E5]">
+                                #{idx + 1}
                               </span>
+
+                              {q.condition && (
+                                <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-[#DFFF5F] text-[#180D20]">
+                                  Condicional
+                                </span>
+                              )}
+
+                              <span className="text-xs font-bold text-[#24152F]">{q.title}</span>
+
+                              {q.required && (
+                                <span className="text-[10px] font-semibold text-rose-600 bg-rose-50 px-1.5 py-0.5 rounded">
+                                  Obrigatória
+                                </span>
+                              )}
+                            </div>
+
+                            {q.description && (
+                              <p className="text-[11px] text-[#24152F]/60">{q.description}</p>
                             )}
 
-                            <span className="text-xs font-bold text-[#24152F]">{q.title}</span>
+                            {q.condition && (
+                              <p className="text-[11px] text-[#24152F] font-medium pt-1">
+                                ↳ Regra: Exibir somente quando pergunta anterior atender à condição.
+                              </p>
+                            )}
 
-                            {q.required && (
-                              <span className="text-[10px] font-semibold text-rose-600 bg-rose-50 px-1.5 py-0.5 rounded">
-                                Obrigatória
-                              </span>
+                            {q.options && q.options.length > 0 && (
+                              <div className="flex flex-wrap gap-1 pt-1.5">
+                                {q.options.map((opt, oIdx) => (
+                                  <span
+                                    key={oIdx}
+                                    className="text-[10px] px-2 py-0.5 rounded bg-gray-100 text-[#24152F]/80 font-medium"
+                                  >
+                                    {opt}
+                                  </span>
+                                ))}
+                              </div>
                             )}
                           </div>
 
-                          {q.description && (
-                            <p className="text-[11px] text-[#24152F]/60">{q.description}</p>
-                          )}
-
-                          {q.condition && (
-                            <p className="text-[11px] text-[#24152F] font-medium pt-1">
-                              ↳ Regra: Exibir somente quando pergunta anterior atender à condição.
-                            </p>
-                          )}
-
-                          {q.options && q.options.length > 0 && (
-                            <div className="flex flex-wrap gap-1 pt-1.5">
-                              {q.options.map((opt, oIdx) => (
-                                <span
-                                  key={oIdx}
-                                  className="text-[10px] px-2 py-0.5 rounded bg-gray-100 text-[#24152F]/80"
-                                >
-                                  {opt}
-                                </span>
-                              ))}
-                            </div>
-                          )}
-                        </div>
-
-                        <div className="flex items-center gap-1.5 flex-shrink-0">
-                          <button
-                            type="button"
-                            onClick={() => onEditQuestion && onEditQuestion(q)}
-                            className="p-1.5 rounded-lg text-[#24152F]/70 hover:text-[#24152F] hover:bg-white transition-colors cursor-pointer border border-[#24152F]/10"
-                            title="Editar pergunta"
-                          >
-                            <Edit3 className="w-3.5 h-3.5" />
-                          </button>
-                          {idx > 0 && (
+                          <div className="flex items-center gap-1.5 flex-shrink-0">
                             <button
+                              type="button"
+                              onClick={() => onEditQuestion && onEditQuestion(q)}
+                              className="p-1.5 rounded-lg text-[#24152F]/70 hover:text-[#24152F] hover:bg-white transition-colors cursor-pointer border border-[#24152F]/10"
+                              title="Editar pergunta"
+                            >
+                              <Edit3 className="w-3.5 h-3.5" />
+                            </button>
+                            <button
+                              type="button"
                               onClick={() => onDeleteQuestion(q.id)}
-                              className="p-1.5 rounded-lg text-[#24152F]/40 hover:text-rose-600 hover:bg-rose-50 transition-colors cursor-pointer"
-                              title="Excluir pergunta"
+                              className="p-1.5 rounded-lg text-[#24152F]/40 hover:text-rose-600 hover:bg-rose-50 transition-colors cursor-pointer border border-transparent hover:border-rose-200"
+                              title="Excluir pergunta personalizada"
                             >
                               <Trash2 className="w-3.5 h-3.5" />
                             </button>
-                          )}
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  ))}
+                    ))
+                  )}
                 </div>
-              </div>
-            )}
+              )}
+            </div>
+          )}
 
-            {/* SECTION: GUESTS */}
+            {/* SECTION: GUESTS (Itens 7 a 14: Nova estrutura de Convites agrupados) */}
             {currentSection === 'guests' && (
               <div className="space-y-4">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-[#24152F]/10">
-                  <div>
-                    <h3 className="text-base font-bold text-[#24152F]">
-                      Convidados ({guests.length})
+                {/* Cabeçalho da Lista de Convidados (Item 3 e 4) */}
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-3.5 pb-4 border-b border-[#24152F]/10">
+                  <div className="flex items-center gap-3">
+                    <h3 className="text-base sm:text-lg font-bold text-[#24152F]">
+                      Lista de Convidados
                     </h3>
                   </div>
 
-                  <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
+                  {/* Ações da Lista de Convidados (Item 4: Exportar, Importar CSV e Cadastrar) */}
+                  <div className="flex flex-wrap items-center gap-2 justify-end">
                     <ExportDataDropdown
                       id="btn-export-guest-data"
                       onExportXLSX={() => {
@@ -751,7 +1050,7 @@ export const DashboardSkeleton: React.FC<DashboardSkeletonProps> = ({
                           exportReportToXLSX({
                             reportTitle: `Lista_Convidados_${event.name}`,
                             eventName: event.name,
-                            filterLabel: 'Lista Completa do Evento',
+                            filterLabel: 'Lista de Convidados',
                             guests,
                             events: [event],
                           });
@@ -779,165 +1078,816 @@ export const DashboardSkeleton: React.FC<DashboardSkeletonProps> = ({
                     />
                     <button
                       id="btn-import-csv"
+                      type="button"
                       onClick={onImportCsv}
-                      className="flex-1 sm:flex-initial flex items-center justify-center gap-1.5 px-3 py-2 sm:py-1.5 border border-[#24152F]/20 bg-[#F7F1E5] text-[#24152F] text-xs font-semibold rounded-xl sm:rounded-lg hover:bg-[#EDE4D3] cursor-pointer"
+                      className="flex items-center justify-center gap-1.5 px-3 py-2 border border-[#24152F]/20 bg-[#F7F1E5] text-[#24152F] text-xs font-semibold rounded-xl hover:bg-[#EDE4D3] cursor-pointer transition-colors shadow-2xs"
                     >
-                      <Upload className="w-3.5 h-3.5" /> <span className="truncate">Importar CSV</span>
+                      <Upload className="w-3.5 h-3.5" /> <span>Importar CSV</span>
                     </button>
                     <button
                       id="btn-add-guest"
+                      type="button"
                       onClick={onAddGuest}
-                      className="w-full sm:w-auto flex items-center justify-center gap-1.5 px-3.5 py-2 sm:py-1.5 bg-[#24152F] hover:bg-[#180D20] text-[#F7F1E5] text-xs font-semibold rounded-xl sm:rounded-lg cursor-pointer border border-[#3F2553]"
+                      className="flex items-center justify-center gap-1.5 px-3.5 py-2 bg-[#24152F] hover:bg-[#180D20] text-[#F7F1E5] text-xs font-semibold rounded-xl cursor-pointer border border-[#3F2553] shadow-xs transition-colors"
                     >
                       + Cadastrar Convidado
                     </button>
                   </div>
                 </div>
 
-                {/* Filter and Search Bar */}
-                <div className="flex flex-col sm:flex-row items-center justify-between gap-3">
-                  <div className="relative w-full sm:w-72">
-                    <Search className="w-4 h-4 text-[#24152F]/40 absolute left-3 top-1/2 -translate-y-1/2" />
-                    <input
-                      type="text"
-                      value={guestSearch}
-                      onChange={(e) => setGuestSearch(e.target.value)}
-                      placeholder="Buscar por nome, grupo ou código..."
-                      className="w-full pl-9 pr-3 py-1.5 rounded-lg border border-[#24152F]/20 bg-white text-xs focus:outline-none focus:ring-1 focus:ring-[#24152F]"
-                    />
+                {/* Barra de Ferramentas com Busca e Botão de Filtro (Item 5) */}
+                <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 p-3 rounded-2xl bg-[#FAF6EE]/60 border border-[#24152F]/10">
+                  <div className="flex items-center gap-2.5 flex-1 max-w-lg">
+                    <div className="relative flex-1">
+                      <Search className="w-4 h-4 text-[#24152F]/40 absolute left-3 top-1/2 -translate-y-1/2" />
+                      <input
+                        type="text"
+                        value={guestSearch}
+                        onChange={(e) => setGuestSearch(e.target.value)}
+                        placeholder="Buscar convite..."
+                        className="w-full pl-9 pr-3 py-2 rounded-xl border border-[#24152F]/20 bg-white text-xs text-[#24152F] placeholder:text-[#24152F]/40 focus:outline-none focus:ring-1 focus:ring-[#24152F]"
+                      />
+                    </div>
+
+                    {/* Botão de Filtro com apenas o ícone de Sliders, destacado e proporcional */}
+                    <button
+                      type="button"
+                      id="btn-open-filter-modal"
+                      onClick={() => {
+                        setDraftFilterStatus(filterStatus);
+                        setDraftFilterAgeCategory(filterAgeCategory);
+                        setDraftFilterSelectedGroups([...filterSelectedGroups]);
+                        setIsFilterModalOpen(true);
+                      }}
+                      className={`relative flex items-center justify-center p-2.5 h-10 w-10 rounded-xl border text-xs font-semibold transition-colors cursor-pointer flex-shrink-0 shadow-2xs ${
+                        hasActiveFilters
+                          ? 'bg-[#24152F] text-[#F7F1E5] border-[#24152F]'
+                          : 'bg-white border-[#24152F]/20 text-[#24152F] hover:bg-[#FAF6EE]'
+                      }`}
+                      title="Filtrar convidados"
+                    >
+                      <SlidersHorizontal className={`w-4 h-4 ${hasActiveFilters ? 'text-[#DFFF5F]' : 'text-[#24152F]'}`} />
+                      {hasActiveFilters && (
+                        <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-[#DFFF5F] text-[#180D20] text-[10px] font-black flex items-center justify-center">
+                          {activeFiltersCount}
+                        </span>
+                      )}
+                    </button>
                   </div>
 
-                  <div className="flex items-center gap-1.5 w-full sm:w-auto overflow-x-auto text-xs">
-                    {(['all', 'confirmed', 'declined'] as const).map((status) => (
+                  {/* Resumo de convidados exibidos */}
+                  <div className="text-xs text-[#24152F]/65 font-medium flex items-center gap-2 justify-end">
+                    <span>Exibindo <strong>{sortedGuests.length}</strong> de {guests.length}</span>
+                    {hasActiveFilters && (
                       <button
-                        key={status}
-                        onClick={() => setGuestStatusFilter(status)}
-                        className={`px-3 py-1.5 rounded-lg font-semibold capitalize whitespace-nowrap transition-colors ${
-                          guestStatusFilter === status
-                            ? 'bg-[#24152F] text-[#F7F1E5]'
-                            : 'bg-white border border-[#24152F]/15 text-[#24152F]/70 hover:bg-[#F7F1E5]'
-                        }`}
+                        type="button"
+                        onClick={() => {
+                          setFilterStatus('all');
+                          setFilterAgeCategory('ambos');
+                          setFilterSelectedGroups([]);
+                        }}
+                        className="text-[11px] text-rose-700 underline font-semibold hover:text-rose-800 cursor-pointer ml-1"
                       >
-                        {status === 'all'
-                          ? `Todos (${guests.length})`
-                          : status === 'confirmed'
-                          ? `Confirmados (${confirmedGuests.length})`
-                          : `Não Comparecem (${declinedGuests.length})`}
+                        Limpar filtros
                       </button>
-                    ))}
+                    )}
                   </div>
                 </div>
 
-                {/* Guests Table */}
-                <div className="overflow-x-auto rounded-xl border border-[#24152F]/10 bg-white shadow-xs">
-                  <table className="w-full text-left text-xs min-w-[660px] whitespace-nowrap">
-                    <thead className="bg-[#F7F1E5] border-b border-[#24152F]/10 text-[#24152F]/70 font-bold">
+                {/* 10. Tabela de Convites & 11. Expansão do Convite */}
+                <div className="overflow-hidden md:overflow-x-auto rounded-2xl border border-[#24152F]/10 bg-white shadow-xs">
+                  <table className="w-full text-left text-xs md:min-w-[700px]">
+                    {/* Cabeçalho sem fundo colorido, apenas texto em negrito (Item 3) */}
+                    <thead className="border-b border-[#24152F]/10 text-[#24152F] font-bold text-xs bg-white">
                       <tr>
-                        <th className="py-3 px-3.5">Convidado / Exibição</th>
-                        <th className="py-3 px-3">Código RSVP</th>
-                        <th className="py-3 px-3">Grupo</th>
-                        <th className="py-3 px-3">Status</th>
-                        <th className="py-3 px-3">Acompanhantes</th>
-                        <th className="py-3 px-3.5 text-right">Ações Rápidas</th>
+                        <th className="py-3 px-4 w-full md:w-auto">Nome Convidado</th>
+                        <th className="py-3 px-3 hidden md:table-cell">Tag (Grupo)</th>
+                        <th className="py-3 px-3 hidden md:table-cell">Status</th>
+                        <th className="py-3 px-3 hidden md:table-cell">Nº convidados</th>
+                        <th className="py-3 px-3 hidden md:table-cell">Observações</th>
+                        <th className="py-3 px-4 text-right hidden md:table-cell">Ações</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-[#24152F]/5 text-[#24152F]">
-                      {filteredGuests.length === 0 ? (
+                      {sortedGuests.length === 0 ? (
                         <tr>
-                          <td colSpan={6} className="py-8 text-center text-[#24152F]/50 text-xs">
-                            Nenhum convidado encontrado com os filtros aplicados.
+                          <td colSpan={6} className="py-10 text-center text-[#24152F]/50 text-xs">
+                            Nenhum convite encontrado com os filtros aplicados.
                           </td>
                         </tr>
                       ) : (
-                        filteredGuests.map((g) => (
-                          <tr key={g.id} className="hover:bg-[#F7F1E5]/60 transition-colors">
-                            <td className="py-3 px-3.5 font-semibold">
-                              {g.name}
-                              {g.displayName !== g.name && (
-                                <span className="block text-[11px] font-normal text-[#24152F]/60">
-                                  "{g.displayName}"
-                                </span>
-                              )}
-                            </td>
-                            <td className="py-3 px-3 font-mono font-bold text-[#24152F]">
-                              {g.rsvpCode}
-                            </td>
-                            <td className="py-3 px-3">
-                              <span className="px-2 py-0.5 rounded bg-gray-100 text-[11px] font-medium">
-                                {g.group}
-                              </span>
-                            </td>
-                            <td className="py-3 px-3">
-                              {g.status === 'confirmed' ? (
-                                <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-[#DFFF5F] text-[#180D20]">
-                                  Confirmado
-                                </span>
-                              ) : g.status === 'declined' ? (
-                                <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-[#24152F]/10 text-[#24152F]/70">
-                                  Recusado
-                                </span>
-                              ) : (
-                                <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-900 border border-amber-200">
-                                  Pendente
-                                </span>
-                              )}
-                            </td>
-                            <td className="py-3 px-3">
-                              {g.status === 'confirmed' && g.companionCount > 0 ? (
-                                <span className="font-bold text-[#24152F]">
-                                  +{g.companionCount}
-                                </span>
-                              ) : (
-                                <span className="text-[#24152F]/40">{g.maxGuests}</span>
-                              )}
-                            </td>
-                            <td className="py-3 px-3.5 text-right">
-                              <div className="flex items-center justify-end gap-1.5">
-                                <button
-                                  onClick={() => handleCopyGuestLink(g)}
-                                  title="Copiar link exclusivo do convidado"
-                                  className={`w-7 h-7 rounded-lg border flex items-center justify-center transition-all cursor-pointer shadow-2xs ${
-                                    copiedGuestId === g.id
-                                      ? 'bg-emerald-100 border-emerald-300 text-emerald-800'
-                                      : 'bg-[#F7F1E5] hover:bg-[#EDE4D3] border-[#24152F]/15 text-[#24152F]'
-                                  }`}
-                                >
-                                  {copiedGuestId === g.id ? (
-                                    <Check className="w-3.5 h-3.5 text-emerald-700" />
-                                  ) : (
-                                    <Copy className="w-3.5 h-3.5" />
+                        sortedGuests.map((g) => {
+                          const members = getInviteMembers(g);
+                          const guestCountText = getInviteGuestCountText(members);
+                          const isExpanded = expandedInviteIds.includes(g.id);
+                          const isActionOpen = openInviteActionId === g.id;
+                          // Exibir sempre o nome da pessoa que confirmou presença, e não o nome do convite (Item 3)
+                          const personName = g.displayName || g.name;
+
+                          return (
+                            <React.Fragment key={g.id}>
+                              {/* Linha Principal do Convite */}
+                              <tr
+                                className={`transition-colors cursor-pointer select-none ${
+                                  isExpanded ? 'bg-[#FAF6EE]/50' : 'hover:bg-[#FAF6EE]/30'
+                                }`}
+                                onClick={() => toggleInviteExpand(g.id)}
+                              >
+                                {/* Nome Convidado com Avatar envelope e Chevron (Alinhado ao TOPO quando expandido) */}
+                                <td className="py-4 px-4 font-bold align-top w-full md:w-auto">
+                                  <div className="flex items-center gap-2.5">
+                                    {/* Avatar circular com contorno cinza e ícone de envelope */}
+                                    <div className="w-8 h-8 rounded-full bg-[#FAF6EE] border border-[#24152F]/15 flex items-center justify-center text-[#24152F] flex-shrink-0 shadow-2xs">
+                                      <Mail className="w-4 h-4 text-[#24152F]" />
+                                    </div>
+
+                                    <div className="flex items-center gap-2 min-w-0">
+                                      <span className="font-bold text-[#24152F] text-xs sm:text-sm">
+                                        {personName}
+                                      </span>
+
+                                      <button
+                                        type="button"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          toggleInviteExpand(g.id);
+                                        }}
+                                        className="p-1 rounded-md text-[#24152F]/50 hover:text-[#24152F] hover:bg-black/5 transition-colors cursor-pointer"
+                                        title={isExpanded ? 'Recolher convite' : 'Expandir convidados'}
+                                      >
+                                        {isExpanded ? (
+                                          <ChevronUp className="w-4 h-4 text-[#24152F]" />
+                                        ) : (
+                                          <ChevronDown className="w-4 h-4 text-[#24152F]" />
+                                        )}
+                                      </button>
+                                    </div>
+                                  </div>
+
+                                  {/* 11. Linha Expandida empilhada abaixo do nome do convite (indentada) */}
+                                  {isExpanded && (
+                                    <div className="mt-3.5 pl-10 space-y-2.5 animate-in fade-in duration-150" onClick={(e) => e.stopPropagation()}>
+                                      {/* Convidados vinculados indentados */}
+                                      <div className="space-y-1.5 max-w-sm">
+                                        {members.map((mem) => {
+                                          const isConfirmed = mem.status === 'confirmed';
+                                          const isDeclined = mem.status === 'declined';
+                                          const hasResponse = isConfirmed || isDeclined;
+
+                                          return (
+                                            <div
+                                              key={mem.id}
+                                              className="flex flex-col sm:flex-row sm:items-center sm:justify-between items-start gap-1 sm:gap-2.5 py-1.5 px-2.5 rounded-xl bg-white border border-[#24152F]/10 shadow-2xs"
+                                            >
+                                              <div className="flex items-center gap-2.5 min-w-0">
+                                                {/* Avatar circular com ícone de pessoa */}
+                                                <div className="relative flex-shrink-0">
+                                                  <div className="w-7 h-7 rounded-full bg-[#FAF6EE] border border-[#24152F]/15 flex items-center justify-center text-[#24152F]">
+                                                    {mem.category === 'Criança' ? (
+                                                      <Baby className="w-3.5 h-3.5 text-[#24152F]" />
+                                                    ) : (
+                                                      <User className="w-3.5 h-3.5 text-[#24152F]" />
+                                                    )}
+                                                  </div>
+
+                                                  {/* Badge de status no canto SOMENTE se houver resposta */}
+                                                  {hasResponse && (
+                                                    <span
+                                                      className={`absolute -bottom-1 -right-1 w-3.5 h-3.5 rounded-full flex items-center justify-center text-[8px] font-black border border-white ${
+                                                        isConfirmed
+                                                          ? 'bg-emerald-600 text-white'
+                                                          : 'bg-rose-600 text-white'
+                                                      }`}
+                                                      title={isConfirmed ? 'Confirmado' : 'Ausente'}
+                                                    >
+                                                      {isConfirmed ? '✔' : '✖'}
+                                                    </span>
+                                                  )}
+                                                </div>
+
+                                                {/* Nome em negrito */}
+                                                <span className="font-bold text-xs text-[#24152F] truncate">
+                                                  {mem.name}
+                                                </span>
+                                              </div>
+
+                                              {/* Pill com contorno indicando Adulto ou Criança (no mobile abaixo do nome, no desktop à direita) */}
+                                              <div className="pl-9.5 sm:pl-0 flex-shrink-0">
+                                                <span
+                                                  className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-bold border ${
+                                                    mem.category === 'Criança'
+                                                      ? 'border-amber-500/60 text-amber-900 bg-amber-50/50'
+                                                      : 'border-[#24152F]/25 text-[#24152F] bg-white'
+                                                  }`}
+                                                >
+                                                  {mem.category}
+                                                </span>
+                                              </div>
+                                            </div>
+                                          );
+                                        })}
+                                      </div>
+                                    </div>
                                   )}
-                                </button>
-                                <button
-                                  onClick={() => onOpenWhatsApp(g)}
-                                  title="WhatsApp"
-                                  aria-label="WhatsApp"
-                                  className="w-7 h-7 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white flex items-center justify-center transition-colors shadow-2xs cursor-pointer"
-                                >
-                                  <WhatsAppIcon className="w-3.5 h-3.5" />
-                                </button>
-                                <button
-                                  onClick={() => onOpenGuestDetails(g)}
-                                  title="Ver Ficha"
-                                  aria-label="Ver Ficha"
-                                  className="w-7 h-7 rounded-lg bg-white hover:bg-[#24152F] text-[#24152F] hover:text-[#F7F1E5] border border-[#24152F]/20 flex items-center justify-center transition-colors shadow-2xs cursor-pointer"
-                                >
-                                  <Eye className="w-3.5 h-3.5" />
-                                </button>
-                                <button
-                                  onClick={() => onOpenGuestPreview(g.rsvpCode)}
-                                  title="Testar tela deste convidado"
-                                  className="w-7 h-7 rounded-lg bg-[#24152F]/10 hover:bg-[#24152F]/20 border border-[#24152F]/15 text-[#24152F] flex items-center justify-center transition-colors shadow-2xs cursor-pointer"
-                                >
-                                  <ExternalLink className="w-3.5 h-3.5" />
-                                </button>
-                              </div>
-                            </td>
-                          </tr>
-                        ))
+                                </td>
+
+                                {/* Grupo: centralizado verticalmente */}
+                                <td className="py-4 px-3 align-middle hidden md:table-cell">
+                                  <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-[#E8F0E4] border border-[#A3C79E] text-[#1E3B1E]">
+                                    {g.group || 'Geral'}
+                                  </span>
+                                </td>
+
+                                {/* Status: texto direto Confirmado ou Ausente (Item 3) */}
+                                <td className="py-4 px-3 align-middle whitespace-nowrap hidden md:table-cell">
+                                  {g.status === 'confirmed' ? (
+                                    <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold bg-[#E8F0E4] border border-[#A3C79E] text-[#1E3B1E]">
+                                      Confirmado
+                                    </span>
+                                  ) : g.status === 'declined' ? (
+                                    <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold bg-rose-50 border border-rose-300 text-rose-800">
+                                      Ausente
+                                    </span>
+                                  ) : (
+                                    <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-gray-100 border border-gray-300 text-[#24152F]/60">
+                                      Sem resposta
+                                    </span>
+                                  )}
+                                </td>
+
+                                {/* Nº convidados: centralizado verticalmente */}
+                                <td className="py-4 px-3 align-middle text-[#24152F]/80 font-medium whitespace-nowrap hidden md:table-cell">
+                                  {guestCountText}
+                                </td>
+
+                                {/* Observações: centralizada verticalmente */}
+                                <td className="py-4 px-3 align-middle text-[#24152F]/70 text-[11px] max-w-[180px] truncate hidden md:table-cell">
+                                  {g.notes ? g.notes : <span className="text-[#24152F]/30">—</span>}
+                                </td>
+
+                                {/* Menu de Três Pontinhos (Item 3: com Visualizar Ficha e sem Copiar Link) */}
+                                <td className="py-4 px-4 align-middle text-right hidden md:table-cell" onClick={(e) => e.stopPropagation()}>
+                                  <div className="relative inline-block text-left" ref={isActionOpen ? inviteActionRef : undefined}>
+                                    <button
+                                      type="button"
+                                      id={`btn-invite-menu-${g.id}`}
+                                      onClick={() => setOpenInviteActionId(isActionOpen ? null : g.id)}
+                                      className="w-8 h-8 rounded-lg flex items-center justify-center text-[#24152F]/60 hover:text-[#24152F] hover:bg-[#FAF6EE] transition-colors cursor-pointer border border-transparent hover:border-[#24152F]/15"
+                                      title="Opções do convite"
+                                    >
+                                      <MoreVertical className="w-4 h-4" />
+                                    </button>
+
+                                    {isActionOpen && (
+                                      <div className="absolute right-0 top-full mt-1 w-56 rounded-2xl bg-white border border-[#24152F]/15 shadow-xl py-1.5 z-40 animate-in fade-in zoom-in-95 duration-100 space-y-0.5">
+                                        {/* 1. Visualizar ficha (Item 3: Adicionado) */}
+                                        <button
+                                          type="button"
+                                          onClick={() => {
+                                            setOpenInviteActionId(null);
+                                            onOpenGuestDetails(g);
+                                          }}
+                                          className="w-full text-left px-3.5 py-2 text-xs font-semibold text-[#24152F] hover:bg-[#FAF6EE] flex items-center gap-2.5 cursor-pointer transition-colors"
+                                        >
+                                          <Eye className="w-3.5 h-3.5 text-[#24152F]/70" />
+                                          <span>Visualizar ficha</span>
+                                        </button>
+
+                                        {/* 2. Copiar código RSVP */}
+                                        <button
+                                          type="button"
+                                          onClick={() => {
+                                            setOpenInviteActionId(null);
+                                            copyToClipboard(g.rsvpCode);
+                                            if (onShowToast) onShowToast(`Código RSVP ${g.rsvpCode} copiado!`);
+                                          }}
+                                          className="w-full text-left px-3.5 py-2 text-xs font-semibold text-[#24152F] hover:bg-[#FAF6EE] flex items-center gap-2.5 cursor-pointer transition-colors"
+                                        >
+                                          <Copy className="w-3.5 h-3.5 text-[#24152F]/70" />
+                                          <span>Copiar código RSVP</span>
+                                        </button>
+
+                                        {/* 3. Enviar link por WhatsApp */}
+                                        <button
+                                          type="button"
+                                          onClick={() => {
+                                            setOpenInviteActionId(null);
+                                            onOpenWhatsApp(g);
+                                          }}
+                                          className="w-full text-left px-3.5 py-2 text-xs font-semibold text-emerald-700 hover:bg-emerald-50 flex items-center gap-2.5 cursor-pointer transition-colors"
+                                        >
+                                          <WhatsAppIcon className="w-3.5 h-3.5 text-emerald-600" />
+                                          <span>Enviar por WhatsApp</span>
+                                        </button>
+
+                                        {/* 4. Abrir página de confirmação */}
+                                        <button
+                                          type="button"
+                                          onClick={() => {
+                                            setOpenInviteActionId(null);
+                                            onOpenGuestPreview(g.rsvpCode);
+                                          }}
+                                          className="w-full text-left px-3.5 py-2 text-xs font-semibold text-[#24152F] hover:bg-[#FAF6EE] flex items-center gap-2.5 cursor-pointer transition-colors"
+                                        >
+                                          <ExternalLink className="w-3.5 h-3.5 text-[#24152F]/70" />
+                                          <span>Abrir página de confirmação</span>
+                                        </button>
+
+                                        {/* 5. Editar convite */}
+                                        <button
+                                          type="button"
+                                          onClick={() => {
+                                            setOpenInviteActionId(null);
+                                            onEditGuest && onEditGuest(g);
+                                          }}
+                                          className="w-full text-left px-3.5 py-2 text-xs font-semibold text-[#24152F] hover:bg-[#FAF6EE] flex items-center gap-2.5 cursor-pointer transition-colors border-t border-[#24152F]/5"
+                                        >
+                                          <Edit3 className="w-3.5 h-3.5 text-[#24152F]/70" />
+                                          <span>Editar convite</span>
+                                        </button>
+
+                                        {/* 6. Excluir convite */}
+                                        {onDeleteGuest && (
+                                          <button
+                                            type="button"
+                                            onClick={() => {
+                                              setOpenInviteActionId(null);
+                                              onDeleteGuest(g.id);
+                                            }}
+                                            className="w-full text-left px-3.5 py-2 text-xs font-semibold text-rose-600 hover:bg-rose-50 flex items-center gap-2.5 cursor-pointer transition-colors border-t border-[#24152F]/5"
+                                          >
+                                            <Trash2 className="w-3.5 h-3.5 text-rose-600" />
+                                            <span>Excluir convite</span>
+                                          </button>
+                                        )}
+                                      </div>
+                                    )}
+                                  </div>
+                                </td>
+                              </tr>
+                            </React.Fragment>
+                          );
+                        })
                       )}
                     </tbody>
                   </table>
+                </div>
+              </div>
+            )}
+
+            {/* SECTION: GUEST LINK (Página de Confirmação - Itens 6 a 9: Cards opcionais com toggle) */}
+            {currentSection === 'guest-link' && (
+              <div className="space-y-6">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-[#24152F]/10">
+                  <div>
+                    <h3 className="text-base sm:text-lg font-bold text-[#24152F]">
+                      Página de Confirmação — Personalização do Convite
+                    </h3>
+                    <p className="text-xs text-[#24152F]/65 mt-0.5">
+                      Personalize os cards opcionais da página de confirmação de presença (RSVP) que seus convidados acessarão.
+                    </p>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={handleCopyEvent}
+                      className="px-3.5 py-2 rounded-xl bg-white border border-[#24152F]/20 text-[#24152F] text-xs font-semibold hover:bg-[#FAF6EE] transition-colors cursor-pointer flex items-center gap-1.5"
+                    >
+                      <Copy className="w-3.5 h-3.5" />
+                      <span>{localEventCopied ? 'Link Copiado!' : 'Copiar Link Público'}</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => onOpenGuestPreview(guests[0]?.rsvpCode || 'DEMO')}
+                      className="px-3.5 py-2 rounded-xl bg-[#24152F] text-[#F7F1E5] text-xs font-semibold hover:bg-[#180D20] transition-colors cursor-pointer border border-[#3F2553] flex items-center gap-1.5"
+                    >
+                      <ExternalLink className="w-3.5 h-3.5 text-[#DFFF5F]" />
+                      <span>Testar Tela</span>
+                    </button>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                  {/* Left Form: Customization Controls */}
+                  <div className="lg:col-span-2 space-y-4">
+                    {/* 1. Imagem de Destaque / Banner (Opcional com Toggle) */}
+                    <div className="p-4 sm:p-5 rounded-2xl border border-[#24152F]/15 bg-white space-y-3 shadow-xs">
+                      <div className="flex items-center justify-between gap-3">
+                        <label className="font-bold text-xs sm:text-sm text-[#24152F] flex items-center gap-2">
+                          <ImageIcon className="w-4 h-4 text-[#24152F]" />
+                          <span>Imagem de Destaque / Banner</span>
+                        </label>
+                        <label className="relative inline-flex items-center cursor-pointer flex-shrink-0">
+                          <input
+                            type="checkbox"
+                            checked={inviteCustomization.showCoverImage}
+                            onChange={(e) => handleUpdateCustomization({ showCoverImage: e.target.checked })}
+                            className="sr-only peer"
+                          />
+                          <div className="w-10 h-5.5 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4.5 after:w-4.5 after:transition-all peer-checked:bg-[#24152F]"></div>
+                        </label>
+                      </div>
+                      <p className="text-xs text-[#24152F]/70">
+                        Adicione uma foto do casal, aniversariante ou identidade visual do evento no topo do convite.
+                      </p>
+
+                      {inviteCustomization.showCoverImage && (
+                        <div className="space-y-2.5 pt-1">
+                          <input
+                            type="url"
+                            value={inviteCustomization.coverImage}
+                            onChange={(e) => setInviteCustomization({ ...inviteCustomization, coverImage: e.target.value })}
+                            placeholder="https://exemplo.com/foto-do-evento.jpg"
+                            className="w-full px-3 py-2 rounded-xl border border-[#24152F]/20 bg-[#FAF6EE]/50 text-xs text-[#24152F] focus:outline-none focus:ring-1 focus:ring-[#24152F]"
+                          />
+
+                          {/* Quick preset banners */}
+                          <div className="pt-1 flex flex-wrap items-center gap-2">
+                            <span className="text-[10px] text-[#24152F]/60 font-semibold">Exemplos rápidos:</span>
+                            <button
+                              type="button"
+                              onClick={() => setInviteCustomization({ ...inviteCustomization, coverImage: 'https://images.unsplash.com/photo-1519741497674-611481863552?auto=format&fit=crop&w=1200&q=80' })}
+                              className="px-2.5 py-1 rounded-lg bg-[#FAF6EE] text-[10px] font-semibold border border-[#24152F]/10 hover:bg-[#EDE4D3] cursor-pointer"
+                            >
+                              Casamento Floral
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setInviteCustomization({ ...inviteCustomization, coverImage: 'https://images.unsplash.com/photo-1511285560929-80b456fea0bc?auto=format&fit=crop&w=1200&q=80' })}
+                              className="px-2.5 py-1 rounded-lg bg-[#FAF6EE] text-[10px] font-semibold border border-[#24152F]/10 hover:bg-[#EDE4D3] cursor-pointer"
+                            >
+                              Casamento Clássico
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setInviteCustomization({ ...inviteCustomization, coverImage: 'https://images.unsplash.com/photo-1530103862676-de8c9debad1d?auto=format&fit=crop&w=1200&q=80' })}
+                              className="px-2.5 py-1 rounded-lg bg-[#FAF6EE] text-[10px] font-semibold border border-[#24152F]/10 hover:bg-[#EDE4D3] cursor-pointer"
+                            >
+                              Festa / Balões
+                            </button>
+                            {inviteCustomization.coverImage && (
+                              <button
+                                type="button"
+                                onClick={() => setInviteCustomization({ ...inviteCustomization, coverImage: '' })}
+                                className="px-2.5 py-1 rounded-lg bg-rose-50 text-rose-700 text-[10px] font-semibold border border-rose-200 hover:bg-rose-100 cursor-pointer ml-auto"
+                              >
+                                Remover Imagem
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* 2. Mensagem Inicial de Abertura (Opcional com Toggle) */}
+                    <div className="p-4 sm:p-5 rounded-2xl border border-[#24152F]/15 bg-white space-y-3 shadow-xs">
+                      <div className="flex items-center justify-between gap-3">
+                        <label className="font-bold text-xs sm:text-sm text-[#24152F] flex items-center gap-2">
+                          <MessageSquare className="w-4 h-4 text-[#24152F]" />
+                          <span>Mensagem Inicial de Abertura</span>
+                        </label>
+                        <label className="relative inline-flex items-center cursor-pointer flex-shrink-0">
+                          <input
+                            type="checkbox"
+                            checked={inviteCustomization.showWelcomeMessage}
+                            onChange={(e) => handleUpdateCustomization({ showWelcomeMessage: e.target.checked })}
+                            className="sr-only peer"
+                          />
+                          <div className="w-10 h-5.5 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4.5 after:w-4.5 after:transition-all peer-checked:bg-[#24152F]"></div>
+                        </label>
+                      </div>
+                      <p className="text-xs text-[#24152F]/70">
+                        Texto carinhoso de abertura que os convidados lerão com destaque antes de responder o RSVP.
+                      </p>
+
+                      {inviteCustomization.showWelcomeMessage && (
+                        <div className="pt-1">
+                          <textarea
+                            rows={3}
+                            value={inviteCustomization.welcomeMessage}
+                            onChange={(e) => handleUpdateCustomization({ welcomeMessage: e.target.value })}
+                            placeholder="Ex: É com muita alegria que convidamos você para celebrar conosco este momento tão importante e inesquecível!"
+                            className="w-full px-3.5 py-2.5 rounded-xl border border-[#24152F]/20 bg-[#FAF6EE]/50 text-xs text-[#24152F] focus:outline-none focus:ring-1 focus:ring-[#24152F]"
+                          />
+                        </div>
+                      )}
+                    </div>
+
+                    {/* 3. Contagem regressiva (Item 8: Nomenclatura atualizada + Toggle Switch) */}
+                    <div className="p-4 sm:p-5 rounded-2xl border border-[#24152F]/15 bg-white space-y-3 shadow-xs">
+                      <div className="flex items-center justify-between gap-3">
+                        <div className="space-y-0.5">
+                          <label className="font-bold text-xs sm:text-sm text-[#24152F] flex items-center gap-2">
+                            <Timer className="w-4 h-4 text-[#24152F]" />
+                            <span>Contagem regressiva</span>
+                          </label>
+                          <p className="text-xs text-[#24152F]/70">
+                            Exibe um cronômetro regressivo com dias, horas e minutos até {formatDateBR(event.date)} às {event.time}.
+                          </p>
+                        </div>
+                        <label className="relative inline-flex items-center cursor-pointer flex-shrink-0">
+                          <input
+                            id="toggle-countdown-link"
+                            type="checkbox"
+                            checked={inviteCustomization.showCountdown}
+                            onChange={(e) => handleUpdateCustomization({ showCountdown: e.target.checked })}
+                            className="sr-only peer"
+                          />
+                          <div className="w-10 h-5.5 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4.5 after:w-4.5 after:transition-all peer-checked:bg-[#24152F]"></div>
+                        </label>
+                      </div>
+                      {inviteCustomization.showCountdown && (
+                        <div className="p-2.5 rounded-xl bg-[#FAF6EE] text-[11px] text-[#24152F]/70 border border-[#24152F]/10">
+                          Utiliza automaticamente a data <strong>{formatDateBR(event.date)}</strong> e horário <strong>{event.time}</strong> do evento, sem duplicação de informações.
+                        </div>
+                      )}
+                    </div>
+
+                    {/* 4. Lista de Presentes (Item 9: Toggle Switch + Itens individuais sem "Sem lista") */}
+                    <div className="p-4 sm:p-5 rounded-2xl border border-[#24152F]/15 bg-white space-y-3 shadow-xs">
+                      <div className="flex items-center justify-between gap-3">
+                        <label className="font-bold text-xs sm:text-sm text-[#24152F] flex items-center gap-2">
+                          <Gift className="w-4 h-4 text-[#24152F]" />
+                          <span>Lista de Presentes</span>
+                        </label>
+                        <label className="relative inline-flex items-center cursor-pointer flex-shrink-0">
+                          <input
+                            type="checkbox"
+                            checked={inviteCustomization.showGiftList}
+                            onChange={(e) => handleUpdateCustomization({ showGiftList: e.target.checked })}
+                            className="sr-only peer"
+                          />
+                          <div className="w-10 h-5.5 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4.5 after:w-4.5 after:transition-all peer-checked:bg-[#24152F]"></div>
+                        </label>
+                      </div>
+                      <p className="text-xs text-[#24152F]/70">
+                        Permita que os convidados acessem um link externo ou veja os itens desejados cadastrados.
+                      </p>
+
+                      {inviteCustomization.showGiftList && (
+                        <div className="space-y-3 pt-1">
+                          <div className="flex flex-wrap items-center gap-2 text-xs">
+                            <button
+                              type="button"
+                              onClick={() => setInviteCustomization({ ...inviteCustomization, giftListType: 'items' })}
+                              className={`px-3.5 py-1.5 rounded-lg font-semibold transition-colors cursor-pointer ${
+                                inviteCustomization.giftListType === 'items'
+                                  ? 'bg-[#24152F] text-[#F7F1E5]'
+                                  : 'bg-white border border-[#24152F]/15 text-[#24152F]/70 hover:bg-[#FAF6EE]'
+                              }`}
+                            >
+                              Itens Desejados
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setInviteCustomization({ ...inviteCustomization, giftListType: 'link' })}
+                              className={`px-3.5 py-1.5 rounded-lg font-semibold transition-colors cursor-pointer ${
+                                inviteCustomization.giftListType === 'link'
+                                  ? 'bg-[#24152F] text-[#F7F1E5]'
+                                  : 'bg-white border border-[#24152F]/15 text-[#24152F]/70 hover:bg-[#FAF6EE]'
+                              }`}
+                            >
+                              Link Externo
+                            </button>
+                          </div>
+
+                          {inviteCustomization.giftListType === 'link' && (
+                            <div className="space-y-1.5">
+                              <label className="block text-xs font-semibold text-[#24152F]">Link da Lista Externa:</label>
+                              <input
+                                type="url"
+                                value={inviteCustomization.giftListUrl}
+                                onChange={(e) => setInviteCustomization({ ...inviteCustomization, giftListUrl: e.target.value })}
+                                placeholder="https://listadepresentes.com/meu-evento"
+                                className="w-full px-3 py-2 rounded-xl border border-[#24152F]/20 bg-[#FAF6EE]/50 text-xs text-[#24152F] focus:outline-none focus:ring-1 focus:ring-[#24152F]"
+                              />
+                            </div>
+                          )}
+
+                          {inviteCustomization.giftListType === 'items' && (
+                            <div className="space-y-2.5">
+                              <label className="block text-xs font-semibold text-[#24152F]">
+                                Itens Desejados Cadastrados ({inviteCustomization.giftListItemsList.length}):
+                              </label>
+
+                              {/* List of individual items with gift icon & highlighted background */}
+                              <div className="space-y-2">
+                                {inviteCustomization.giftListItemsList.map((item, idx) => (
+                                  <div
+                                    key={idx}
+                                    className="flex items-center gap-2.5 p-2.5 rounded-xl bg-[#FAF6EE] border border-[#24152F]/15 shadow-2xs"
+                                  >
+                                    <div className="w-7 h-7 rounded-lg bg-[#24152F] flex items-center justify-center text-[#DFFF5F] flex-shrink-0">
+                                      <Gift className="w-3.5 h-3.5" />
+                                    </div>
+                                    <input
+                                      type="text"
+                                      value={item}
+                                      onChange={(e) => {
+                                        const updated = [...inviteCustomization.giftListItemsList];
+                                        updated[idx] = e.target.value;
+                                        setInviteCustomization({ ...inviteCustomization, giftListItemsList: updated });
+                                      }}
+                                      className="flex-1 bg-transparent text-xs font-semibold text-[#24152F] focus:outline-none"
+                                      placeholder="Nome do item desejado"
+                                    />
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        const updated = inviteCustomization.giftListItemsList.filter((_, i) => i !== idx);
+                                        setInviteCustomization({ ...inviteCustomization, giftListItemsList: updated });
+                                      }}
+                                      className="p-1 rounded-lg text-[#24152F]/40 hover:text-rose-600 hover:bg-rose-50 transition-colors cursor-pointer"
+                                      title="Remover item da lista"
+                                    >
+                                      <Trash2 className="w-3.5 h-3.5" />
+                                    </button>
+                                  </div>
+                                ))}
+                              </div>
+
+                              {/* Add new item */}
+                              <div className="flex items-center gap-2 pt-1">
+                                <input
+                                  type="text"
+                                  value={newGiftItemText}
+                                  onChange={(e) => setNewGiftItemText(e.target.value)}
+                                  onKeyDown={(e) => {
+                                    if (e.key === 'Enter') {
+                                      e.preventDefault();
+                                      if (newGiftItemText.trim()) {
+                                        setInviteCustomization({
+                                          ...inviteCustomization,
+                                          giftListItemsList: [...inviteCustomization.giftListItemsList, newGiftItemText.trim()],
+                                        });
+                                        setNewGiftItemText('');
+                                      }
+                                    }
+                                  }}
+                                  placeholder="Digite um novo presente para adicionar..."
+                                  className="flex-1 px-3 py-2 rounded-xl border border-[#24152F]/20 bg-[#FAF6EE]/50 text-xs text-[#24152F] focus:outline-none focus:ring-1 focus:ring-[#24152F]"
+                                />
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    if (newGiftItemText.trim()) {
+                                      setInviteCustomization({
+                                        ...inviteCustomization,
+                                        giftListItemsList: [...inviteCustomization.giftListItemsList, newGiftItemText.trim()],
+                                      });
+                                      setNewGiftItemText('');
+                                    }
+                                  }}
+                                  className="px-3.5 py-2 rounded-xl bg-[#24152F] text-[#F7F1E5] text-xs font-semibold hover:bg-[#180D20] transition-colors cursor-pointer flex items-center gap-1.5 flex-shrink-0"
+                                >
+                                  <Plus className="w-3.5 h-3.5 text-[#DFFF5F]" />
+                                  <span>Adicionar Item</span>
+                                </button>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Salvar Alterações */}
+                    <div className="pt-2 flex items-center justify-end gap-3">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const updated: EventData = {
+                            ...event,
+                            showCoverImage: inviteCustomization.showCoverImage,
+                            showWelcomeMessage: inviteCustomization.showWelcomeMessage,
+                            showCountdown: inviteCustomization.showCountdown,
+                            showGiftList: inviteCustomization.showGiftList,
+                            coverImage: inviteCustomization.coverImage,
+                            welcomeMessage: inviteCustomization.welcomeMessage,
+                            giftListType: inviteCustomization.giftListType,
+                            giftListUrl: inviteCustomization.giftListUrl,
+                            giftListItems: inviteCustomization.giftListItemsList.join('\n'),
+                            giftListItemsList: inviteCustomization.giftListItemsList,
+                            childAgeLimit: inviteCustomization.childAgeLimit,
+                          };
+                          if (onSaveEventCustomization) {
+                            onSaveEventCustomization(updated);
+                          } else {
+                            Object.assign(event, updated);
+                          }
+                          if (onShowToast) onShowToast('Personalização da página salva com sucesso!');
+                        }}
+                        className="px-6 py-2.5 rounded-xl bg-[#24152F] hover:bg-[#180D20] text-[#F7F1E5] text-xs font-bold transition-colors cursor-pointer shadow-sm flex items-center gap-2 border border-[#3F2553]"
+                      >
+                        <Check className="w-4 h-4 text-[#DFFF5F]" />
+                        <span>Salvar Personalização</span>
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Right Column: Live Mobile Preview */}
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <span className="font-bold text-xs uppercase tracking-wider text-[#24152F]/70">
+                        Prévia em Tempo Real
+                      </span>
+                      <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-[#DFFF5F] text-[#180D20]">
+                        Visual Rafluo
+                      </span>
+                    </div>
+
+                    {/* Smartphone-like preview container */}
+                    <div className="rounded-3xl border border-[#24152F]/15 bg-[#FAF6EE] p-4 shadow-sm space-y-4">
+                      {inviteCustomization.showCoverImage && inviteCustomization.coverImage ? (
+                        <div className="w-full h-36 rounded-2xl overflow-hidden border border-[#24152F]/15 relative bg-black/5">
+                          <img
+                            src={inviteCustomization.coverImage}
+                            alt="Banner"
+                            className="w-full h-full object-cover"
+                            onError={(e) => ((e.target as HTMLElement).style.display = 'none')}
+                          />
+                        </div>
+                      ) : null}
+
+                      {/* Event Banner */}
+                      <div className="p-4 rounded-2xl bg-[#24152F] text-[#F7F1E5] text-center space-y-2 relative overflow-hidden shadow-xs">
+                        <div className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-[#DFFF5F]/20 text-[#DFFF5F] text-[10px] font-bold uppercase">
+                          <Sparkles className="w-3 h-3" /> Convite Oficial
+                        </div>
+                        <h4 className="font-bold text-sm text-[#F7F1E5]">{event.name}</h4>
+                        <div className="text-[11px] text-[#D2C4DC] flex items-center justify-center gap-2">
+                          <span>{formatDateBR(event.date)}</span>
+                          <span>•</span>
+                          <span>{event.time}</span>
+                        </div>
+                      </div>
+
+                      {/* Welcome message preview (without client name) */}
+                      {inviteCustomization.showWelcomeMessage && inviteCustomization.welcomeMessage && (
+                        <div className="p-3 rounded-xl bg-white border border-[#24152F]/10 text-xs italic text-[#24152F]/90 shadow-2xs">
+                          "{inviteCustomization.welcomeMessage}"
+                        </div>
+                      )}
+
+                      {/* Countdown preview */}
+                      {inviteCustomization.showCountdown && (
+                        <div className="p-3 rounded-xl bg-white border border-[#24152F]/10 text-center space-y-1.5 shadow-2xs">
+                          <span className="text-[10px] font-bold uppercase tracking-wider text-[#24152F]/60 flex items-center justify-center gap-1">
+                            <Timer className="w-3 h-3 text-[#24152F]" /> Contagem regressiva
+                          </span>
+                          <div className="grid grid-cols-4 gap-1 text-center">
+                            <div className="p-1 rounded-lg bg-[#FAF6EE] text-xs font-bold text-[#24152F]">12d</div>
+                            <div className="p-1 rounded-lg bg-[#FAF6EE] text-xs font-bold text-[#24152F]">08h</div>
+                            <div className="p-1 rounded-lg bg-[#FAF6EE] text-xs font-bold text-[#24152F]">30m</div>
+                            <div className="p-1 rounded-lg bg-[#FAF6EE] text-xs font-bold text-[#24152F]">15s</div>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Gift list preview */}
+                      {inviteCustomization.showGiftList && (
+                        <div className="p-3 rounded-xl bg-white border border-[#24152F]/10 text-xs shadow-2xs space-y-2">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                              <Gift className="w-3.5 h-3.5 text-[#24152F]" />
+                              <span className="font-bold text-[11px] text-[#24152F]">Lista de Presentes</span>
+                            </div>
+                            {inviteCustomization.giftListType === 'link' ? (
+                              <span className="text-[10px] font-semibold text-emerald-700 underline">Acessar</span>
+                            ) : (
+                              <span className="text-[10px] font-semibold text-[#24152F]/60">{inviteCustomization.giftListItemsList.length} itens</span>
+                            )}
+                          </div>
+                          {inviteCustomization.giftListType === 'items' && inviteCustomization.giftListItemsList.length > 0 && (
+                            <div className="grid grid-cols-1 gap-1">
+                              {inviteCustomization.giftListItemsList.slice(0, 3).map((it, idx) => (
+                                <div key={idx} className="flex items-center gap-2 p-1.5 rounded-lg bg-[#FAF6EE] text-[10px] font-medium text-[#24152F] truncate">
+                                  <Gift className="w-2.5 h-2.5 text-[#24152F]/70 flex-shrink-0" />
+                                  <span className="truncate">{it}</span>
+                                </div>
+                              ))}
+                              {inviteCustomization.giftListItemsList.length > 3 && (
+                                <span className="text-[9px] text-[#24152F]/50 text-center block">+ mais {inviteCustomization.giftListItemsList.length - 3} itens</span>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      )}
+
+                      <div className="p-3 rounded-xl bg-white border border-[#24152F]/10 text-center space-y-2 shadow-2xs">
+                        <span className="text-[11px] font-bold text-[#24152F] block">Confirmar presença no evento?</span>
+                        <div className="grid grid-cols-2 gap-1.5">
+                          <div className="py-1.5 rounded-lg bg-[#DFFF5F] text-[#180D20] text-[10px] font-bold text-center">
+                            Confirmado
+                          </div>
+                          <div className="py-1.5 rounded-lg bg-rose-600 text-white text-[10px] font-bold text-center">
+                            Ausente
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </div>
             )}
@@ -1462,6 +2412,139 @@ export const DashboardSkeleton: React.FC<DashboardSkeletonProps> = ({
           manager={selectedManagerForWhatsApp}
           event={event}
         />
+      )}
+
+      {/* Modal Filtrar (Item 5 do User Request) */}
+      {isFilterModalOpen && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#24152F]/70 backdrop-blur-xs animate-in fade-in duration-150"
+        >
+          <div className="w-full max-w-md bg-white rounded-2xl border border-[#24152F]/15 p-5 sm:p-6 shadow-2xl space-y-5 animate-in zoom-in-95 duration-100">
+            {/* Cabeçalho com título "Filtrar" e botão X */}
+            <div className="flex items-center justify-between pb-3 border-b border-[#24152F]/10">
+              <div className="flex items-center gap-2">
+                <SlidersHorizontal className="w-4 h-4 text-[#24152F]" />
+                <h3 className="text-base font-bold text-[#24152F]">Filtrar</h3>
+              </div>
+              <button
+                type="button"
+                id="btn-close-filter-modal"
+                onClick={() => setIsFilterModalOpen(false)}
+                className="w-8 h-8 rounded-full bg-[#FAF6EE] text-[#24152F]/70 hover:text-[#24152F] hover:bg-[#EDE4D3] flex items-center justify-center transition-colors cursor-pointer"
+                title="Fechar modal de filtros"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="space-y-4 text-xs">
+              {/* 1. Status — Dropdown */}
+              <div className="space-y-1.5">
+                <label className="block font-bold text-[#24152F]">Status</label>
+                <select
+                  value={draftFilterStatus}
+                  onChange={(e) => setDraftFilterStatus(e.target.value as any)}
+                  className="w-full px-3 py-2 rounded-xl border border-[#24152F]/20 bg-[#FAF6EE]/50 text-xs font-semibold text-[#24152F] focus:outline-none focus:ring-1 focus:ring-[#24152F]"
+                >
+                  <option value="all">Todos</option>
+                  <option value="confirmed">Confirmado</option>
+                  <option value="declined">Ausente</option>
+                </select>
+              </div>
+
+              {/* 2. Faixa etária — Radio buttons */}
+              <div className="space-y-1.5">
+                <label className="block font-bold text-[#24152F]">Faixa etária</label>
+                <div className="grid grid-cols-3 gap-2">
+                  {[
+                    { id: 'ambos', label: 'Ambos' },
+                    { id: 'adulto', label: 'Adulto' },
+                    { id: 'crianca', label: 'Criança' },
+                  ].map((option) => (
+                    <label
+                      key={option.id}
+                      className={`flex items-center justify-center gap-2 p-2 rounded-xl border cursor-pointer font-semibold transition-colors ${
+                        draftFilterAgeCategory === option.id
+                          ? 'bg-[#E8F0E4] border-[#A3C79E] text-[#1E3B1E]'
+                          : 'bg-white border-[#24152F]/15 text-[#24152F]/70 hover:bg-[#FAF6EE]'
+                      }`}
+                    >
+                      <input
+                        type="radio"
+                        name="draftFilterAgeCategory"
+                        value={option.id}
+                        checked={draftFilterAgeCategory === option.id}
+                        onChange={() => setDraftFilterAgeCategory(option.id as any)}
+                        className="accent-[#24152F]"
+                      />
+                      <span>{option.label}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+
+              {/* 3. Grupo — Chips selecionáveis (múltipla seleção) */}
+              <div className="space-y-1.5">
+                <label className="block font-bold text-[#24152F]">Grupo</label>
+                <div className="flex flex-wrap gap-2 pt-0.5">
+                  {availableGroups.map((group) => {
+                    const isSelected = draftFilterSelectedGroups.includes(group);
+                    return (
+                      <button
+                        key={group}
+                        type="button"
+                        onClick={() => {
+                          setDraftFilterSelectedGroups((prev) =>
+                            isSelected
+                              ? prev.filter((g) => g !== group)
+                              : [...prev, group]
+                          );
+                        }}
+                        className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition-all cursor-pointer ${
+                          isSelected
+                            ? 'bg-[#E8F0E4] border-[#A3C79E] text-[#1E3B1E] shadow-2xs font-bold'
+                            : 'bg-[#FAF6EE] border-[#24152F]/15 text-[#24152F]/70 hover:bg-[#FAF6EE]/80'
+                        }`}
+                      >
+                        {isSelected && '✓ '}
+                        {group}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+
+            {/* Botões do modal: Limpar filtros & Aplicar filtros */}
+            <div className="flex items-center justify-between gap-3 pt-3 border-t border-[#24152F]/10">
+              <button
+                type="button"
+                onClick={() => {
+                  setDraftFilterStatus('all');
+                  setDraftFilterAgeCategory('ambos');
+                  setDraftFilterSelectedGroups([]);
+                }}
+                className="px-4 py-2 rounded-xl text-xs font-semibold text-[#24152F]/70 hover:text-rose-700 hover:bg-rose-50 border border-transparent transition-colors cursor-pointer"
+              >
+                Limpar filtros
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setFilterStatus(draftFilterStatus);
+                  setFilterAgeCategory(draftFilterAgeCategory);
+                  setFilterSelectedGroups(draftFilterSelectedGroups);
+                  setIsFilterModalOpen(false);
+                }}
+                className="px-5 py-2.5 rounded-xl bg-[#24152F] text-[#F7F1E5] text-xs font-bold hover:bg-[#180D20] transition-colors cursor-pointer shadow-xs border border-[#3F2553]"
+              >
+                Aplicar filtros
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

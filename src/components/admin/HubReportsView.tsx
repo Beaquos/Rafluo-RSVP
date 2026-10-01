@@ -130,7 +130,7 @@ export const HubReportsView: React.FC<HubReportsViewProps> = ({
         <div className="bg-white p-3.5 sm:p-5 rounded-2xl border border-[#24152F]/10 shadow-xs flex flex-col justify-between">
           <div className="flex items-center justify-between">
             <span className="text-xs font-semibold text-[#24152F]/70">Convites Totais</span>
-            <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-[#24152F]/10 text-[#24152F] flex items-center justify-center flex-shrink-0">
+            <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-[#24152F] text-[#DFFF5F] flex items-center justify-center flex-shrink-0">
               <Users className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
             </div>
           </div>

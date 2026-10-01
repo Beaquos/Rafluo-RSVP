@@ -13,6 +13,7 @@ import {
   ArrowLeft,
   Sparkles,
   Contact,
+  Link as LinkIcon,
 } from 'lucide-react';
 import { HubSection, NavSection, NavItem } from '../../types/navigation';
 import { formatDateBR } from '../../utils/dateUtils';
@@ -92,9 +93,9 @@ const EVENT_NAV_ITEMS: NavItem[] = [
     iconName: 'Users',
   },
   {
-    id: 'form-builder',
-    label: 'Formulários',
-    iconName: 'FileText',
+    id: 'guest-link',
+    label: 'Página de Confirmação',
+    iconName: 'Link',
   },
   {
     id: 'managers',
@@ -141,6 +142,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
         return <FileText className={iconClass} />;
       case 'Users':
         return <Users className={iconClass} />;
+      case 'Link':
+        return <LinkIcon className={iconClass} />;
       case 'UserCheck':
         return <UserCheck className={iconClass} />;
       case 'BarChart3':

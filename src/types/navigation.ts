@@ -4,6 +4,7 @@ export type NavSection =
   | 'overview'
   | 'events'
   | 'form-builder'
+  | 'guest-link'
   | 'guests'
   | 'managers'
   | 'analytics'
@@ -12,7 +13,7 @@ export type NavSection =
 export interface NavItem {
   id: NavSection;
   label: string;
-  iconName: 'LayoutDashboard' | 'Calendar' | 'FileText' | 'Users' | 'UserCheck' | 'BarChart3' | 'Settings';
+  iconName: 'LayoutDashboard' | 'Calendar' | 'FileText' | 'Link' | 'Users' | 'UserCheck' | 'BarChart3' | 'Settings';
   badge?: string;
   description?: string;
 }

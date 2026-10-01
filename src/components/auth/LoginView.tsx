@@ -78,24 +78,24 @@ export const LoginView: React.FC<LoginViewProps> = ({
         {/* Login Box */}
         <div className="bg-white rounded-3xl border border-[#24152F]/15 shadow-xl p-6 sm:p-8 space-y-6">
           <div className="space-y-1">
-            <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-[#24152F]">
+            <h1 className="text-xl sm:text-2xl font-bold font-heading tracking-tight text-[#24152F]">
               Acesso ao Rafluo
             </h1>
-            <p className="text-xs sm:text-sm text-[#24152F]/60">
+            <p className="text-xs sm:text-sm text-[#24152F]/70 font-sans leading-relaxed">
               Faça login para gerenciar seus eventos
             </p>
           </div>
 
           {error && (
-            <div className="p-3.5 rounded-xl bg-rose-50 border border-rose-200 text-xs text-rose-800 flex items-start gap-2">
+            <div className="p-3.5 rounded-xl bg-rose-50 border border-rose-200 text-xs text-rose-800 flex items-start gap-2 font-sans">
               <AlertCircle className="w-4 h-4 text-rose-600 flex-shrink-0 mt-0.5" />
               <span>{error}</span>
             </div>
           )}
 
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <form onSubmit={handleSubmit} className="space-y-4 font-sans">
             <div>
-              <label className="block text-xs font-bold text-[#24152F] mb-1">
+              <label className="block text-[13px] font-medium text-[#24152F] mb-1 font-sans">
                 E-mail
               </label>
               <div className="relative">
@@ -107,14 +107,14 @@ export const LoginView: React.FC<LoginViewProps> = ({
                     setError(null);
                   }}
                   placeholder="usuario@beaquos.com"
-                  className="w-full pl-9 pr-3 py-2.5 text-xs sm:text-sm rounded-xl border border-[#24152F]/20 bg-white text-[#24152F] focus:outline-none focus:ring-2 focus:ring-[#24152F]"
+                  className="w-full pl-9 pr-3 py-2.5 text-xs sm:text-sm rounded-xl border border-[#24152F]/20 bg-white text-[#24152F] focus:outline-none focus:ring-2 focus:ring-[#24152F] font-sans"
                 />
                 <Mail className="w-4 h-4 text-[#24152F]/40 absolute left-3 top-3.5" />
               </div>
             </div>
 
             <div>
-              <label className="block text-xs font-bold text-[#24152F] mb-1">
+              <label className="block text-[13px] font-medium text-[#24152F] mb-1 font-sans">
                 Senha
               </label>
               <div className="relative">
@@ -123,7 +123,7 @@ export const LoginView: React.FC<LoginViewProps> = ({
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="••••••••"
-                  className="w-full pl-9 pr-3 py-2.5 text-xs sm:text-sm rounded-xl border border-[#24152F]/20 bg-white text-[#24152F] focus:outline-none focus:ring-2 focus:ring-[#24152F]"
+                  className="w-full pl-9 pr-3 py-2.5 text-xs sm:text-sm rounded-xl border border-[#24152F]/20 bg-white text-[#24152F] focus:outline-none focus:ring-2 focus:ring-[#24152F] font-sans"
                 />
                 <Lock className="w-4 h-4 text-[#24152F]/40 absolute left-3 top-3.5" />
               </div>
@@ -132,7 +132,7 @@ export const LoginView: React.FC<LoginViewProps> = ({
             <button
               type="submit"
               id="btn-login-submit"
-              className="w-full mt-2 py-3 px-4 rounded-xl bg-[#24152F] hover:bg-[#180D20] text-[#F7F1E5] font-bold text-xs sm:text-sm flex items-center justify-center gap-2 transition-all shadow-md active:scale-98 cursor-pointer group border border-[#3F2553]"
+              className="w-full mt-2 py-3 px-4 rounded-xl bg-[#24152F] hover:bg-[#180D20] text-[#F7F1E5] font-bold font-heading text-xs sm:text-sm flex items-center justify-center gap-2 transition-all shadow-md active:scale-98 cursor-pointer group border border-[#3F2553]"
             >
               <span>Entrar</span>
               <ArrowRight className="w-4 h-4 text-[#DFFF5F] group-hover:translate-x-0.5 transition-transform" />

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Calendar, Check, Loader2, Clock, MapPin } from 'lucide-react';
+import { X, Calendar, Check, Loader2, Clock, MapPin, Image as ImageIcon, MessageSquare, Timer, Gift, Sparkles } from 'lucide-react';
 import { EventData } from '../../data/mockData';
 
 interface EventModalProps {
@@ -577,6 +577,187 @@ export const EventModal: React.FC<EventModalProps> = ({
                   onChange={(e) => setFormData({ ...formData, preventDuplicateResponses: e.target.checked })}
                   className="w-4 h-4 mt-0.5 accent-[#24152F] cursor-pointer flex-shrink-0"
                 />
+              </div>
+            </div>
+
+            {/* SEÇÃO: Personalização do Link do Convidado (Item 3 do User Request) */}
+            <div className="sm:col-span-2 pt-3 border-t border-[#24152F]/10 space-y-3">
+              <div className="flex items-center gap-1.5">
+                <Sparkles className="w-4 h-4 text-[#24152F]" />
+                <h4 className="text-xs font-bold uppercase tracking-wider text-[#24152F]/80">
+                  Personalização do Convite (Link do Convidado)
+                </h4>
+              </div>
+              <p className="text-[11px] text-[#24152F]/60 leading-relaxed">
+                Configure a imagem, mensagem de abertura, contagem regressiva e lista de presentes que serão apresentadas ao convidado no convite digital.
+              </p>
+
+              {/* 1. Imagem de Capa do Convite */}
+              <div className="p-3.5 rounded-xl border border-[#24152F]/15 bg-[#FAF6EE] space-y-2">
+                <label className="block font-semibold text-xs text-[#24152F] flex items-center gap-1.5">
+                  <ImageIcon className="w-3.5 h-3.5 text-[#24152F]" />
+                  <span>Imagem de Destaque / Banner do Convite</span>
+                </label>
+                <input
+                  type="url"
+                  value={formData.coverImage || ''}
+                  onChange={(e) => setFormData({ ...formData, coverImage: e.target.value })}
+                  placeholder="https://exemplo.com/imagem-do-evento.jpg"
+                  className="w-full px-3 py-2 rounded-lg border border-[#24152F]/20 bg-white text-[#24152F] text-xs focus:outline-none focus:ring-1 focus:ring-[#24152F]"
+                />
+                {formData.coverImage && (
+                  <div className="mt-2 relative w-full h-28 rounded-lg overflow-hidden border border-[#24152F]/15 bg-black/5">
+                    <img
+                      src={formData.coverImage}
+                      alt="Prévia do convite"
+                      className="w-full h-full object-cover"
+                      onError={(e) => {
+                        (e.target as HTMLElement).style.display = 'none';
+                      }}
+                    />
+                  </div>
+                )}
+                <span className="text-[10px] text-[#24152F]/50 block">
+                  Insira o link direto de uma foto ou banner comemorativo.
+                </span>
+              </div>
+
+              {/* 2. Mensagem Inicial de Abertura */}
+              <div className="p-3.5 rounded-xl border border-[#24152F]/15 bg-[#FAF6EE] space-y-2">
+                <label className="block font-semibold text-xs text-[#24152F] flex items-center gap-1.5">
+                  <MessageSquare className="w-3.5 h-3.5 text-[#24152F]" />
+                  <span>Mensagem Inicial de Abertura</span>
+                </label>
+                <textarea
+                  rows={2}
+                  value={formData.welcomeMessage || ''}
+                  onChange={(e) => setFormData({ ...formData, welcomeMessage: e.target.value })}
+                  placeholder="Ex: É com muita alegria que convidamos você para comemorar conosco este momento especial!"
+                  className="w-full px-3 py-2 rounded-lg border border-[#24152F]/20 bg-white text-[#24152F] text-xs focus:outline-none focus:ring-1 focus:ring-[#24152F]"
+                />
+                <span className="text-[10px] text-[#24152F]/50 block">
+                  Texto de abertura apresentado no topo da página do convidado.
+                </span>
+              </div>
+
+              {/* 3. Contagem regressiva */}
+              <div className="p-3.5 rounded-xl border border-[#24152F]/15 bg-[#FAF6EE] flex items-center justify-between gap-3">
+                <div className="flex-1">
+                  <label className="font-semibold text-xs text-[#24152F] flex items-center gap-1.5 cursor-pointer" htmlFor="modal-countdown-toggle">
+                    <Timer className="w-3.5 h-3.5 text-[#24152F]" />
+                    <span>Contagem regressiva</span>
+                  </label>
+                  <span className="text-[11px] text-[#24152F]/60 block mt-0.5 leading-relaxed">
+                    Exibe um cronômetro regressivo com dias, horas e minutos até o início do evento.
+                  </span>
+                </div>
+                <input
+                  id="modal-countdown-toggle"
+                  type="checkbox"
+                  checked={formData.showCountdown ?? true}
+                  onChange={(e) => setFormData({ ...formData, showCountdown: e.target.checked })}
+                  className="w-4 h-4 accent-[#24152F] cursor-pointer flex-shrink-0"
+                />
+              </div>
+
+              {/* 4. Lista de Presentes */}
+              <div className="p-3.5 rounded-xl border border-[#24152F]/15 bg-[#FAF6EE] space-y-3">
+                <div className="flex items-center justify-between gap-3">
+                  <label className="block font-semibold text-xs text-[#24152F] flex items-center gap-1.5">
+                    <Gift className="w-3.5 h-3.5 text-[#24152F]" />
+                    <span>Lista de Presentes</span>
+                  </label>
+                  <input
+                    id="modal-giftlist-toggle"
+                    type="checkbox"
+                    checked={formData.showGiftList ?? true}
+                    onChange={(e) => setFormData({ ...formData, showGiftList: e.target.checked })}
+                    className="w-4 h-4 accent-[#24152F] cursor-pointer flex-shrink-0"
+                  />
+                </div>
+
+                {(formData.showGiftList ?? true) && (
+                  <div className="space-y-3 pt-1">
+                    <div className="flex flex-wrap items-center gap-2 text-xs">
+                      <button
+                        type="button"
+                        onClick={() => setFormData({ ...formData, giftListType: 'items' })}
+                        className={`px-3 py-1.5 rounded-lg font-semibold transition-colors cursor-pointer ${
+                          (formData.giftListType || 'items') === 'items'
+                            ? 'bg-[#24152F] text-[#F7F1E5]'
+                            : 'bg-white border border-[#24152F]/15 text-[#24152F]/70'
+                        }`}
+                      >
+                        Itens Desejados
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setFormData({ ...formData, giftListType: 'link' })}
+                        className={`px-3 py-1.5 rounded-lg font-semibold transition-colors cursor-pointer ${
+                          formData.giftListType === 'link'
+                            ? 'bg-[#24152F] text-[#F7F1E5]'
+                            : 'bg-white border border-[#24152F]/15 text-[#24152F]/70'
+                        }`}
+                      >
+                        Link Externo
+                      </button>
+                    </div>
+
+                    {formData.giftListType === 'link' && (
+                      <div className="pt-2">
+                        <label className="block font-semibold text-[11px] mb-1 text-[#24152F]">Link da Lista de Presentes:</label>
+                        <input
+                          type="url"
+                          value={formData.giftListUrl || ''}
+                          onChange={(e) => setFormData({ ...formData, giftListUrl: e.target.value })}
+                          placeholder="https://listadepresentes.com/seu-evento"
+                          className="w-full px-3 py-2 rounded-lg border border-[#24152F]/20 bg-white text-[#24152F] text-xs focus:outline-none focus:ring-1 focus:ring-[#24152F]"
+                        />
+                      </div>
+                    )}
+
+                    {(formData.giftListType || 'items') === 'items' && (
+                      <div className="pt-2">
+                        <label className="block font-semibold text-[11px] mb-1 text-[#24152F]">Itens e Sugestões Desejadas:</label>
+                        <textarea
+                          rows={3}
+                          value={formData.giftListItems || ''}
+                          onChange={(e) => setFormData({ ...formData, giftListItems: e.target.value })}
+                          placeholder="Ex: Fraldas tamanho M e G, lenços umedecidos, jogos educativos..."
+                          className="w-full px-3 py-2 rounded-lg border border-[#24152F]/20 bg-white text-[#24152F] text-xs focus:outline-none focus:ring-1 focus:ring-[#24152F]"
+                        />
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              {/* 5. Limite de Idade para Crianças (Item 6) */}
+              <div className="p-3.5 rounded-xl border border-[#24152F]/15 bg-[#FAF6EE] flex items-center justify-between gap-3">
+                <div className="flex-1">
+                  <label className="font-semibold text-xs text-[#24152F] block">
+                    Limite de Idade para Crianças
+                  </label>
+                  <span className="text-[11px] text-[#24152F]/60 block mt-0.5 leading-relaxed">
+                    Idade máxima considerada na categoria Criança nas confirmações (ex: até 10 anos).
+                  </span>
+                </div>
+                <div className="flex items-center gap-1.5 flex-shrink-0">
+                  <input
+                    type="number"
+                    min={1}
+                    max={18}
+                    value={formData.childAgeLimit || 10}
+                    onChange={(e) =>
+                      setFormData({
+                        ...formData,
+                        childAgeLimit: Math.max(1, parseInt(e.target.value) || 10),
+                      })
+                    }
+                    className="w-14 px-2 py-1.5 rounded-lg border border-[#24152F]/20 bg-white text-center font-bold text-xs text-[#24152F] focus:outline-none focus:ring-1 focus:ring-[#24152F]"
+                  />
+                  <span className="text-xs text-[#24152F]/70 font-semibold">anos</span>
+                </div>
               </div>
             </div>
           </div>
