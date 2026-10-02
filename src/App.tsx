@@ -46,6 +46,24 @@ import {
   getHubPath,
   getEventPath,
 } from './utils/navigationRoutes';
+import {
+  getStoredEvents,
+  saveStoredEvents,
+  saveStoredEventSingle,
+  getStoredQuestions,
+  saveStoredQuestions,
+  deleteStoredQuestion,
+  getStoredEventByIdOrSlug,
+  getStoredQuestionsForEvent,
+  subscribeToCrossTabSync,
+  getStoredGuests,
+  saveStoredGuests,
+  getStoredManagers,
+  saveStoredManagers,
+  getStoredClients,
+  saveStoredClients,
+  STORAGE_KEYS,
+} from './utils/storageUtils';
 
 // Initial Registered Administrator User
 const INITIAL_ADMIN_USER: AdminUser = {
@@ -113,13 +131,16 @@ export default function App() {
     return typeof window !== 'undefined' ? window.location.pathname : '/dashboard';
   });
 
-  // Core Data States
-  const [events, setEvents] = useState<EventData[]>(INITIAL_EVENTS);
-  const [activeEventId, setActiveEventId] = useState<string>(INITIAL_EVENTS[0].id);
-  const [guests, setGuests] = useState<GuestData[]>(INITIAL_GUESTS);
-  const [questions, setQuestions] = useState<FormQuestionData[]>(INITIAL_QUESTIONS);
-  const [managers, setManagers] = useState<ManagerData[]>(INITIAL_MANAGERS);
-  const [clients, setClients] = useState<ClientData[]>(INITIAL_CLIENTS);
+  // Core Data States with localStorage persistence
+  const [events, setEvents] = useState<EventData[]>(getStoredEvents);
+  const [activeEventId, setActiveEventId] = useState<string>(() => {
+    const loaded = getStoredEvents();
+    return loaded[0]?.id || INITIAL_EVENTS[0].id;
+  });
+  const [guests, setGuests] = useState<GuestData[]>(getStoredGuests);
+  const [questions, setQuestions] = useState<FormQuestionData[]>(getStoredQuestions);
+  const [managers, setManagers] = useState<ManagerData[]>(getStoredManagers);
+  const [clients, setClients] = useState<ClientData[]>(getStoredClients);
 
   // Authentication State
   const [isAuthenticated, setIsAuthenticated] = useState(true);
@@ -175,6 +196,35 @@ export default function App() {
     window.addEventListener('popstate', handlePopState);
     return () => window.removeEventListener('popstate', handlePopState);
   }, []);
+
+  // Listen to cross-tab storage changes (e.g. changes made in Admin tab reflected in RSVP tab)
+  useEffect(() => {
+    const unsubscribe = subscribeToCrossTabSync((type, payload) => {
+      if (type === 'events_updated' && Array.isArray(payload)) {
+        setEvents(payload);
+      } else if (type === 'questions_updated' && Array.isArray(payload)) {
+        setQuestions(payload);
+      } else if (type === 'guests_updated' && Array.isArray(payload)) {
+        setGuests(payload);
+      } else if (type === 'managers_updated' && Array.isArray(payload)) {
+        setManagers(payload);
+      } else if (type === 'clients_updated' && Array.isArray(payload)) {
+        setClients(payload);
+      }
+    });
+
+    return unsubscribe;
+  }, []);
+
+  // Whenever navigating to public RSVP, make sure events and questions are freshly loaded from storage
+  useEffect(() => {
+    if (currentPath.startsWith('/rsvp/')) {
+      const freshEvents = getStoredEvents();
+      const freshQuestions = getStoredQuestions();
+      setEvents(freshEvents);
+      setQuestions(freshQuestions);
+    }
+  }, [currentPath]);
 
   // Redirect root "/" to "/dashboard"
   useEffect(() => {
@@ -271,11 +321,11 @@ export default function App() {
 
     setEvents((prev) => {
       const exists = prev.some((e) => e.id === updated.id);
-      if (exists) {
-        return prev.map((e) => (e.id === updated.id ? updated : e));
-      } else {
-        return [updated, ...prev];
-      }
+      const next = exists
+        ? prev.map((e) => (e.id === updated.id ? updated : e))
+        : [updated, ...prev];
+      saveStoredEvents(next);
+      return next;
     });
 
     // Se for novo evento, vincular um responsável específico para este evento conforme cadastro
@@ -295,7 +345,11 @@ export default function App() {
           new Date(Date.now() + 60 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
         status: 'active',
       };
-      setManagers((prev) => [...prev, newManager]);
+      setManagers((prev) => {
+        const next = [...prev, newManager];
+        saveStoredManagers(next);
+        return next;
+      });
     }
 
     setActiveEventId(updated.id);
@@ -306,7 +360,8 @@ export default function App() {
   };
 
   const handleSaveEventCustomization = (updated: EventData) => {
-    setEvents((prev) => prev.map((e) => (e.id === updated.id ? updated : e)));
+    const next = saveStoredEventSingle(updated);
+    setEvents(next);
     setToastMessage('Personalização da página salva com sucesso!');
     // Mantém o usuário exatamente na seção em que estava realizando a configuração, sem alterar rota ou redirecionar
   };
@@ -316,10 +371,26 @@ export default function App() {
     if (!eventToDelete) return;
 
     // Remover somente o evento selecionado e seus dados relacionados
-    setEvents((prev) => prev.filter((e) => e.id !== eventId));
-    setGuests((prev) => prev.filter((g) => g.eventId !== eventId));
-    setQuestions((prev) => prev.filter((q) => q.eventId !== eventId));
-    setManagers((prev) => prev.filter((m) => m.eventId !== eventId));
+    setEvents((prev) => {
+      const next = prev.filter((e) => e.id !== eventId);
+      saveStoredEvents(next);
+      return next;
+    });
+    setGuests((prev) => {
+      const next = prev.filter((g) => g.eventId !== eventId);
+      saveStoredGuests(next);
+      return next;
+    });
+    setQuestions((prev) => {
+      const next = prev.filter((q) => q.eventId !== eventId);
+      saveStoredQuestions(next);
+      return next;
+    });
+    setManagers((prev) => {
+      const next = prev.filter((m) => m.eventId !== eventId);
+      saveStoredManagers(next);
+      return next;
+    });
 
     // Se o evento ativo for o excluído, selecionar outro evento
     if (activeEventId === eventId) {
@@ -339,10 +410,11 @@ export default function App() {
     };
     setGuests((prev) => {
       const exists = prev.some((g) => g.id === savedGuest.id);
-      if (exists) {
-        return prev.map((g) => (g.id === savedGuest.id ? guestWithEvent : g));
-      }
-      return [guestWithEvent, ...prev];
+      const next = exists
+        ? prev.map((g) => (g.id === savedGuest.id ? guestWithEvent : g))
+        : [guestWithEvent, ...prev];
+      saveStoredGuests(next);
+      return next;
     });
     setToastMessage(`Convite "${savedGuest.inviteName || savedGuest.name}" salvo com sucesso!`);
     setEditingGuest(null);
@@ -350,7 +422,11 @@ export default function App() {
 
   const handleDeleteGuest = (guestId: string) => {
     const target = guests.find((g) => g.id === guestId);
-    setGuests((prev) => prev.filter((g) => g.id !== guestId));
+    setGuests((prev) => {
+      const next = prev.filter((g) => g.id !== guestId);
+      saveStoredGuests(next);
+      return next;
+    });
     setToastMessage(`Convite "${target?.inviteName || target?.name || ''}" excluído com sucesso.`);
   };
 
@@ -359,7 +435,11 @@ export default function App() {
       ...g,
       eventId: activeEvent.id,
     }));
-    setGuests((prev) => [...guestsWithEvent, ...prev]);
+    setGuests((prev) => {
+      const next = [...guestsWithEvent, ...prev];
+      saveStoredGuests(next);
+      return next;
+    });
     setToastMessage(`${newGuests.length} convidados importados com sucesso!`);
   };
 
@@ -368,13 +448,13 @@ export default function App() {
       ...savedQuestion,
       eventId: activeEvent.id,
     };
-    setQuestions((prev) => {
-      const exists = prev.some((q) => q.id === savedQuestion.id);
-      if (exists) {
-        return prev.map((q) => (q.id === savedQuestion.id ? questionWithEvent : q));
-      }
-      return [...prev, questionWithEvent];
-    });
+    const current = getStoredQuestions();
+    const exists = current.some((q) => q.id === savedQuestion.id);
+    const next = exists
+      ? current.map((q) => (q.id === savedQuestion.id ? questionWithEvent : q))
+      : [...current, questionWithEvent];
+    saveStoredQuestions(next);
+    setQuestions(next);
     setToastMessage(
       editingQuestion
         ? 'Pergunta atualizada com sucesso!'
@@ -384,8 +464,9 @@ export default function App() {
   };
 
   const handleDeleteQuestion = (questionId: string) => {
-    setQuestions((prev) => prev.filter((q) => q.id !== questionId));
-    setToastMessage('Pergunta removida do formulário.');
+    const next = deleteStoredQuestion(questionId);
+    setQuestions(next);
+    setToastMessage('Pergunta removida do formulário com sucesso!');
   };
 
   const handleSaveManager = (managerData: ManagerData) => {
@@ -395,10 +476,11 @@ export default function App() {
     };
     setManagers((prev) => {
       const exists = prev.some((m) => m.id === managerData.id);
-      if (exists) {
-        return prev.map((m) => (m.id === managerData.id ? managerWithEvent : m));
-      }
-      return [...prev, managerWithEvent];
+      const next = exists
+        ? prev.map((m) => (m.id === managerData.id ? managerWithEvent : m))
+        : [...prev, managerWithEvent];
+      saveStoredManagers(next);
+      return next;
     });
     setToastMessage(
       editingManager
@@ -410,7 +492,11 @@ export default function App() {
 
   const handleDeleteManager = (managerId: string) => {
     const target = managers.find((m) => m.id === managerId);
-    setManagers((prev) => prev.filter((m) => m.id !== managerId));
+    setManagers((prev) => {
+      const next = prev.filter((m) => m.id !== managerId);
+      saveStoredManagers(next);
+      return next;
+    });
     setToastMessage(`Responsável "${target?.name || ''}" removido com sucesso.`);
   };
 
@@ -683,13 +769,17 @@ export default function App() {
   // 1. PUBLIC EVENT RSVP: /rsvp/evento/:slugOrId
   // Clean public invite for any guest to introduce themselves and confirm their own RSVP
   if (route.type === 'rsvp-event' && route.matchedEvent) {
-    const eventQuestions = questions.filter((q) => q.eventId === route.matchedEvent!.id);
+    const currentEvent =
+      getStoredEventByIdOrSlug(route.matchedEvent.slug || route.matchedEvent.id) ||
+      events.find((e) => e.id === route.matchedEvent!.id) ||
+      route.matchedEvent;
+    const eventQuestions = getStoredQuestionsForEvent(currentEvent.id);
 
     return (
       <>
         <Toast message={toastMessage} onClose={() => setToastMessage(null)} />
         <GuestRsvpView
-          event={events.find((e) => e.id === route.matchedEvent!.id) || route.matchedEvent}
+          event={currentEvent}
           guest={null}
           questions={eventQuestions}
           onBackToAdmin={() => navigateTo('/dashboard')}
@@ -704,13 +794,17 @@ export default function App() {
   // 2. INDIVIDUAL GUEST RSVP: /rsvp/:code
   // Preserves existing response editing/consultation for a specific identified guest
   if (route.type === 'rsvp-guest' && route.matchedGuest) {
-    const eventQuestions = questions.filter((q) => q.eventId === route.matchedEvent!.id);
+    const currentEvent =
+      getStoredEventByIdOrSlug(route.matchedEvent?.slug || route.matchedEvent?.id || '') ||
+      events.find((e) => e.id === route.matchedEvent!.id) ||
+      route.matchedEvent!;
+    const eventQuestions = getStoredQuestionsForEvent(currentEvent.id);
 
     return (
       <>
         <Toast message={toastMessage} onClose={() => setToastMessage(null)} />
         <GuestRsvpView
-          event={events.find((e) => e.id === route.matchedEvent!.id) || route.matchedEvent!}
+          event={currentEvent}
           guest={route.matchedGuest}
           questions={eventQuestions}
           onBackToAdmin={() => navigateTo('/dashboard')}
@@ -754,11 +848,14 @@ export default function App() {
       guests[0] ||
       INITIAL_GUESTS[0];
 
+    const currentEvent = getStoredEventByIdOrSlug(activeEvent.slug || activeEvent.id) || activeEvent;
+    const eventQuestions = getStoredQuestionsForEvent(currentEvent.id);
+
     return (
       <GuestRsvpView
-        event={activeEvent}
+        event={currentEvent}
         guest={activeGuest}
-        questions={questions.filter((q) => q.eventId === activeEvent.id)}
+        questions={eventQuestions}
         onBackToAdmin={() => setIsGuestPreviewMode(false)}
         onSubmitRsvp={handleSubmitGuestRsvp}
         isPublicMode={false}
@@ -865,7 +962,7 @@ export default function App() {
             onNavigate={handleSelectEventSection}
             event={activeEvent}
             onEditEvent={() => handleOpenEditEventModal(activeEvent)}
-            questions={questions}
+            questions={questions.filter((q) => !q.eventId || q.eventId === activeEvent.id)}
             onAddQuestion={() => {
               setEditingQuestion(null);
               setIsQuestionModalOpen(true);

@@ -22,6 +22,11 @@ import {
 import { EventData, GuestData, FormQuestionData, InviteMember } from '../../data/mockData';
 import { formatDateBR } from '../../utils/dateUtils';
 import { getInviteMembers } from '../../utils/inviteUtils';
+import {
+  getStoredEventByIdOrSlug,
+  getStoredQuestionsForEvent,
+  subscribeToCrossTabSync,
+} from '../../utils/storageUtils';
 import { RafluoLogo } from '../common/RafluoLogo';
 
 interface GuestRsvpViewProps {
@@ -43,14 +48,49 @@ interface GuestRsvpViewProps {
 }
 
 export const GuestRsvpView: React.FC<GuestRsvpViewProps> = ({
-  event,
+  event: propEvent,
   guest,
-  questions = [],
+  questions: _propQuestions = [],
   onBackToAdmin,
   onSubmitRsvp,
   isPublicMode = false,
   isPublicEventInvite = false,
 }) => {
+  // Always query the freshest persisted configuration for this event
+  const [currentEvent, setCurrentEvent] = useState<EventData>(() => {
+    return getStoredEventByIdOrSlug(propEvent.slug || propEvent.id) || propEvent;
+  });
+
+  const [currentQuestions, setCurrentQuestions] = useState<FormQuestionData[]>(() => {
+    return getStoredQuestionsForEvent(currentEvent.id);
+  });
+
+  // Re-sync whenever incoming propEvent changes
+  useEffect(() => {
+    const fresh = getStoredEventByIdOrSlug(propEvent.slug || propEvent.id) || propEvent;
+    setCurrentEvent(fresh);
+    setCurrentQuestions(getStoredQuestionsForEvent(fresh.id));
+  }, [propEvent]);
+
+  // Subscribe to real-time sync across tabs or admin customization saves
+  useEffect(() => {
+    const handleSync = (type: string) => {
+      if (type === 'events_updated') {
+        const fresh = getStoredEventByIdOrSlug(propEvent.slug || propEvent.id);
+        if (fresh) setCurrentEvent(fresh);
+      } else if (type === 'questions_updated') {
+        setCurrentQuestions(getStoredQuestionsForEvent(propEvent.id));
+      }
+    };
+
+    const unsubscribe = subscribeToCrossTabSync(handleSync);
+    return unsubscribe;
+  }, [propEvent.id, propEvent.slug]);
+
+  // Alias for backward-compatibility with rest of the component
+  const event = currentEvent;
+  const questions = currentQuestions;
+
   // If it's a public event invite, we start completely fresh without any prior guest data
   const isIndividual = !isPublicEventInvite && !!guest;
 
@@ -431,7 +471,7 @@ export const GuestRsvpView: React.FC<GuestRsvpViewProps> = ({
         </div>
 
         {/* 1. Imagem de Destaque / Banner do Convite */}
-        {event.showCoverImage !== false && event.coverImage && (
+        {Boolean(event.showCoverImage) && Boolean(event.coverImage) && (
           <div className="w-full h-44 sm:h-64 rounded-3xl overflow-hidden border border-[#24152F]/15 shadow-md relative bg-[#24152F]/5">
             <img
               src={event.coverImage}
@@ -480,7 +520,7 @@ export const GuestRsvpView: React.FC<GuestRsvpViewProps> = ({
         </div>
 
         {/* 2. Mensagem Inicial de Abertura */}
-        {event.showWelcomeMessage !== false && event.welcomeMessage && (
+        {Boolean(event.showWelcomeMessage) && Boolean(event.welcomeMessage) && (
           <div className="p-4 sm:p-5 rounded-2xl bg-white border border-[#24152F]/10 shadow-xs flex items-start gap-3">
             <div className="w-8 h-8 rounded-xl bg-[#24152F] text-[#DFFF5F] flex items-center justify-center flex-shrink-0 mt-0.5 shadow-2xs">
               <Sparkles className="w-4 h-4 text-[#DFFF5F]" />
@@ -494,7 +534,7 @@ export const GuestRsvpView: React.FC<GuestRsvpViewProps> = ({
         )}
 
         {/* 3. Contagem regressiva */}
-        {event.showCountdown !== false && timeLeft && !timeLeft.isPast && (
+        {Boolean(event.showCountdown) && timeLeft && !timeLeft.isPast && (
           <div className="bg-white rounded-2xl p-4 sm:p-5 border border-[#24152F]/10 shadow-xs space-y-2.5 text-center">
             <div className="flex items-center justify-center gap-1.5 text-xs font-bold text-[#24152F] uppercase tracking-wider">
               <Timer className="w-3.5 h-3.5 text-[#24152F]" />
@@ -522,7 +562,7 @@ export const GuestRsvpView: React.FC<GuestRsvpViewProps> = ({
         )}
 
         {/* 4. Lista de Presentes */}
-        {Boolean(event.showGiftList) && event.giftListType === 'link' && event.giftListUrl && (
+        {Boolean(event.showGiftList) && event.giftListType === 'link' && Boolean(event.giftListUrl) && (
           <div className="bg-white rounded-2xl p-4 sm:p-5 border border-[#24152F]/10 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div className="flex items-center gap-3">
               <div className="w-9 h-9 rounded-xl bg-[#FAF6EE] border border-[#24152F]/15 flex items-center justify-center text-[#24152F] flex-shrink-0 shadow-2xs">
@@ -1097,6 +1137,48 @@ export const GuestRsvpView: React.FC<GuestRsvpViewProps> = ({
                             onChange={(e) => handleCustomAnswerChange(q.id, e.target.value)}
                             className="w-full px-3 py-2 rounded-lg border border-[#24152F]/20 bg-white text-xs text-[#24152F] focus:outline-none focus:ring-1 focus:ring-[#24152F]"
                           />
+                        ) : q.type === 'yes_no' ? (
+                          <div className="grid grid-cols-2 gap-2">
+                            <button
+                              type="button"
+                              onClick={() => handleCustomAnswerChange(q.id, 'sim')}
+                              className={`p-2.5 rounded-xl border text-xs font-semibold cursor-pointer transition-colors ${
+                                customAnswers[q.id] === 'sim'
+                                  ? 'bg-[#24152F] text-[#F7F1E5] border-[#24152F]'
+                                  : 'bg-white border-[#24152F]/20 text-[#24152F] hover:bg-[#FAF6EE]'
+                              }`}
+                            >
+                              Sim
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleCustomAnswerChange(q.id, 'nao')}
+                              className={`p-2.5 rounded-xl border text-xs font-semibold cursor-pointer transition-colors ${
+                                customAnswers[q.id] === 'nao'
+                                  ? 'bg-[#24152F] text-[#F7F1E5] border-[#24152F]'
+                                  : 'bg-white border-[#24152F]/20 text-[#24152F] hover:bg-[#FAF6EE]'
+                              }`}
+                            >
+                              Não
+                            </button>
+                          </div>
+                        ) : q.options && q.options.length > 0 ? (
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                            {q.options.map((opt) => (
+                              <button
+                                key={opt}
+                                type="button"
+                                onClick={() => handleCustomAnswerChange(q.id, opt)}
+                                className={`p-2.5 rounded-xl border text-xs font-medium text-left transition-colors cursor-pointer ${
+                                  customAnswers[q.id] === opt
+                                    ? 'bg-[#24152F] text-[#F7F1E5] border-[#24152F]'
+                                    : 'bg-white border-[#24152F]/15 text-[#24152F] hover:bg-[#FAF6EE]'
+                                }`}
+                              >
+                                {opt}
+                              </button>
+                            ))}
+                          </div>
                         ) : (
                           <input
                             type="text"

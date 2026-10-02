@@ -203,10 +203,9 @@ export const DashboardSkeleton: React.FC<DashboardSkeletonProps> = ({
       giftListItemsList: next.giftListItemsList,
       childAgeLimit: next.childAgeLimit,
     };
+    Object.assign(event, updated);
     if (onSaveEventCustomization) {
       onSaveEventCustomization(updated);
-    } else {
-      Object.assign(event, updated);
     }
   };
 
@@ -1765,16 +1764,15 @@ export const DashboardSkeleton: React.FC<DashboardSkeletonProps> = ({
                             showGiftList: inviteCustomization.showGiftList,
                             coverImage: inviteCustomization.coverImage,
                             welcomeMessage: inviteCustomization.welcomeMessage,
-                            giftListType: inviteCustomization.giftListType,
+                            giftListType: inviteCustomization.showGiftList ? inviteCustomization.giftListType : 'none',
                             giftListUrl: inviteCustomization.giftListUrl,
                             giftListItems: inviteCustomization.giftListItemsList.join('\n'),
                             giftListItemsList: inviteCustomization.giftListItemsList,
                             childAgeLimit: inviteCustomization.childAgeLimit,
                           };
+                          Object.assign(event, updated);
                           if (onSaveEventCustomization) {
                             onSaveEventCustomization(updated);
-                          } else {
-                            Object.assign(event, updated);
                           }
                           if (onShowToast) onShowToast('Personalização da página salva com sucesso!');
                         }}
