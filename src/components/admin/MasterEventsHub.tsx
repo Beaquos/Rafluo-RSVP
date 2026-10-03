@@ -201,24 +201,46 @@ export const MasterEventsHub: React.FC<MasterEventsHubProps> = ({
         <div className="flex items-center gap-1.5 overflow-x-auto pb-1 md:pb-0">
           <span className="text-[11px] font-semibold text-[#24152F]/50 mr-1 hidden sm:inline">Status:</span>
           {(['all', 'active', 'draft', 'closed'] as const).map((filterKey) => {
-            const labels = {
-              all: 'Todos',
-              active: 'Ativos',
-              draft: 'Rascunhos',
-              closed: 'Encerrados',
-            };
+            const config = {
+              all: {
+                label: 'Todos',
+                dotClass: 'bg-zinc-400',
+                activeClass: 'bg-[#24152F] text-[#F7F1E5] border-[#24152F]',
+                activeDot: 'bg-zinc-300',
+              },
+              active: {
+                label: 'Ativos',
+                dotClass: 'bg-emerald-500',
+                activeClass: 'bg-[#DFFF5F] text-[#180D20] border-[#DFFF5F]',
+                activeDot: 'bg-[#180D20]',
+              },
+              draft: {
+                label: 'Rascunhos',
+                dotClass: 'bg-amber-500',
+                activeClass: 'bg-amber-100 text-amber-900 border-amber-300',
+                activeDot: 'bg-amber-600',
+              },
+              closed: {
+                label: 'Encerrados',
+                dotClass: 'bg-zinc-400',
+                activeClass: 'bg-zinc-100 text-zinc-700 border-zinc-300',
+                activeDot: 'bg-zinc-500',
+              },
+            }[filterKey];
+
             const isSelected = statusFilter === filterKey;
             return (
               <button
                 key={filterKey}
                 onClick={() => setStatusFilter(filterKey)}
-                className={`px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-colors cursor-pointer ${
+                className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-colors cursor-pointer border ${
                   isSelected
-                    ? 'bg-[#24152F] text-[#F7F1E5]'
-                    : 'bg-white border border-[#24152F]/15 text-[#24152F]/70 hover:bg-[#F7F1E5]'
+                    ? `${config.activeClass} shadow-xs font-bold`
+                    : 'bg-white border-[#24152F]/15 text-[#24152F]/70 hover:bg-[#F7F1E5]/70 hover:text-[#24152F]'
                 }`}
               >
-                {labels[filterKey]}
+                <span className={`w-1.5 h-1.5 rounded-full ${isSelected ? config.activeDot : config.dotClass}`} />
+                <span>{config.label}</span>
               </button>
             );
           })}
@@ -242,7 +264,7 @@ export const MasterEventsHub: React.FC<MasterEventsHubProps> = ({
             </p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5 sm:gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {filteredEvents.map((ev) => {
               const isActionMenuOpen = openActionMenuId === ev.id;
 

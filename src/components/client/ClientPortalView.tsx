@@ -805,8 +805,8 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
 
                             {/* Linha Expandida empilhada abaixo do nome do convite (indentada) */}
                             {isExpanded && (
-                              <div className="mt-3.5 pl-10 space-y-2.5 max-w-sm animate-in fade-in duration-150" onClick={(e) => e.stopPropagation()}>
-                                <div className="space-y-1.5 max-w-sm">
+                              <div className="mt-3.5 pl-10 space-y-2.5 animate-in fade-in duration-150" onClick={(e) => e.stopPropagation()}>
+                                <div className="space-y-1.5 flex flex-col items-start">
                                   {members.map((mem) => {
                                     const isConfirmed = mem.status === 'confirmed';
                                     const isDeclined = mem.status === 'declined';
@@ -815,12 +815,12 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
                                     return (
                                       <div
                                         key={mem.id}
-                                        className="flex flex-col sm:flex-row sm:items-center sm:justify-between items-start gap-1 sm:gap-2.5 py-1.5 px-2.5 rounded-xl bg-white dark:bg-[#1E1128] border border-[#24152F]/10 dark:border-[#3F2553] shadow-2xs"
+                                        className="w-fit max-w-full inline-flex items-center gap-2 py-1.5 px-2.5 rounded-xl bg-white dark:bg-[#1E1128] border border-[#24152F]/10 dark:border-[#3F2553] shadow-2xs"
                                       >
-                                        <div className="flex items-center gap-2.5 min-w-0">
+                                        <div className="flex items-center gap-2 min-w-0">
                                           {/* Avatar circular com ícone de pessoa */}
                                           <div className="relative flex-shrink-0">
-                                            <div className="w-7 h-7 rounded-full bg-[#FAF6EE] dark:bg-[#2A1738] border border-[#24152F]/15 dark:border-[#3F2553] flex items-center justify-center text-[#24152F] dark:text-[#F7F1E5]">
+                                            <div className="w-6 h-6 rounded-full bg-[#FAF6EE] dark:bg-[#2A1738] border border-[#24152F]/15 dark:border-[#3F2553] flex items-center justify-center text-[#24152F] dark:text-[#F7F1E5]">
                                               {mem.category === 'Criança' ? (
                                                 <Baby className="w-3.5 h-3.5" />
                                               ) : (
@@ -847,8 +847,8 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
                                           </span>
                                         </div>
 
-                                        {/* Pill com contorno indicando Adulto ou Criança (no mobile abaixo do nome, no desktop à direita) */}
-                                        <div className="pl-9.5 sm:pl-0 flex-shrink-0">
+                                        {/* Pill com contorno indicando Adulto ou Criança ajustado junto ao nome */}
+                                        <div className="flex-shrink-0">
                                           <span
                                             className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-bold border ${
                                               mem.category === 'Criança'

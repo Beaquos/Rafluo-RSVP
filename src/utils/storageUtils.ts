@@ -39,6 +39,13 @@ export function subscribeToCrossTabSync(callback: (type: string, data: any) => v
   if (syncChannel) {
     const channelHandler = (event: MessageEvent) => {
       if (event.data && event.data.type) {
+        if (event.data.type === 'events_updated' && event.data.payload) {
+          memoryStore[STORAGE_KEYS.EVENTS] = event.data.payload;
+        } else if (event.data.type === 'questions_updated' && event.data.payload) {
+          memoryStore[STORAGE_KEYS.QUESTIONS] = event.data.payload;
+        } else if (event.data.type === 'guests_updated' && event.data.payload) {
+          memoryStore[STORAGE_KEYS.GUESTS] = event.data.payload;
+        }
         callback(event.data.type, event.data.payload);
       }
     };
@@ -51,6 +58,13 @@ export function subscribeToCrossTabSync(callback: (type: string, data: any) => v
     const customHandler = (e: Event) => {
       const customEvent = e as CustomEvent;
       if (customEvent.detail && customEvent.detail.type) {
+        if (customEvent.detail.type === 'events_updated' && customEvent.detail.payload) {
+          memoryStore[STORAGE_KEYS.EVENTS] = customEvent.detail.payload;
+        } else if (customEvent.detail.type === 'questions_updated' && customEvent.detail.payload) {
+          memoryStore[STORAGE_KEYS.QUESTIONS] = customEvent.detail.payload;
+        } else if (customEvent.detail.type === 'guests_updated' && customEvent.detail.payload) {
+          memoryStore[STORAGE_KEYS.GUESTS] = customEvent.detail.payload;
+        }
         callback(customEvent.detail.type, customEvent.detail.payload);
       }
     };
@@ -64,6 +78,7 @@ export function subscribeToCrossTabSync(callback: (type: string, data: any) => v
       if (e.key && e.newValue) {
         try {
           const parsed = JSON.parse(e.newValue);
+          memoryStore[e.key] = parsed;
           if (e.key === STORAGE_KEYS.EVENTS) callback('events_updated', parsed);
           if (e.key === STORAGE_KEYS.QUESTIONS) callback('questions_updated', parsed);
           if (e.key === STORAGE_KEYS.GUESTS) callback('guests_updated', parsed);
@@ -105,50 +120,50 @@ function broadcastUpdate(type: string, payload: any) {
   }
 }
 
-// Multi-tier storage: memoryStore -> localStorage -> sessionStorage -> legacy keys -> fallback
+// Multi-tier storage: localStorage -> sessionStorage -> memoryStore -> legacy keys -> fallback
 function getStoredItem<T>(key: string, fallback: T): T {
-  // 1. Check memory cache first
-  if (memoryStore[key] !== undefined && memoryStore[key] !== null) {
-    return memoryStore[key] as T;
-  }
-
-  if (typeof window === 'undefined') return fallback;
-
-  // 2. Check localStorage
-  try {
-    const raw = localStorage.getItem(key);
-    if (raw !== null && raw !== undefined) {
-      const parsed = JSON.parse(raw);
-      memoryStore[key] = parsed;
-      return parsed ?? fallback;
-    }
-  } catch (err) {
-    console.warn(`localStorage getItem error for "${key}":`, err);
-  }
-
-  // 3. Check sessionStorage backup
-  try {
-    const rawSession = sessionStorage.getItem(key);
-    if (rawSession !== null && rawSession !== undefined) {
-      const parsed = JSON.parse(rawSession);
-      memoryStore[key] = parsed;
-      return parsed ?? fallback;
-    }
-  } catch {
-    // Ignore
-  }
-
-  // 4. Check legacy key without '_v2'
-  const legacyKey = key.replace('_v2', '');
-  if (legacyKey !== key) {
+  if (typeof window !== 'undefined') {
+    // 1. Check localStorage first to guarantee the absolute freshest persisted state
     try {
-      const legacyRaw = localStorage.getItem(legacyKey);
-      if (legacyRaw !== null && legacyRaw !== undefined) {
-        const parsed = JSON.parse(legacyRaw);
-        setStoredItem(key, parsed);
+      const raw = localStorage.getItem(key);
+      if (raw !== null && raw !== undefined) {
+        const parsed = JSON.parse(raw);
+        memoryStore[key] = parsed;
         return parsed ?? fallback;
       }
-    } catch {}
+    } catch (err) {
+      console.warn(`localStorage getItem error for "${key}":`, err);
+    }
+
+    // 2. Check sessionStorage backup
+    try {
+      const rawSession = sessionStorage.getItem(key);
+      if (rawSession !== null && rawSession !== undefined) {
+        const parsed = JSON.parse(rawSession);
+        memoryStore[key] = parsed;
+        return parsed ?? fallback;
+      }
+    } catch {
+      // Ignore
+    }
+
+    // 3. Check legacy key without '_v2'
+    const legacyKey = key.replace('_v2', '');
+    if (legacyKey !== key) {
+      try {
+        const legacyRaw = localStorage.getItem(legacyKey);
+        if (legacyRaw !== null && legacyRaw !== undefined) {
+          const parsed = JSON.parse(legacyRaw);
+          setStoredItem(key, parsed);
+          return parsed ?? fallback;
+        }
+      } catch {}
+    }
+  }
+
+  // 4. Memory cache fallback
+  if (memoryStore[key] !== undefined && memoryStore[key] !== null) {
+    return memoryStore[key] as T;
   }
 
   // 5. Store fallback in memory and persist
@@ -229,12 +244,18 @@ export function saveStoredEventSingle(updated: EventData): EventData[] {
 export function getStoredQuestions(): FormQuestionData[] {
   const stored = getStoredItem<FormQuestionData[] | null>(STORAGE_KEYS.QUESTIONS, null);
   if (stored && Array.isArray(stored)) {
-    return stored;
+    // Purge any legacy questions that were auto-seeded in older builds
+    const cleaned = stored.filter((q) => q.id !== 'q_custom_01' && q.id !== 'q_custom_02');
+    if (cleaned.length !== stored.length) {
+      setStoredItem(STORAGE_KEYS.QUESTIONS, cleaned);
+    }
+    return cleaned;
   }
   const legacy = getStoredItem<FormQuestionData[] | null>('rafluo_questions', null);
   if (legacy && Array.isArray(legacy)) {
-    setStoredItem(STORAGE_KEYS.QUESTIONS, legacy);
-    return legacy;
+    const cleaned = legacy.filter((q) => q.id !== 'q_custom_01' && q.id !== 'q_custom_02');
+    setStoredItem(STORAGE_KEYS.QUESTIONS, cleaned);
+    return cleaned;
   }
   setStoredItem(STORAGE_KEYS.QUESTIONS, INITIAL_QUESTIONS);
   return INITIAL_QUESTIONS;

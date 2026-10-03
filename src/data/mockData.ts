@@ -257,26 +257,7 @@ export const INITIAL_CLIENTS: ClientData[] = [
 
 export const INITIAL_EVENT: EventData = INITIAL_EVENTS[0];
 
-export const INITIAL_QUESTIONS: FormQuestionData[] = [
-  {
-    id: 'q_custom_01',
-    eventId: 'ev-01',
-    title: 'Você deseja algum acompanhamento?',
-    description: 'Informe caso necessite de algum apoio ou acompanhamento especial.',
-    type: 'yes_no',
-    required: false,
-    order: 1,
-  },
-  {
-    id: 'q_custom_02',
-    eventId: 'ev-01',
-    title: 'Qual música não pode faltar na pista de dança?',
-    description: 'Sugira uma música para animar a nossa celebração.',
-    type: 'short_text',
-    required: false,
-    order: 2,
-  },
-];
+export const INITIAL_QUESTIONS: FormQuestionData[] = [];
 
 export const INITIAL_GUESTS: GuestData[] = [
   {

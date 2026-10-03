@@ -155,7 +155,7 @@ export const DashboardSkeleton: React.FC<DashboardSkeletonProps> = ({
   const [inviteCustomization, setInviteCustomization] = useState({
     coverImage: event.coverImage || '',
     welcomeMessage: event.welcomeMessage || '',
-    showCoverImage: event.showCoverImage ?? true,
+    showCoverImage: event.showCoverImage === true,
     showWelcomeMessage: event.showWelcomeMessage ?? true,
     showCountdown: event.showCountdown ?? true,
     showGiftList: event.showGiftList ?? true,
@@ -172,7 +172,7 @@ export const DashboardSkeleton: React.FC<DashboardSkeletonProps> = ({
     setInviteCustomization({
       coverImage: event.coverImage || '',
       welcomeMessage: event.welcomeMessage || '',
-      showCoverImage: event.showCoverImage ?? true,
+      showCoverImage: event.showCoverImage === true,
       showWelcomeMessage: event.showWelcomeMessage ?? true,
       showCountdown: event.showCountdown ?? true,
       showGiftList: event.showGiftList ?? true,
@@ -582,7 +582,7 @@ export const DashboardSkeleton: React.FC<DashboardSkeletonProps> = ({
                             {/* Linha Expandida empilhada abaixo do nome do convite (indentada) */}
                             {isExpanded && (
                               <div className="mt-3.5 pl-10 space-y-2.5 animate-in fade-in duration-150" onClick={(e) => e.stopPropagation()}>
-                                <div className="space-y-1.5 max-w-sm">
+                                <div className="space-y-1.5 flex flex-col items-start">
                                   {members.map((mem) => {
                                     const isConfirmed = mem.status === 'confirmed';
                                     const isDeclined = mem.status === 'declined';
@@ -591,12 +591,12 @@ export const DashboardSkeleton: React.FC<DashboardSkeletonProps> = ({
                                     return (
                                       <div
                                         key={mem.id}
-                                        className="flex flex-col sm:flex-row sm:items-center sm:justify-between items-start gap-1 sm:gap-2.5 py-1.5 px-2.5 rounded-xl bg-white border border-[#24152F]/10 shadow-2xs"
+                                        className="w-fit max-w-full inline-flex items-center gap-2 py-1.5 px-2.5 rounded-xl bg-white border border-[#24152F]/10 shadow-2xs"
                                       >
-                                        <div className="flex items-center gap-2.5 min-w-0">
+                                        <div className="flex items-center gap-2 min-w-0">
                                           {/* Avatar circular com ícone de pessoa */}
                                           <div className="relative flex-shrink-0">
-                                            <div className="w-7 h-7 rounded-full bg-[#FAF6EE] border border-[#24152F]/15 flex items-center justify-center text-[#24152F]">
+                                            <div className="w-6 h-6 rounded-full bg-[#FAF6EE] border border-[#24152F]/15 flex items-center justify-center text-[#24152F]">
                                               {mem.category === 'Criança' ? (
                                                 <Baby className="w-3.5 h-3.5 text-[#24152F]" />
                                               ) : (
@@ -625,8 +625,8 @@ export const DashboardSkeleton: React.FC<DashboardSkeletonProps> = ({
                                           </span>
                                         </div>
 
-                                        {/* Pill com contorno indicando Adulto ou Criança (no mobile abaixo do nome, no desktop à direita) */}
-                                        <div className="pl-9.5 sm:pl-0 flex-shrink-0">
+                                        {/* Pill com contorno indicando Adulto ou Criança ajustado junto ao nome */}
+                                        <div className="flex-shrink-0">
                                           <span
                                             className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-bold border ${
                                               mem.category === 'Criança'
@@ -943,7 +943,7 @@ export const DashboardSkeleton: React.FC<DashboardSkeletonProps> = ({
                         className="px-4 py-2 rounded-xl bg-[#24152F] text-[#F7F1E5] text-xs font-semibold hover:bg-[#180D20] transition-colors cursor-pointer shadow-xs inline-flex items-center gap-1.5"
                       >
                         <Plus className="w-3.5 h-3.5 text-[#DFFF5F]" />
-                        <span>Adicionar Pergunta Personalizada</span>
+                        <span>Adicionar Pergunta</span>
                       </button>
                     </div>
                   ) : (
@@ -1227,7 +1227,7 @@ export const DashboardSkeleton: React.FC<DashboardSkeletonProps> = ({
                                   {isExpanded && (
                                     <div className="mt-3.5 pl-10 space-y-2.5 animate-in fade-in duration-150" onClick={(e) => e.stopPropagation()}>
                                       {/* Convidados vinculados indentados */}
-                                      <div className="space-y-1.5 max-w-sm">
+                                      <div className="space-y-1.5 flex flex-col items-start">
                                         {members.map((mem) => {
                                           const isConfirmed = mem.status === 'confirmed';
                                           const isDeclined = mem.status === 'declined';
@@ -1236,12 +1236,12 @@ export const DashboardSkeleton: React.FC<DashboardSkeletonProps> = ({
                                           return (
                                             <div
                                               key={mem.id}
-                                              className="flex flex-col sm:flex-row sm:items-center sm:justify-between items-start gap-1 sm:gap-2.5 py-1.5 px-2.5 rounded-xl bg-white border border-[#24152F]/10 shadow-2xs"
+                                              className="w-fit max-w-full inline-flex items-center gap-2 py-1.5 px-2.5 rounded-xl bg-white border border-[#24152F]/10 shadow-2xs"
                                             >
-                                              <div className="flex items-center gap-2.5 min-w-0">
+                                              <div className="flex items-center gap-2 min-w-0">
                                                 {/* Avatar circular com ícone de pessoa */}
                                                 <div className="relative flex-shrink-0">
-                                                  <div className="w-7 h-7 rounded-full bg-[#FAF6EE] border border-[#24152F]/15 flex items-center justify-center text-[#24152F]">
+                                                  <div className="w-6 h-6 rounded-full bg-[#FAF6EE] border border-[#24152F]/15 flex items-center justify-center text-[#24152F]">
                                                     {mem.category === 'Criança' ? (
                                                       <Baby className="w-3.5 h-3.5 text-[#24152F]" />
                                                     ) : (
@@ -1270,8 +1270,8 @@ export const DashboardSkeleton: React.FC<DashboardSkeletonProps> = ({
                                                 </span>
                                               </div>
 
-                                              {/* Pill com contorno indicando Adulto ou Criança (no mobile abaixo do nome, no desktop à direita) */}
-                                              <div className="pl-9.5 sm:pl-0 flex-shrink-0">
+                                              {/* Pill com contorno indicando Adulto ou Criança ajustado junto ao nome */}
+                                              <div className="flex-shrink-0">
                                                 <span
                                                   className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-bold border ${
                                                     mem.category === 'Criança'
@@ -1450,15 +1450,6 @@ export const DashboardSkeleton: React.FC<DashboardSkeletonProps> = ({
                   <div className="flex items-center gap-2">
                     <button
                       type="button"
-                      onClick={handleCopyEvent}
-                      className="px-3.5 py-2 rounded-xl bg-white border border-[#24152F]/20 text-[#24152F] text-xs font-semibold hover:bg-[#FAF6EE] transition-colors cursor-pointer flex items-center gap-1.5"
-                    >
-                      <Copy className="w-3.5 h-3.5" />
-                      <span>{localEventCopied ? 'Link Copiado!' : 'Copiar Link Público'}</span>
-                    </button>
-
-                    <button
-                      type="button"
                       onClick={() => onOpenGuestPreview(guests[0]?.rsvpCode || 'DEMO')}
                       className="px-3.5 py-2 rounded-xl bg-[#24152F] text-[#F7F1E5] text-xs font-semibold hover:bg-[#180D20] transition-colors cursor-pointer border border-[#3F2553] flex items-center gap-1.5"
                     >
@@ -1497,7 +1488,7 @@ export const DashboardSkeleton: React.FC<DashboardSkeletonProps> = ({
                           <input
                             type="url"
                             value={inviteCustomization.coverImage}
-                            onChange={(e) => setInviteCustomization({ ...inviteCustomization, coverImage: e.target.value })}
+                            onChange={(e) => handleUpdateCustomization({ coverImage: e.target.value })}
                             placeholder="https://exemplo.com/foto-do-evento.jpg"
                             className="w-full px-3 py-2 rounded-xl border border-[#24152F]/20 bg-[#FAF6EE]/50 text-xs text-[#24152F] focus:outline-none focus:ring-1 focus:ring-[#24152F]"
                           />
@@ -1507,21 +1498,21 @@ export const DashboardSkeleton: React.FC<DashboardSkeletonProps> = ({
                             <span className="text-[10px] text-[#24152F]/60 font-semibold">Exemplos rápidos:</span>
                             <button
                               type="button"
-                              onClick={() => setInviteCustomization({ ...inviteCustomization, coverImage: 'https://images.unsplash.com/photo-1519741497674-611481863552?auto=format&fit=crop&w=1200&q=80' })}
+                              onClick={() => handleUpdateCustomization({ coverImage: 'https://images.unsplash.com/photo-1519741497674-611481863552?auto=format&fit=crop&w=1200&q=80' })}
                               className="px-2.5 py-1 rounded-lg bg-[#FAF6EE] text-[10px] font-semibold border border-[#24152F]/10 hover:bg-[#EDE4D3] cursor-pointer"
                             >
                               Casamento Floral
                             </button>
                             <button
                               type="button"
-                              onClick={() => setInviteCustomization({ ...inviteCustomization, coverImage: 'https://images.unsplash.com/photo-1511285560929-80b456fea0bc?auto=format&fit=crop&w=1200&q=80' })}
+                              onClick={() => handleUpdateCustomization({ coverImage: 'https://images.unsplash.com/photo-1511285560929-80b456fea0bc?auto=format&fit=crop&w=1200&q=80' })}
                               className="px-2.5 py-1 rounded-lg bg-[#FAF6EE] text-[10px] font-semibold border border-[#24152F]/10 hover:bg-[#EDE4D3] cursor-pointer"
                             >
                               Casamento Clássico
                             </button>
                             <button
                               type="button"
-                              onClick={() => setInviteCustomization({ ...inviteCustomization, coverImage: 'https://images.unsplash.com/photo-1530103862676-de8c9debad1d?auto=format&fit=crop&w=1200&q=80' })}
+                              onClick={() => handleUpdateCustomization({ coverImage: 'https://images.unsplash.com/photo-1530103862676-de8c9debad1d?auto=format&fit=crop&w=1200&q=80' })}
                               className="px-2.5 py-1 rounded-lg bg-[#FAF6EE] text-[10px] font-semibold border border-[#24152F]/10 hover:bg-[#EDE4D3] cursor-pointer"
                             >
                               Festa / Balões
@@ -1529,7 +1520,7 @@ export const DashboardSkeleton: React.FC<DashboardSkeletonProps> = ({
                             {inviteCustomization.coverImage && (
                               <button
                                 type="button"
-                                onClick={() => setInviteCustomization({ ...inviteCustomization, coverImage: '' })}
+                                onClick={() => handleUpdateCustomization({ coverImage: '' })}
                                 className="px-2.5 py-1 rounded-lg bg-rose-50 text-rose-700 text-[10px] font-semibold border border-rose-200 hover:bg-rose-100 cursor-pointer ml-auto"
                               >
                                 Remover Imagem
@@ -1630,7 +1621,7 @@ export const DashboardSkeleton: React.FC<DashboardSkeletonProps> = ({
                           <div className="flex flex-wrap items-center gap-2 text-xs">
                             <button
                               type="button"
-                              onClick={() => setInviteCustomization({ ...inviteCustomization, giftListType: 'items' })}
+                              onClick={() => handleUpdateCustomization({ giftListType: 'items' })}
                               className={`px-3.5 py-1.5 rounded-lg font-semibold transition-colors cursor-pointer ${
                                 inviteCustomization.giftListType === 'items'
                                   ? 'bg-[#24152F] text-[#F7F1E5]'
@@ -1641,7 +1632,7 @@ export const DashboardSkeleton: React.FC<DashboardSkeletonProps> = ({
                             </button>
                             <button
                               type="button"
-                              onClick={() => setInviteCustomization({ ...inviteCustomization, giftListType: 'link' })}
+                              onClick={() => handleUpdateCustomization({ giftListType: 'link' })}
                               className={`px-3.5 py-1.5 rounded-lg font-semibold transition-colors cursor-pointer ${
                                 inviteCustomization.giftListType === 'link'
                                   ? 'bg-[#24152F] text-[#F7F1E5]'
@@ -1658,7 +1649,7 @@ export const DashboardSkeleton: React.FC<DashboardSkeletonProps> = ({
                               <input
                                 type="url"
                                 value={inviteCustomization.giftListUrl}
-                                onChange={(e) => setInviteCustomization({ ...inviteCustomization, giftListUrl: e.target.value })}
+                                onChange={(e) => handleUpdateCustomization({ giftListUrl: e.target.value })}
                                 placeholder="https://listadepresentes.com/meu-evento"
                                 className="w-full px-3 py-2 rounded-xl border border-[#24152F]/20 bg-[#FAF6EE]/50 text-xs text-[#24152F] focus:outline-none focus:ring-1 focus:ring-[#24152F]"
                               />
@@ -1687,7 +1678,7 @@ export const DashboardSkeleton: React.FC<DashboardSkeletonProps> = ({
                                       onChange={(e) => {
                                         const updated = [...inviteCustomization.giftListItemsList];
                                         updated[idx] = e.target.value;
-                                        setInviteCustomization({ ...inviteCustomization, giftListItemsList: updated });
+                                        handleUpdateCustomization({ giftListItemsList: updated });
                                       }}
                                       className="flex-1 bg-transparent text-xs font-semibold text-[#24152F] focus:outline-none"
                                       placeholder="Nome do item desejado"
@@ -1696,7 +1687,7 @@ export const DashboardSkeleton: React.FC<DashboardSkeletonProps> = ({
                                       type="button"
                                       onClick={() => {
                                         const updated = inviteCustomization.giftListItemsList.filter((_, i) => i !== idx);
-                                        setInviteCustomization({ ...inviteCustomization, giftListItemsList: updated });
+                                        handleUpdateCustomization({ giftListItemsList: updated });
                                       }}
                                       className="p-1 rounded-lg text-[#24152F]/40 hover:text-rose-600 hover:bg-rose-50 transition-colors cursor-pointer"
                                       title="Remover item da lista"
@@ -1717,8 +1708,7 @@ export const DashboardSkeleton: React.FC<DashboardSkeletonProps> = ({
                                     if (e.key === 'Enter') {
                                       e.preventDefault();
                                       if (newGiftItemText.trim()) {
-                                        setInviteCustomization({
-                                          ...inviteCustomization,
+                                        handleUpdateCustomization({
                                           giftListItemsList: [...inviteCustomization.giftListItemsList, newGiftItemText.trim()],
                                         });
                                         setNewGiftItemText('');
@@ -1732,8 +1722,7 @@ export const DashboardSkeleton: React.FC<DashboardSkeletonProps> = ({
                                   type="button"
                                   onClick={() => {
                                     if (newGiftItemText.trim()) {
-                                      setInviteCustomization({
-                                        ...inviteCustomization,
+                                      handleUpdateCustomization({
                                         giftListItemsList: [...inviteCustomization.giftListItemsList, newGiftItemText.trim()],
                                       });
                                       setNewGiftItemText('');
@@ -1749,38 +1738,6 @@ export const DashboardSkeleton: React.FC<DashboardSkeletonProps> = ({
                           )}
                         </div>
                       )}
-                    </div>
-
-                    {/* Salvar Alterações */}
-                    <div className="pt-2 flex items-center justify-end gap-3">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          const updated: EventData = {
-                            ...event,
-                            showCoverImage: inviteCustomization.showCoverImage,
-                            showWelcomeMessage: inviteCustomization.showWelcomeMessage,
-                            showCountdown: inviteCustomization.showCountdown,
-                            showGiftList: inviteCustomization.showGiftList,
-                            coverImage: inviteCustomization.coverImage,
-                            welcomeMessage: inviteCustomization.welcomeMessage,
-                            giftListType: inviteCustomization.showGiftList ? inviteCustomization.giftListType : 'none',
-                            giftListUrl: inviteCustomization.giftListUrl,
-                            giftListItems: inviteCustomization.giftListItemsList.join('\n'),
-                            giftListItemsList: inviteCustomization.giftListItemsList,
-                            childAgeLimit: inviteCustomization.childAgeLimit,
-                          };
-                          Object.assign(event, updated);
-                          if (onSaveEventCustomization) {
-                            onSaveEventCustomization(updated);
-                          }
-                          if (onShowToast) onShowToast('Personalização da página salva com sucesso!');
-                        }}
-                        className="px-6 py-2.5 rounded-xl bg-[#24152F] hover:bg-[#180D20] text-[#F7F1E5] text-xs font-bold transition-colors cursor-pointer shadow-sm flex items-center gap-2 border border-[#3F2553]"
-                      >
-                        <Check className="w-4 h-4 text-[#DFFF5F]" />
-                        <span>Salvar Personalização</span>
-                      </button>
                     </div>
                   </div>
 
@@ -1813,18 +1770,21 @@ export const DashboardSkeleton: React.FC<DashboardSkeletonProps> = ({
                         <div className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-[#DFFF5F]/20 text-[#DFFF5F] text-[10px] font-bold uppercase">
                           <Sparkles className="w-3 h-3" /> Convite Oficial
                         </div>
-                        <h4 className="font-bold text-sm text-[#F7F1E5]">{event.name}</h4>
-                        <div className="text-[11px] text-[#D2C4DC] flex items-center justify-center gap-2">
-                          <span>{formatDateBR(event.date)}</span>
+                        <h4 className="font-bold text-sm text-[#F7F1E5]" style={{ color: '#F7F1E5' }}>{event.name}</h4>
+                        <div className="text-[11px] text-[#F7F1E5] flex items-center justify-center gap-2" style={{ color: '#F7F1E5' }}>
+                          <span style={{ color: '#F7F1E5' }}>{formatDateBR(event.date)}</span>
                           <span>•</span>
-                          <span>{event.time}</span>
+                          <span style={{ color: '#F7F1E5' }}>{event.time}</span>
                         </div>
                       </div>
 
                       {/* Welcome message preview (without client name) */}
                       {inviteCustomization.showWelcomeMessage && inviteCustomization.welcomeMessage && (
-                        <div className="p-3 rounded-xl bg-white border border-[#24152F]/10 text-xs italic text-[#24152F]/90 shadow-2xs">
-                          "{inviteCustomization.welcomeMessage}"
+                        <div className="p-3 rounded-xl bg-white border border-[#24152F]/10 text-xs italic text-[#24152F]/90 shadow-2xs flex items-start gap-2">
+                          <div className="w-5 h-5 rounded-md bg-[#24152F] text-[#DFFF5F] flex items-center justify-center flex-shrink-0 mt-0.5">
+                            <MessageSquare className="w-3 h-3 text-[#DFFF5F]" />
+                          </div>
+                          <span className="text-[#24152F]">"{inviteCustomization.welcomeMessage}"</span>
                         </div>
                       )}
 

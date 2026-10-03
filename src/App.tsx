@@ -62,6 +62,7 @@ import {
   saveStoredManagers,
   getStoredClients,
   saveStoredClients,
+  syncFromBackend,
   STORAGE_KEYS,
 } from './utils/storageUtils';
 
@@ -195,6 +196,19 @@ export default function App() {
 
     window.addEventListener('popstate', handlePopState);
     return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
+
+  // Sync from backend server on initial load to ensure freshest database state
+  useEffect(() => {
+    syncFromBackend().then((data) => {
+      if (data) {
+        if (Array.isArray(data.events)) setEvents(data.events);
+        if (Array.isArray(data.questions)) setQuestions(data.questions);
+        if (Array.isArray(data.guests)) setGuests(data.guests);
+        if (Array.isArray(data.managers)) setManagers(data.managers);
+        if (Array.isArray(data.clients)) setClients(data.clients);
+      }
+    });
   }, []);
 
   // Listen to cross-tab storage changes (e.g. changes made in Admin tab reflected in RSVP tab)

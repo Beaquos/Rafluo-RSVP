@@ -18,6 +18,7 @@ import {
   ExternalLink,
   Timer,
   Baby,
+  MessageSquare,
 } from 'lucide-react';
 import { EventData, GuestData, FormQuestionData, InviteMember } from '../../data/mockData';
 import { formatDateBR } from '../../utils/dateUtils';
@@ -26,6 +27,7 @@ import {
   getStoredEventByIdOrSlug,
   getStoredQuestionsForEvent,
   subscribeToCrossTabSync,
+  saveStoredEventSingle,
 } from '../../utils/storageUtils';
 import { RafluoLogo } from '../common/RafluoLogo';
 
@@ -65,11 +67,33 @@ export const GuestRsvpView: React.FC<GuestRsvpViewProps> = ({
     return getStoredQuestionsForEvent(currentEvent.id);
   });
 
-  // Re-sync whenever incoming propEvent changes
+  // Re-sync whenever incoming propEvent changes and fetch remote state
   useEffect(() => {
     const fresh = getStoredEventByIdOrSlug(propEvent.slug || propEvent.id) || propEvent;
     setCurrentEvent(fresh);
     setCurrentQuestions(getStoredQuestionsForEvent(fresh.id));
+
+    let active = true;
+    const fetchRemote = async () => {
+      try {
+        const idOrSlug = propEvent.slug || propEvent.id;
+        const res = await fetch(`/api/events/${encodeURIComponent(idOrSlug)}`);
+        if (res.ok) {
+          const remoteEvent = await res.json();
+          if (remoteEvent && active) {
+            setCurrentEvent(remoteEvent);
+            saveStoredEventSingle(remoteEvent);
+          }
+        }
+      } catch {
+        // Fallback to local
+      }
+    };
+    fetchRemote();
+
+    return () => {
+      active = false;
+    };
   }, [propEvent]);
 
   // Subscribe to real-time sync across tabs or admin customization saves
@@ -471,7 +495,7 @@ export const GuestRsvpView: React.FC<GuestRsvpViewProps> = ({
         </div>
 
         {/* 1. Imagem de Destaque / Banner do Convite */}
-        {Boolean(event.showCoverImage) && Boolean(event.coverImage) && (
+        {event.showCoverImage === true && Boolean(event.coverImage) && (
           <div className="w-full h-44 sm:h-64 rounded-3xl overflow-hidden border border-[#24152F]/15 shadow-md relative bg-[#24152F]/5">
             <img
               src={event.coverImage}
@@ -489,7 +513,10 @@ export const GuestRsvpView: React.FC<GuestRsvpViewProps> = ({
             <Sparkles className="w-3.5 h-3.5" /> Convite Oficial • RSVP
           </div>
 
-          <h1 className="text-xl sm:text-2xl md:text-3xl font-bold tracking-tight text-[#F7F1E5] break-words">
+          <h1
+            className="text-xl sm:text-2xl md:text-3xl font-bold tracking-tight break-words text-[#F7F1E5]"
+            style={{ color: '#F7F1E5' }}
+          >
             {event.name}
           </h1>
 
@@ -499,31 +526,31 @@ export const GuestRsvpView: React.FC<GuestRsvpViewProps> = ({
             </p>
           )}
 
-          <div className="pt-1 sm:pt-2 flex flex-col items-center justify-center gap-2 text-xs sm:text-sm text-[#D2C4DC]">
-            <span className="flex items-center gap-1.5 font-medium text-[#F7F1E5]">
+          <div className="pt-1 sm:pt-2 flex flex-col items-center justify-center gap-2 text-xs sm:text-sm text-[#F7F1E5]" style={{ color: '#F7F1E5' }}>
+            <span className="flex items-center gap-1.5 font-medium text-[#F7F1E5]" style={{ color: '#F7F1E5' }}>
               <Calendar className="w-4 h-4 text-[#DFFF5F]" />
-              <strong>{formatDateBR(event.date)}</strong>
+              <strong className="text-[#F7F1E5]" style={{ color: '#F7F1E5' }}>{formatDateBR(event.date)}</strong>
             </span>
-            <span className="flex items-center gap-1.5">
+            <span className="flex items-center gap-1.5 font-medium text-[#F7F1E5]" style={{ color: '#F7F1E5' }}>
               <Clock className="w-3.5 h-3.5 text-[#DFFF5F]" />
-              <span>{event.time}</span>
+              <span className="text-[#F7F1E5]" style={{ color: '#F7F1E5' }}>{event.time}</span>
             </span>
-            <span className="flex items-center gap-1.5 text-center break-words max-w-full">
+            <span className="flex items-center gap-1.5 text-center break-words max-w-full font-medium text-[#F7F1E5]" style={{ color: '#F7F1E5' }}>
               <MapPin className="w-3.5 h-3.5 text-[#DFFF5F] flex-shrink-0" />
-              <span>{event.location}</span>
+              <span className="text-[#F7F1E5]" style={{ color: '#F7F1E5' }}>{event.location}</span>
             </span>
           </div>
 
-          <div className="pt-3 border-t border-[#3F2553]/80 text-[11px] text-[#D2C4DC]/80">
-            Confirmação de presença até: <strong className="text-[#F7F1E5]">{formatDateBR(event.rsvpDeadline)}</strong>
+          <div className="pt-3 border-t border-[#3F2553]/80 text-[11px] text-[#F7F1E5]/80" style={{ color: '#F7F1E5' }}>
+            Confirmação de presença até: <strong className="text-[#F7F1E5]" style={{ color: '#F7F1E5' }}>{formatDateBR(event.rsvpDeadline)}</strong>
           </div>
         </div>
 
         {/* 2. Mensagem Inicial de Abertura */}
-        {Boolean(event.showWelcomeMessage) && Boolean(event.welcomeMessage) && (
+        {event.showWelcomeMessage === true && Boolean(event.welcomeMessage) && (
           <div className="p-4 sm:p-5 rounded-2xl bg-white border border-[#24152F]/10 shadow-xs flex items-start gap-3">
             <div className="w-8 h-8 rounded-xl bg-[#24152F] text-[#DFFF5F] flex items-center justify-center flex-shrink-0 mt-0.5 shadow-2xs">
-              <Sparkles className="w-4 h-4 text-[#DFFF5F]" />
+              <MessageSquare className="w-4 h-4 text-[#DFFF5F]" />
             </div>
             <div className="space-y-1">
               <p className="text-xs sm:text-sm font-semibold text-[#24152F] leading-relaxed italic">
@@ -534,7 +561,7 @@ export const GuestRsvpView: React.FC<GuestRsvpViewProps> = ({
         )}
 
         {/* 3. Contagem regressiva */}
-        {Boolean(event.showCountdown) && timeLeft && !timeLeft.isPast && (
+        {event.showCountdown === true && timeLeft && !timeLeft.isPast && (
           <div className="bg-white rounded-2xl p-4 sm:p-5 border border-[#24152F]/10 shadow-xs space-y-2.5 text-center">
             <div className="flex items-center justify-center gap-1.5 text-xs font-bold text-[#24152F] uppercase tracking-wider">
               <Timer className="w-3.5 h-3.5 text-[#24152F]" />
@@ -562,7 +589,7 @@ export const GuestRsvpView: React.FC<GuestRsvpViewProps> = ({
         )}
 
         {/* 4. Lista de Presentes */}
-        {Boolean(event.showGiftList) && event.giftListType === 'link' && Boolean(event.giftListUrl) && (
+        {event.showGiftList === true && event.giftListType === 'link' && Boolean(event.giftListUrl) && (
           <div className="bg-white rounded-2xl p-4 sm:p-5 border border-[#24152F]/10 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div className="flex items-center gap-3">
               <div className="w-9 h-9 rounded-xl bg-[#FAF6EE] border border-[#24152F]/15 flex items-center justify-center text-[#24152F] flex-shrink-0 shadow-2xs">
@@ -585,7 +612,7 @@ export const GuestRsvpView: React.FC<GuestRsvpViewProps> = ({
           </div>
         )}
 
-        {Boolean(event.showGiftList) && event.giftListType === 'items' && (
+        {event.showGiftList === true && event.giftListType === 'items' && (
           <div className="bg-white rounded-2xl p-4 sm:p-5 border border-[#24152F]/10 shadow-xs space-y-3">
             <div className="flex items-center gap-2">
               <div className="w-8 h-8 rounded-xl bg-[#FAF6EE] border border-[#24152F]/15 flex items-center justify-center text-[#24152F] flex-shrink-0 shadow-2xs">
@@ -1084,41 +1111,7 @@ export const GuestRsvpView: React.FC<GuestRsvpViewProps> = ({
                   )}
                 </div>
 
-                {/* Dietary Restrictions */}
-                <div className="space-y-2 pt-2 border-t border-[#24152F]/10">
-                  <label className="block text-xs font-bold text-[#24152F]">
-                    Possui alguma restrição alimentar ou alergia?
-                  </label>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                    {['Nenhuma restrição', 'Vegetariano', 'Vegano', 'Sem Glúten', 'Sem Lactose'].map(
-                      (item) => (
-                        <button
-                          key={item}
-                          type="button"
-                          onClick={() => handleToggleDietary(item)}
-                          className={`p-2.5 rounded-xl border text-xs font-medium text-left transition-colors cursor-pointer flex items-center gap-2 ${
-                            dietary.includes(item)
-                              ? 'bg-[#24152F] text-[#F7F1E5] border-[#24152F]'
-                              : 'bg-white border-[#24152F]/15 text-[#24152F] hover:bg-[#FAF6EE]'
-                          }`}
-                        >
-                          <span
-                            className={`w-4 h-4 rounded flex items-center justify-center text-[10px] ${
-                              dietary.includes(item)
-                                ? 'bg-[#DFFF5F] text-[#180D20] font-bold'
-                                : 'border border-[#24152F]/30'
-                            }`}
-                          >
-                            {dietary.includes(item) ? <Check className="w-3 h-3 stroke-[3]" /> : null}
-                          </span>
-                          <span>{item}</span>
-                        </button>
-                      )
-                    )}
-                  </div>
-                </div>
-
-                {/* Custom Form Questions (if any configured for this event) */}
+                {/* Custom Form Questions (only if explicitly configured in Dados do Evento -> Formulário) */}
                 {questions && questions.length > 0 && (
                   <div className="space-y-4 pt-3 border-t border-[#24152F]/10">
                     {questions.map((q) => (
@@ -1194,20 +1187,6 @@ export const GuestRsvpView: React.FC<GuestRsvpViewProps> = ({
                 )}
               </div>
             )}
-
-            {/* Message to hosts */}
-            <div className="space-y-1.5 pt-2">
-              <label className="block text-xs font-bold text-[#24152F]">
-                Mensagem para os anfitriões (opcional)
-              </label>
-              <textarea
-                rows={3}
-                value={message}
-                onChange={(e) => setMessage(e.target.value)}
-                placeholder="Deixe uma mensagem de carinho aos anfitriões..."
-                className="w-full px-3 py-2 rounded-lg border border-[#24152F]/20 bg-white text-xs text-[#24152F] focus:outline-none focus:ring-1 focus:ring-[#24152F]"
-              />
-            </div>
 
             {/* Primary Submit Button */}
             <button

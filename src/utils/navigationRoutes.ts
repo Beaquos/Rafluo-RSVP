@@ -1,5 +1,6 @@
 import { HubSection, NavSection } from '../types/navigation';
 import { EventData, GuestData } from '../data/mockData';
+import { getStoredEventByIdOrSlug } from './storageUtils';
 
 /**
  * Navigation Routes and URL helpers for Rafluo
@@ -150,11 +151,12 @@ export const parseCurrentUrl = (
   const rsvpEventMatch = clean.match(/^\/rsvp\/evento\/([^/]+)$/i);
   if (rsvpEventMatch) {
     const rawIdentifier = decodeURIComponent(rsvpEventMatch[1]).toLowerCase().trim();
-    const matched = events.find(
-      (e) =>
-        (e.slug && e.slug.toLowerCase().trim() === rawIdentifier) ||
-        e.id.toLowerCase().trim() === rawIdentifier
-    );
+    const matched =
+      events.find(
+        (e) =>
+          (e.slug && e.slug.toLowerCase().trim() === rawIdentifier) ||
+          e.id.toLowerCase().trim() === rawIdentifier
+      ) || getStoredEventByIdOrSlug(rawIdentifier);
     if (matched) {
       return {
         type: 'rsvp-event',
@@ -177,7 +179,9 @@ export const parseCurrentUrl = (
     );
 
     if (matchedGuest) {
-      const parentEvent = events.find((e) => e.id === matchedGuest.eventId);
+      const parentEvent =
+        events.find((e) => e.id === matchedGuest.eventId) ||
+        getStoredEventByIdOrSlug(matchedGuest.eventId);
       return {
         type: 'rsvp-guest',
         guestCode: rawCode,
@@ -187,11 +191,12 @@ export const parseCurrentUrl = (
     }
 
     // Also check if someone accessed /rsvp/:eventSlug directly
-    const matchedEvent = events.find(
-      (e) =>
-        (e.slug && e.slug.toLowerCase().trim() === rawCode) ||
-        e.id.toLowerCase().trim() === rawCode
-    );
+    const matchedEvent =
+      events.find(
+        (e) =>
+          (e.slug && e.slug.toLowerCase().trim() === rawCode) ||
+          e.id.toLowerCase().trim() === rawCode
+      ) || getStoredEventByIdOrSlug(rawCode);
     if (matchedEvent) {
       return {
         type: 'rsvp-event',
