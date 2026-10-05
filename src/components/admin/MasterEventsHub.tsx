@@ -25,6 +25,7 @@ import {
 import { EventData, GuestData } from '../../data/mockData';
 import { copyToClipboard, getClientPanelUrl, getEventRsvpUrl } from '../../utils/linkUtils';
 import { formatDateBR } from '../../utils/dateUtils';
+import { getTypeBadgeColor } from '../../utils/badgeUtils';
 import { AdminUser } from '../../types/user';
 
 interface MasterEventsHubProps {
@@ -301,7 +302,11 @@ export const MasterEventsHub: React.FC<MasterEventsHubProps> = ({
                   <div className="space-y-3">
                     {/* Top Row: Tag do Tipo de Evento (esquerda) e Badge de Status com ponto verde pulsante (direita) */}
                     <div className="flex items-center justify-between gap-2">
-                      <span className="text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 rounded bg-[#24152F]/10 dark:bg-white/10 text-[#24152F] dark:text-[#F7F1E5]">
+                      <span
+                        className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${getTypeBadgeColor(
+                          ev.type
+                        )}`}
+                      >
                         {ev.type}
                       </span>
 

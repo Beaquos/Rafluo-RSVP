@@ -17,6 +17,8 @@ const STORAGE_KEYS = {
   GUESTS: 'rafluo_guests_v2',
   MANAGERS: 'rafluo_managers_v2',
   CLIENTS: 'rafluo_clients_v2',
+  COMPANY: 'rafluo_company_data_v2',
+  LOGO: 'rafluo_company_logo_v2',
 };
 
 // In-memory cache to guarantee instant reads and consistency within the same session/runtime
@@ -45,6 +47,11 @@ export function subscribeToCrossTabSync(callback: (type: string, data: any) => v
           memoryStore[STORAGE_KEYS.QUESTIONS] = event.data.payload;
         } else if (event.data.type === 'guests_updated' && event.data.payload) {
           memoryStore[STORAGE_KEYS.GUESTS] = event.data.payload;
+        } else if (event.data.type === 'company_data_updated' && event.data.payload) {
+          memoryStore[STORAGE_KEYS.COMPANY] = event.data.payload;
+          if (event.data.payload.logo !== undefined) {
+            memoryStore[STORAGE_KEYS.LOGO] = event.data.payload.logo;
+          }
         }
         callback(event.data.type, event.data.payload);
       }
@@ -64,6 +71,11 @@ export function subscribeToCrossTabSync(callback: (type: string, data: any) => v
           memoryStore[STORAGE_KEYS.QUESTIONS] = customEvent.detail.payload;
         } else if (customEvent.detail.type === 'guests_updated' && customEvent.detail.payload) {
           memoryStore[STORAGE_KEYS.GUESTS] = customEvent.detail.payload;
+        } else if (customEvent.detail.type === 'company_data_updated' && customEvent.detail.payload) {
+          memoryStore[STORAGE_KEYS.COMPANY] = customEvent.detail.payload;
+          if (customEvent.detail.payload.logo !== undefined) {
+            memoryStore[STORAGE_KEYS.LOGO] = customEvent.detail.payload.logo;
+          }
         }
         callback(customEvent.detail.type, customEvent.detail.payload);
       }
@@ -84,6 +96,7 @@ export function subscribeToCrossTabSync(callback: (type: string, data: any) => v
           if (e.key === STORAGE_KEYS.GUESTS) callback('guests_updated', parsed);
           if (e.key === STORAGE_KEYS.MANAGERS) callback('managers_updated', parsed);
           if (e.key === STORAGE_KEYS.CLIENTS) callback('clients_updated', parsed);
+          if (e.key === STORAGE_KEYS.COMPANY || e.key === STORAGE_KEYS.LOGO) callback('company_data_updated', parsed);
         } catch {}
       }
     };
@@ -237,6 +250,13 @@ export function saveStoredEventSingle(updated: EventData): EventData[] {
     ? current.map((e) => (e.id === updated.id ? { ...e, ...updated } : e))
     : [...current, updated];
   saveStoredEvents(next);
+  if (typeof window !== 'undefined') {
+    fetch(`/api/events/${encodeURIComponent(updated.id)}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(updated),
+    }).catch(() => {});
+  }
   return next;
 }
 
@@ -332,6 +352,78 @@ export function saveStoredClients(clients: ClientData[]): void {
   broadcastUpdate('clients_updated', clients);
 }
 
+export interface CompanyData {
+  logo: string;
+  companyName: string;
+  cpfCnpj: string;
+  phone: string;
+  email: string;
+  cep: string;
+  logradouro: string;
+  numero: string;
+  complemento: string;
+  bairro: string;
+  cidade: string;
+  estado: string;
+  instagram: string;
+  twitter: string;
+  linkedin: string;
+  facebook: string;
+  whatsapp: string;
+}
+
+const DEFAULT_COMPANY_DATA: CompanyData = {
+  logo: '',
+  companyName: 'Rafluo Soluções para Eventos Ltda.',
+  cpfCnpj: '45.892.104/0001-38',
+  phone: '(11) 98765-4321',
+  email: 'contato@rafluo.com.br',
+  cep: '01310-100',
+  logradouro: 'Avenida Paulista',
+  numero: '1000',
+  complemento: 'Andar 14',
+  bairro: 'Bela Vista',
+  cidade: 'São Paulo',
+  estado: 'SP',
+  instagram: '@rafluo.eventos',
+  twitter: '@rafluo',
+  linkedin: 'https://linkedin.com/company/rafluo',
+  facebook: 'https://facebook.com/rafluo.oficial',
+  whatsapp: '(11) 98765-4321',
+};
+
+// Company Data & Logo persistence
+export function getStoredCompanyData(): CompanyData {
+  const stored = getStoredItem<CompanyData>(STORAGE_KEYS.COMPANY, DEFAULT_COMPANY_DATA);
+  const directLogo = getStoredItem<string | null>(STORAGE_KEYS.LOGO, null);
+  if (directLogo && !stored.logo) {
+    return { ...stored, logo: directLogo };
+  }
+  return stored;
+}
+
+export function saveStoredCompanyData(data: CompanyData): void {
+  setStoredItem(STORAGE_KEYS.COMPANY, data);
+  if (data.logo !== undefined) {
+    setStoredItem(STORAGE_KEYS.LOGO, data.logo || '');
+  }
+  broadcastUpdate('company_data_updated', data);
+  if (typeof window !== 'undefined') {
+    fetch('/api/company', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    }).catch(() => {});
+  }
+}
+
+export function getStoredCompanyLogo(): string {
+  const direct = getStoredItem<string | null>(STORAGE_KEYS.LOGO, null);
+  if (direct && direct.trim().length > 0) return direct;
+  const company = getStoredCompanyData();
+  return company?.logo || '';
+}
+
 // Fetch all from backend server to reconcile with disk storage
 export async function syncFromBackend(): Promise<{
   events?: EventData[];
@@ -339,6 +431,7 @@ export async function syncFromBackend(): Promise<{
   guests?: GuestData[];
   managers?: ManagerData[];
   clients?: ClientData[];
+  companyData?: CompanyData;
 } | null> {
   if (typeof window === 'undefined') return null;
   try {
@@ -351,6 +444,12 @@ export async function syncFromBackend(): Promise<{
       if (Array.isArray(data.guests)) setStoredItem(STORAGE_KEYS.GUESTS, data.guests);
       if (Array.isArray(data.managers)) setStoredItem(STORAGE_KEYS.MANAGERS, data.managers);
       if (Array.isArray(data.clients)) setStoredItem(STORAGE_KEYS.CLIENTS, data.clients);
+      if (data.companyData) {
+        setStoredItem(STORAGE_KEYS.COMPANY, data.companyData);
+        if (data.companyData.logo) {
+          setStoredItem(STORAGE_KEYS.LOGO, data.companyData.logo);
+        }
+      }
       return data;
     }
   } catch (err) {

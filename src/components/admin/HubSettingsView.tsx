@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Building2,
   Palette,
@@ -14,6 +14,7 @@ import {
   RotateCcw,
 } from 'lucide-react';
 import { WhatsAppIcon } from '../common/WhatsAppIcon';
+import { getStoredCompanyData, saveStoredCompanyData, subscribeToCrossTabSync } from '../../utils/storageUtils';
 
 interface HubSettingsViewProps {
   onShowToast: (message: string) => void;
@@ -59,27 +60,32 @@ const formatCep = (value: string): string => {
 export const HubSettingsView: React.FC<HubSettingsViewProps> = ({ onShowToast }) => {
   const [activeTab, setActiveTab] = useState<'company' | 'palette'>('company');
 
-  // Company Data state
-  const [companyData, setCompanyData] = useState({
-    logo: '',
-    companyName: 'Rafluo Soluções para Eventos Ltda.',
-    cpfCnpj: '45.892.104/0001-38',
-    phone: '(11) 98765-4321',
-    email: 'contato@rafluo.com.br',
-    cep: '01310-100',
-    logradouro: 'Avenida Paulista',
-    numero: '1000',
-    complemento: 'Andar 14',
-    bairro: 'Bela Vista',
-    cidade: 'São Paulo',
-    estado: 'SP',
-    // Redes Sociais
-    instagram: '@rafluo.eventos',
-    twitter: '@rafluo',
-    linkedin: 'https://linkedin.com/company/rafluo',
-    facebook: 'https://facebook.com/rafluo.oficial',
-    whatsapp: '(11) 98765-4321',
-  });
+  // Company Data state initialized from persisted storage
+  const [companyData, setCompanyData] = useState(() => getStoredCompanyData());
+
+  useEffect(() => {
+    let isMounted = true;
+    fetch('/api/company')
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (data && isMounted) {
+          setCompanyData(data);
+          saveStoredCompanyData(data);
+        }
+      })
+      .catch(() => {});
+
+    const unsubscribe = subscribeToCrossTabSync((type, payload) => {
+      if (type === 'company_data_updated' && payload && isMounted) {
+        setCompanyData(payload);
+      }
+    });
+
+    return () => {
+      isMounted = false;
+      unsubscribe();
+    };
+  }, []);
 
   const [isLoadingCep, setIsLoadingCep] = useState(false);
 
@@ -137,8 +143,11 @@ export const HubSettingsView: React.FC<HubSettingsViewProps> = ({ onShowToast })
     if (file) {
       const reader = new FileReader();
       reader.onloadend = () => {
-        setCompanyData((prev) => ({ ...prev, logo: reader.result as string }));
-        onShowToast('Logo carregado com sucesso!');
+        const newLogo = reader.result as string;
+        const updated = { ...companyData, logo: newLogo };
+        setCompanyData(updated);
+        saveStoredCompanyData(updated);
+        onShowToast('Logo carregada e salva com sucesso!');
       };
       reader.readAsDataURL(file);
     }
@@ -146,7 +155,8 @@ export const HubSettingsView: React.FC<HubSettingsViewProps> = ({ onShowToast })
 
   const handleSaveCompany = (e: React.FormEvent) => {
     e.preventDefault();
-    onShowToast('Dados da empresa atualizados com sucesso!');
+    saveStoredCompanyData(companyData);
+    onShowToast('Dados da empresa salvos com sucesso!');
   };
 
   const handleSavePalette = () => {
@@ -255,7 +265,12 @@ export const HubSettingsView: React.FC<HubSettingsViewProps> = ({ onShowToast })
                   {companyData.logo && (
                     <button
                       type="button"
-                      onClick={() => setCompanyData((prev) => ({ ...prev, logo: '' }))}
+                      onClick={() => {
+                        const updated = { ...companyData, logo: '' };
+                        setCompanyData(updated);
+                        saveStoredCompanyData(updated);
+                        onShowToast('Logo removida com sucesso!');
+                      }}
                       className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 text-xs font-semibold transition-colors cursor-pointer"
                     >
                       <Trash2 className="w-3.5 h-3.5" />

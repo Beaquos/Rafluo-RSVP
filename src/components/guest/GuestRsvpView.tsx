@@ -31,6 +31,18 @@ import {
 } from '../../utils/storageUtils';
 import { RafluoLogo } from '../common/RafluoLogo';
 
+// Phone formatting mask: (XX) XXXXX-XXXX or (XX) XXXX-XXXX
+const formatPhoneBR = (value: string): string => {
+  const digits = value.replace(/\D/g, '').slice(0, 11);
+  if (digits.length === 0) return '';
+  if (digits.length <= 2) return `(${digits}`;
+  if (digits.length <= 6) return `(${digits.slice(0, 2)}) ${digits.slice(2)}`;
+  if (digits.length <= 10) {
+    return `(${digits.slice(0, 2)}) ${digits.slice(2, 6)}-${digits.slice(6)}`;
+  }
+  return `(${digits.slice(0, 2)}) ${digits.slice(2, 7)}-${digits.slice(7, 11)}`;
+};
+
 interface GuestRsvpViewProps {
   event: EventData;
   guest?: GuestData | null;
@@ -81,8 +93,9 @@ export const GuestRsvpView: React.FC<GuestRsvpViewProps> = ({
         if (res.ok) {
           const remoteEvent = await res.json();
           if (remoteEvent && active) {
-            setCurrentEvent(remoteEvent);
-            saveStoredEventSingle(remoteEvent);
+            const freshLocal = getStoredEventByIdOrSlug(propEvent.slug || propEvent.id);
+            const merged = freshLocal ? { ...remoteEvent, ...freshLocal } : remoteEvent;
+            setCurrentEvent(merged);
           }
         }
       } catch {
@@ -145,7 +158,9 @@ export const GuestRsvpView: React.FC<GuestRsvpViewProps> = ({
 
   // Guest identification fields (for public open link or individual prefill)
   const [guestName, setGuestName] = useState<string>(isIndividual ? guest?.name || '' : '');
-  const [guestPhone, setGuestPhone] = useState<string>(isIndividual ? guest?.phone || '' : '');
+  const [guestPhone, setGuestPhone] = useState<string>(() =>
+    formatPhoneBR(isIndividual ? guest?.phone || '' : '')
+  );
   const [guestEmail, setGuestEmail] = useState<string>(isIndividual ? guest?.email || '' : '');
 
   // Form responses
@@ -801,9 +816,9 @@ export const GuestRsvpView: React.FC<GuestRsvpViewProps> = ({
                     <Phone className="w-4 h-4 text-[#24152F]/40 absolute left-3 top-3 pointer-events-none" />
                     <input
                       type="tel"
-                      placeholder="(DDD) 99999-9999"
+                      placeholder="(11) 99999-9999"
                       value={guestPhone}
-                      onChange={(e) => setGuestPhone(e.target.value)}
+                      onChange={(e) => setGuestPhone(formatPhoneBR(e.target.value))}
                       className="w-full pl-9 pr-3 py-2.5 rounded-xl border border-[#24152F]/20 bg-[#FAF6EE]/50 text-xs sm:text-sm text-[#24152F] placeholder:text-[#24152F]/40 focus:outline-none focus:ring-2 focus:ring-[#24152F] focus:bg-white transition-all"
                     />
                   </div>

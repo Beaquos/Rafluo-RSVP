@@ -1,4 +1,5 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
+import { getStoredCompanyLogo, subscribeToCrossTabSync } from '../../utils/storageUtils';
 
 interface RafluoLogoProps {
   variant?: 'dark' | 'light'; // 'dark' = used on dark purple background; 'light' = used on beige/white background
@@ -17,6 +18,18 @@ export const RafluoLogo: React.FC<RafluoLogoProps> = ({
   symbolOnly = false,
   className = '',
 }) => {
+  const [companyLogo, setCompanyLogo] = useState<string>(() => {
+    return typeof window !== 'undefined' ? getStoredCompanyLogo() : '';
+  });
+
+  useEffect(() => {
+    const unsubscribe = subscribeToCrossTabSync((type, payload) => {
+      if (type === 'company_data_updated') {
+        setCompanyLogo(payload?.logo || '');
+      }
+    });
+    return unsubscribe;
+  }, []);
   const isDark = variant === 'dark'; // Dark purple background (text is beige/white, accent neon)
 
   const sizeClasses = {
@@ -40,41 +53,60 @@ export const RafluoLogo: React.FC<RafluoLogoProps> = ({
     },
   }[size];
 
-  // Symbol element: Geometric, modern, fluid monogram representing intelligence & RSVP flow
-  const renderSymbol = () => (
-    <div
-      className={`relative ${sizeClasses.symbol} rounded-xl flex items-center justify-center flex-shrink-0 transition-transform ${
-        isDark
-          ? 'bg-[#180D20] border border-[#3F2553] shadow-inner'
-          : 'bg-[#24152F] shadow-sm'
-      }`}
-    >
-      <svg
-        viewBox="0 0 32 32"
-        fill="none"
-        xmlns="http://www.w3.org/2000/svg"
-        className="w-5 h-5"
+  // Symbol element: Geometric, modern, fluid monogram representing intelligence & RSVP flow (or custom company logo)
+  const renderSymbol = () => {
+    if (companyLogo && companyLogo.trim().length > 0) {
+      return (
+        <div
+          className={`relative ${sizeClasses.symbol} rounded-xl flex items-center justify-center flex-shrink-0 transition-transform overflow-hidden ${
+            isDark ? 'bg-white/10 p-0.5' : 'bg-black/5 p-0.5'
+          }`}
+        >
+          <img
+            src={companyLogo}
+            alt="Logo da Empresa"
+            className="w-full h-full object-contain"
+            onError={() => setCompanyLogo('')}
+          />
+        </div>
+      );
+    }
+
+    return (
+      <div
+        className={`relative ${sizeClasses.symbol} rounded-xl flex items-center justify-center flex-shrink-0 transition-transform ${
+          isDark
+            ? 'bg-[#180D20] border border-[#3F2553] shadow-inner'
+            : 'bg-[#24152F] shadow-sm'
+        }`}
       >
-        {/* Sleek dynamic fluid 'R' stem & curve */}
-        <path
-          d="M9 7C9 5.89543 9.89543 5 11 5H18C21.3137 5 24 7.68629 24 11C24 13.973 21.8398 16.441 19 16.9V17L23.5 25C23.9 25.7 23.4 26.5 22.5 26.5H19.5C18.9 26.5 18.4 26.1 18.1 25.6L14 17.5H12V25.5C12 26.0523 11.5523 26.5 11 26.5C10.4477 26.5 10 26.0523 10 25.5V8"
-          stroke={isDark ? '#F7F1E5' : '#F7F1E5'}
-          strokeWidth="2.2"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        />
-        {/* Upper inner bowl accent */}
-        <path
-          d="M12 13.5H17.5C18.8807 13.5 20 12.3807 20 11C20 9.61929 18.8807 8.5 17.5 8.5H12V13.5Z"
-          fill={isDark ? '#2E1B3C' : '#3F2553'}
-        />
-        {/* Neon Green Confirmation Spark/Dot */}
-        <circle cx="21" cy="7.5" r="2.2" fill="#DFFF5F" />
-      </svg>
-      {/* Subtle indicator ring */}
-      <span className="absolute -bottom-0.5 -right-0.5 w-2 h-2 rounded-full bg-[#DFFF5F] ring-2 ring-[#24152F]" />
-    </div>
-  );
+        <svg
+          viewBox="0 0 32 32"
+          fill="none"
+          xmlns="http://www.w3.org/2000/svg"
+          className="w-5 h-5"
+        >
+          {/* Sleek dynamic fluid 'R' stem & curve */}
+          <path
+            d="M9 7C9 5.89543 9.89543 5 11 5H18C21.3137 5 24 7.68629 24 11C24 13.973 21.8398 16.441 19 16.9V17L23.5 25C23.9 25.7 23.4 26.5 22.5 26.5H19.5C18.9 26.5 18.4 26.1 18.1 25.6L14 17.5H12V25.5C12 26.0523 11.5523 26.5 11 26.5C10.4477 26.5 10 26.0523 10 25.5V8"
+            stroke={isDark ? '#F7F1E5' : '#F7F1E5'}
+            strokeWidth="2.2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+          {/* Upper inner bowl accent */}
+          <path
+            d="M12 13.5H17.5C18.8807 13.5 20 12.3807 20 11C20 9.61929 18.8807 8.5 17.5 8.5H12V13.5Z"
+            fill={isDark ? '#2E1B3C' : '#3F2553'}
+          />
+          {/* Neon Green Confirmation Spark/Dot */}
+          <circle cx="21" cy="7.5" r="2.2" fill="#DFFF5F" />
+        </svg>
+        {/* Subtle indicator ring */}
+        <span className="absolute -bottom-0.5 -right-0.5 w-2 h-2 rounded-full bg-[#DFFF5F] ring-2 ring-[#24152F]" />
+      </div>
+    );
+  };
 
   if (symbolOnly) {
     return (

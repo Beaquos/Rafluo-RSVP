@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import { ClientData } from '../../data/mockData';
 import { formatDateBR } from '../../utils/dateUtils';
+import { getTypeBadgeColor } from '../../utils/badgeUtils';
 
 interface HubClientsViewProps {
   clients: ClientData[];
@@ -178,21 +179,6 @@ export const HubClientsView: React.FC<HubClientsViewProps> = ({
     return matchesSearch && matchesType;
   });
 
-  const getTypeBadgeColor = (type: string) => {
-    switch (type) {
-      case 'Aniversário Infantil':
-        return 'bg-sky-50 dark:bg-sky-950/60 text-sky-800 dark:text-sky-300 border-sky-200 dark:border-sky-800';
-      case 'Aniversário Adulto':
-        return 'bg-purple-50 dark:bg-purple-950/60 text-purple-800 dark:text-purple-300 border-purple-200 dark:border-purple-800';
-      case 'Chá de Bebê':
-      case 'Chá de Fraldas':
-      case 'Chá de Bebê ou Fraldas':
-        return 'bg-amber-50 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300 border-amber-200 dark:border-amber-800';
-      default:
-        return 'bg-zinc-100 dark:bg-zinc-800 text-zinc-800 dark:text-zinc-200 border-zinc-200 dark:border-zinc-700';
-    }
-  };
-
   return (
     <div id="hub-clients-view" className="space-y-6 pb-12">
       {/* 1. Page Title H1 + Contextual description (Item 1) */}
@@ -276,9 +262,6 @@ export const HubClientsView: React.FC<HubClientsViewProps> = ({
           <h3 className="text-base font-bold text-[#24152F] dark:text-[#F7F1E5]">
             Clientes Cadastrados
           </h3>
-          <span className="text-xs text-[#24152F]/50 dark:text-[#D2C4DC]/60">
-            {filteredClients.length} cliente(s)
-          </span>
         </div>
 
         {filteredClients.length === 0 ? (

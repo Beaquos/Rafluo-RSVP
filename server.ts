@@ -29,6 +29,7 @@ interface AppDb {
   guests: GuestData[];
   managers: ManagerData[];
   clients: ClientData[];
+  companyData?: any;
   lastUpdated: string;
 }
 
@@ -86,14 +87,32 @@ async function startServer() {
   });
 
   app.post('/api/sync', (req: Request, res: Response) => {
-    const { events, questions, guests, managers, clients } = req.body;
+    const { events, questions, guests, managers, clients, companyData } = req.body;
     if (events) db.events = events;
     if (questions) db.questions = questions;
     if (guests) db.guests = guests;
     if (managers) db.managers = managers;
     if (clients) db.clients = clients;
+    if (companyData) db.companyData = companyData;
     saveDb(db);
     res.json({ success: true, lastUpdated: db.lastUpdated });
+  });
+
+  // Company endpoints
+  app.get('/api/company', (_req: Request, res: Response) => {
+    res.json(db.companyData || null);
+  });
+
+  app.put('/api/company', (req: Request, res: Response) => {
+    db.companyData = req.body;
+    saveDb(db);
+    res.json({ success: true, companyData: db.companyData });
+  });
+
+  app.post('/api/company', (req: Request, res: Response) => {
+    db.companyData = req.body;
+    saveDb(db);
+    res.json({ success: true, companyData: db.companyData });
   });
 
   // 2. Events endpoints
@@ -180,6 +199,31 @@ async function startServer() {
     res.json({ event, questions, guests });
   });
 
+  app.post('/api/rsvp/:slugOrId', (req: Request, res: Response) => {
+    const identifier = req.params.slugOrId.toLowerCase().trim();
+    const event = db.events.find(
+      (e) => (e.slug && e.slug.toLowerCase().trim() === identifier) || e.id.toLowerCase().trim() === identifier
+    );
+    if (!event) {
+      return res.status(404).json({ error: 'Event not found' });
+    }
+    const guestData = req.body as GuestData;
+    if (!guestData || !guestData.name) {
+      return res.status(400).json({ error: 'Invalid guest payload' });
+    }
+    guestData.eventId = event.id;
+    const existingIndex = db.guests.findIndex(
+      (g) => g.id === guestData.id || (g.eventId === event.id && g.name.trim().toLowerCase() === guestData.name.trim().toLowerCase() && guestData.name.length > 2)
+    );
+    if (existingIndex >= 0) {
+      db.guests[existingIndex] = { ...db.guests[existingIndex], ...guestData };
+    } else {
+      db.guests.unshift(guestData);
+    }
+    saveDb(db);
+    res.json({ success: true, guest: guestData });
+  });
+
   // 5. Guests endpoint
   app.get('/api/guests', (req: Request, res: Response) => {
     const eventId = req.query.eventId as string | undefined;
@@ -213,7 +257,10 @@ async function startServer() {
     });
   } else {
     const vite = await createViteServer({
-      server: { middlewareMode: true },
+      server: {
+        middlewareMode: true,
+        hmr: false,
+      },
       appType: 'spa',
     });
     app.use(vite.middlewares);

@@ -545,8 +545,8 @@ export default function App() {
   ) => {
     const updatedTimestamp = new Date().toISOString().split('T')[0];
 
-    setGuests((prev) =>
-      prev.map((g) =>
+    setGuests((prev) => {
+      const next = prev.map((g) =>
         g.id === guestId
           ? {
               ...g,
@@ -562,8 +562,31 @@ export default function App() {
               members: members || g.members,
             }
           : g
-      )
-    );
+      );
+      saveStoredGuests(next);
+      return next;
+    });
+
+    const targetG = guests.find((g) => g.id === guestId);
+    if (targetG && typeof window !== 'undefined') {
+      const updatedData = {
+        ...targetG,
+        name: guestInfo?.name || targetG.name,
+        phone: guestInfo?.phone || targetG.phone,
+        email: guestInfo?.email || targetG.email,
+        status,
+        companionCount,
+        companionNames,
+        respondedAt: updatedTimestamp,
+        answers: { ...targetG.answers, ...answers },
+        members: members || targetG.members,
+      };
+      fetch(`/api/rsvp/${encodeURIComponent(targetG.eventId)}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updatedData),
+      }).catch(() => {});
+    }
 
     setToastMessage(
       status === 'confirmed'
@@ -617,7 +640,20 @@ export default function App() {
           members: members || existing.members,
         };
 
-        setGuests((prev) => prev.map((g, idx) => (idx === existingIndex ? updatedGuest : g)));
+        setGuests((prev) => {
+          const next = prev.map((g, idx) => (idx === existingIndex ? updatedGuest : g));
+          saveStoredGuests(next);
+          return next;
+        });
+
+        if (typeof window !== 'undefined') {
+          fetch(`/api/rsvp/${encodeURIComponent(targetEvent.slug || targetEvent.id)}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(updatedGuest),
+          }).catch(() => {});
+        }
+
         setToastMessage(`Resposta de "${updatedGuest.name}" atualizada com sucesso!`);
         return;
       } else {
@@ -646,7 +682,19 @@ export default function App() {
       members,
     };
 
-    setGuests((prev) => [newGuest, ...prev]);
+    setGuests((prev) => {
+      const next = [newGuest, ...prev];
+      saveStoredGuests(next);
+      return next;
+    });
+
+    if (typeof window !== 'undefined') {
+      fetch(`/api/rsvp/${encodeURIComponent(targetEvent.slug || targetEvent.id)}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(newGuest),
+      }).catch(() => {});
+    }
     setToastMessage(
       status === 'confirmed'
         ? `Presença confirmada para "${newName}"!`

@@ -1440,7 +1440,7 @@ export const DashboardSkeleton: React.FC<DashboardSkeletonProps> = ({
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-[#24152F]/10">
                   <div>
                     <h3 className="text-base sm:text-lg font-bold text-[#24152F]">
-                      Página de Confirmação — Personalização do Convite
+                      Página de Confirmação
                     </h3>
                     <p className="text-xs text-[#24152F]/65 mt-0.5">
                       Personalize os cards opcionais da página de confirmação de presença (RSVP) que seus convidados acessarão.
