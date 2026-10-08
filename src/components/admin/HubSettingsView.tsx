@@ -569,16 +569,16 @@ export const HubSettingsView: React.FC<HubSettingsViewProps> = ({ onShowToast })
       {/* TAB 2: PALETA INSTITUCIONAL (Itens 3 e 4) */}
       {activeTab === 'palette' && (
         <div className="bg-white dark:bg-[#1E1128] rounded-2xl border border-[#24152F]/10 dark:border-[#3F2553] p-5 sm:p-7 shadow-xs space-y-6">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-[#24152F]/10 dark:border-[#3F2553]">
-            <div>
+          <div className="flex items-start justify-between gap-3 pb-4 border-b border-[#24152F]/10 dark:border-[#3F2553]">
+            <div className="flex-1 min-w-0">
               <h2 className="text-base sm:text-lg font-bold text-[#24152F] dark:text-[#F7F1E5]">
                 Paleta Institucional
               </h2>
-              <p className="text-xs text-[#24152F]/60 dark:text-[#D2C4DC]/70">
+              <p className="text-xs text-[#24152F]/60 dark:text-[#D2C4DC]/70 mt-0.5">
                 Altere e customize as cores oficiais aplicadas no sistema, formulários de confirmação e painéis.
               </p>
             </div>
-            <div className="w-8 h-8 rounded-xl bg-[#24152F]/10 dark:bg-[#2E1B3C] text-[#24152F] dark:text-[#DFFF5F] flex items-center justify-center flex-shrink-0">
+            <div className="w-8 h-8 rounded-xl bg-[#24152F]/10 dark:bg-[#2E1B3C] text-[#24152F] dark:text-[#DFFF5F] flex items-center justify-center flex-shrink-0 mt-0.5">
               <Palette className="w-4 h-4" />
             </div>
           </div>

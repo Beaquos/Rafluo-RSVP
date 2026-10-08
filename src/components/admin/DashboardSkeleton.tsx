@@ -2060,16 +2060,16 @@ export const DashboardSkeleton: React.FC<DashboardSkeletonProps> = ({
 
                 {/* Paleta Institucional do Evento (Itens 3 e 4) - Realmente editável */}
                 <div className="p-5 sm:p-6 rounded-2xl border border-[#24152F]/10 bg-white space-y-5 shadow-xs">
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-[#24152F]/10">
-                    <div>
+                  <div className="flex items-start justify-between gap-3 pb-3 border-b border-[#24152F]/10">
+                    <div className="flex-1 min-w-0">
                       <h4 className="font-bold text-sm sm:text-base text-[#24152F]">
                         Paleta Institucional do Evento
                       </h4>
-                      <p className="text-xs text-[#24152F]/70">
+                      <p className="text-xs text-[#24152F]/70 mt-0.5">
                         Essa paleta será aplicada ao formulário de confirmação de presença e ao painel do responsável pelo evento.
                       </p>
                     </div>
-                    <div className="w-8 h-8 rounded-xl bg-[#24152F]/10 text-[#24152F] flex items-center justify-center flex-shrink-0">
+                    <div className="w-8 h-8 rounded-xl bg-[#24152F]/10 text-[#24152F] flex items-center justify-center flex-shrink-0 mt-0.5">
                       <Palette className="w-4 h-4" />
                     </div>
                   </div>
@@ -2084,7 +2084,7 @@ export const DashboardSkeleton: React.FC<DashboardSkeletonProps> = ({
                         className="font-bold text-xs sm:text-sm"
                         style={{ color: eventPalette.primary }}
                       >
-                        Visual do Convite — {event.name}
+                        Visual do Convite
                       </span>
                       <span
                         className="text-[10px] font-bold px-2.5 py-0.5 rounded-full"
