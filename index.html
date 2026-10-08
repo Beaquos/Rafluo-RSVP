@@ -1,6 +1,42 @@
 <!doctype html>
 <html lang="pt-BR">
   <head>
+    <!-- Ignore Vite HMR WebSocket connection errors in sandbox iframe environment -->
+    <script>
+      (function() {
+        var isViteMsg = function(arg) {
+          if (!arg) return false;
+          var str = typeof arg === 'string' ? arg : (arg.message || (typeof arg.toString === 'function' ? arg.toString() : ''));
+          return str.indexOf('[vite]') !== -1 || str.indexOf('WebSocket') !== -1 || str.indexOf('websocket') !== -1;
+        };
+        var _err = console.error;
+        console.error = function() {
+          for (var i = 0; i < arguments.length; i++) {
+            if (isViteMsg(arguments[i])) return;
+          }
+          _err.apply(console, arguments);
+        };
+        var _warn = console.warn;
+        console.warn = function() {
+          for (var i = 0; i < arguments.length; i++) {
+            if (isViteMsg(arguments[i])) return;
+          }
+          _warn.apply(console, arguments);
+        };
+        window.addEventListener('error', function(event) {
+          if (event && (isViteMsg(event.message) || isViteMsg(event.error))) {
+            event.preventDefault();
+            event.stopImmediatePropagation();
+          }
+        }, true);
+        window.addEventListener('unhandledrejection', function(event) {
+          if (event && isViteMsg(event.reason)) {
+            event.preventDefault();
+            event.stopImmediatePropagation();
+          }
+        }, true);
+      })();
+    </script>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     

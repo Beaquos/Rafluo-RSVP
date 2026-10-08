@@ -751,10 +751,12 @@ export const DashboardSkeleton: React.FC<DashboardSkeletonProps> = ({
                   ) : (
                     <button
                       id="btn-add-question-tab"
+                      type="button"
                       onClick={onAddQuestion}
-                      className="px-3.5 py-2 bg-[#24152F] text-[#F7F1E5] text-xs font-semibold rounded-lg hover:bg-[#180D20] transition-colors shadow-sm flex items-center gap-1.5 border border-[#3F2553]"
+                      className="flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-xl bg-[#24152F] hover:bg-[#180D20] text-[#F7F1E5] font-semibold text-xs shadow-2xs transition-all active:scale-98 cursor-pointer border border-[#3F2553]"
                     >
-                      + Adicionar Pergunta
+                      <Plus className="w-3.5 h-3.5 text-[#DFFF5F] flex-shrink-0" />
+                      <span>Adicionar Pergunta</span>
                     </button>
                   )}
                 </div>
@@ -932,19 +934,11 @@ export const DashboardSkeleton: React.FC<DashboardSkeletonProps> = ({
                   </p>
 
                   {questions.length === 0 ? (
-                    <div className="p-8 rounded-xl border border-dashed border-[#24152F]/20 text-center space-y-2.5 bg-[#FAF6EE]/50">
+                    <div className="p-8 rounded-xl border border-dashed border-[#24152F]/20 text-center space-y-2 bg-[#FAF6EE]/50">
                       <FileText className="w-8 h-8 text-[#24152F]/30 mx-auto" />
                       <p className="text-xs text-[#24152F]/70 font-medium">
                         Nenhum campo personalizado adicionado a este evento.
                       </p>
-                      <button
-                        type="button"
-                        onClick={onAddQuestion}
-                        className="px-4 py-2 rounded-xl bg-[#24152F] text-[#F7F1E5] text-xs font-semibold hover:bg-[#180D20] transition-colors cursor-pointer shadow-xs inline-flex items-center gap-1.5"
-                      >
-                        <Plus className="w-3.5 h-3.5 text-[#DFFF5F]" />
-                        <span>Adicionar Pergunta</span>
-                      </button>
                     </div>
                   ) : (
                     questions.map((q, idx) => (
@@ -1087,9 +1081,10 @@ export const DashboardSkeleton: React.FC<DashboardSkeletonProps> = ({
                       id="btn-add-guest"
                       type="button"
                       onClick={onAddGuest}
-                      className="flex items-center justify-center gap-1.5 px-3.5 py-2 bg-[#24152F] hover:bg-[#180D20] text-[#F7F1E5] text-xs font-semibold rounded-xl cursor-pointer border border-[#3F2553] shadow-xs transition-colors"
+                      className="flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-xl bg-[#24152F] hover:bg-[#180D20] text-[#F7F1E5] font-semibold text-xs shadow-2xs transition-all active:scale-98 cursor-pointer border border-[#3F2553]"
                     >
-                      + Cadastrar Convidado
+                      <Plus className="w-3.5 h-3.5 text-[#DFFF5F] flex-shrink-0" />
+                      <span>Cadastrar Convidado</span>
                     </button>
                   </div>
                 </div>
@@ -1728,9 +1723,9 @@ export const DashboardSkeleton: React.FC<DashboardSkeletonProps> = ({
                                       setNewGiftItemText('');
                                     }
                                   }}
-                                  className="px-3.5 py-2 rounded-xl bg-[#24152F] text-[#F7F1E5] text-xs font-semibold hover:bg-[#180D20] transition-colors cursor-pointer flex items-center gap-1.5 flex-shrink-0"
+                                  className="flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-xl bg-[#24152F] hover:bg-[#180D20] text-[#F7F1E5] font-semibold text-xs shadow-2xs transition-all active:scale-98 cursor-pointer border border-[#3F2553] flex-shrink-0"
                                 >
-                                  <Plus className="w-3.5 h-3.5 text-[#DFFF5F]" />
+                                  <Plus className="w-3.5 h-3.5 text-[#DFFF5F] flex-shrink-0" />
                                   <span>Adicionar Item</span>
                                 </button>
                               </div>
@@ -1864,10 +1859,12 @@ export const DashboardSkeleton: React.FC<DashboardSkeletonProps> = ({
                   </div>
                   <button
                     id="btn-add-manager"
+                    type="button"
                     onClick={onAddManager}
-                    className="w-full sm:w-auto text-center justify-center px-3.5 py-2 bg-[#24152F] hover:bg-[#180D20] text-[#F7F1E5] text-xs font-semibold rounded-xl sm:rounded-lg transition-colors shadow-sm border border-[#3F2553] cursor-pointer"
+                    className="flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-xl bg-[#24152F] hover:bg-[#180D20] text-[#F7F1E5] font-semibold text-xs shadow-2xs transition-all active:scale-98 cursor-pointer border border-[#3F2553] w-full sm:w-fit"
                   >
-                    + Adicionar Responsável
+                    <Plus className="w-3.5 h-3.5 text-[#DFFF5F] flex-shrink-0" />
+                    <span>Adicionar Responsável</span>
                   </button>
                 </div>
 

@@ -109,33 +109,33 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({
         />
       </aside>
 
-      {/* 2. Mobile Drawer Sidebar (with motion animations) */}
+      {/* 2. Mobile Drawer Sidebar (com overlay independente e sem faixa lateral) */}
       <AnimatePresence>
         {isMobileMenuOpen && (
           <div
-            className="fixed inset-0 z-50 lg:hidden flex"
+            className="fixed inset-0 z-50 lg:hidden"
             role="dialog"
             aria-modal="true"
             aria-label="Menu de Navegação Móvel"
           >
-            {/* Backdrop */}
+            {/* Overlay independente cobrindo toda a tela atrás da sidebar */}
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               transition={{ duration: 0.2 }}
               onClick={handleCloseMobileMenu}
-              className="fixed inset-0 bg-[#24152F]/70 backdrop-blur-xs cursor-pointer"
+              className="fixed inset-0 bg-black/60 backdrop-blur-sm cursor-pointer z-40"
               aria-hidden="true"
             />
 
-            {/* Sidebar drawer content */}
+            {/* Sidebar drawer content: exatamente a mesma largura da sidebar, sem wrapper com bg próprio, sem padding/margin */}
             <motion.div
               initial={{ x: '-100%' }}
               animate={{ x: 0 }}
               exit={{ x: '-100%' }}
               transition={{ type: 'spring', damping: 25, stiffness: 220 }}
-              className="relative flex-1 flex flex-col max-w-xs w-full bg-[#24152F] shadow-2xl z-10"
+              className="fixed inset-y-0 left-0 z-50 w-72 max-w-[85vw] shadow-2xl flex flex-col"
             >
               <Sidebar
                 isMasterView={isMasterView}

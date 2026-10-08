@@ -64,9 +64,9 @@ export const NotificationsDropdown: React.FC<NotificationsDropdownProps> = ({
         )}
       </button>
 
-      {/* Dropdown Panel */}
+      {/* Dropdown Panel - Responsivo para mobile e desktop */}
       {isOpen && (
-        <div className="absolute right-0 mt-2 w-[calc(100vw-2rem)] sm:w-96 max-w-sm rounded-2xl bg-white dark:bg-[#1E1128] border border-[#24152F]/15 dark:border-[#3F2553] shadow-2xl z-50 overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+        <div className="fixed inset-x-3.5 top-[62px] sm:top-full sm:inset-x-auto sm:left-auto sm:right-0 sm:absolute mt-0 sm:mt-2 w-auto sm:w-96 max-w-md sm:max-w-none mx-auto sm:mx-0 rounded-2xl bg-white dark:bg-[#1E1128] border border-[#24152F]/15 dark:border-[#3F2553] shadow-2xl z-50 overflow-hidden animate-in fade-in zoom-in-95 duration-150 flex flex-col max-h-[calc(100vh-5rem)] sm:max-h-none">
           <div className="p-4 bg-[#24152F] text-[#F7F1E5] flex items-center justify-between border-b border-[#3F2553]">
             <div className="flex items-center gap-2">
               <Bell className="w-4 h-4 text-[#DFFF5F]" />

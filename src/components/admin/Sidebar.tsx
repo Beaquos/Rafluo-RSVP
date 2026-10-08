@@ -158,8 +158,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
   return (
     <aside
       id="admin-sidebar"
-      className={`relative h-full bg-[#24152F] text-[#F7F1E5] flex flex-col justify-between border-r border-[#3F2553]/60 shadow-2xl select-none transition-all duration-300 ease-in-out ${
-        isCollapsed ? 'w-20' : 'w-72'
+      className={`relative h-full bg-[#24152F] text-[#F7F1E5] flex flex-col justify-between border-r-0 lg:border-r border-[#3F2553]/60 shadow-2xl select-none transition-all duration-300 ease-in-out ${
+        isCollapsed ? 'w-20' : 'w-72 max-w-full'
       }`}
     >
       {/* Top Brand Header */}
