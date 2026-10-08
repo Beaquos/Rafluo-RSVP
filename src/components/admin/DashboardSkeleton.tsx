@@ -742,10 +742,11 @@ export const DashboardSkeleton: React.FC<DashboardSkeletonProps> = ({
                   {(eventDataSubTab === 'info' && currentSection !== 'form-builder') ? (
                     <button
                       id="btn-edit-event-data"
+                      type="button"
                       onClick={onEditEvent}
-                      className="px-3.5 py-2 bg-[#24152F] text-[#F7F1E5] text-xs font-semibold rounded-lg hover:bg-[#180D20] transition-colors shadow-sm border border-[#3F2553] cursor-pointer flex items-center gap-1.5"
+                      className="flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-xl bg-[#24152F] hover:bg-[#180D20] text-[#F7F1E5] font-semibold text-xs shadow-2xs transition-all active:scale-98 cursor-pointer border border-[#3F2553]"
                     >
-                      <Edit3 className="w-3.5 h-3.5 text-[#DFFF5F]" />
+                      <Edit3 className="w-3.5 h-3.5 text-[#DFFF5F] flex-shrink-0" />
                       <span>Editar Dados</span>
                     </button>
                   ) : (
