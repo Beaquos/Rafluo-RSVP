@@ -279,42 +279,77 @@ export const GuestDetailsModal: React.FC<GuestDetailsModalProps> = ({
             </div>
           )}
 
-          {/* Section 9: Respostas do formulário */}
-          <div className="space-y-3">
-            <h4 className="text-xs font-bold uppercase tracking-wider text-[#24152F]/60 flex items-center gap-1.5 pb-1 border-b border-[#24152F]/10">
-              <FileQuestion className="w-3.5 h-3.5 text-[#24152F]" />
-              <span>Respostas do Formulário</span>
-            </h4>
+          {/* Section 9: Respostas do formulário — Exibir SOMENTE quando o formulário do evento possuir perguntas personalizadas */}
+          {(() => {
+            const customQuestions = (questions || []).filter((q) => {
+              const matchesEvent = !q.eventId || q.eventId === guest.eventId;
+              const isStandardField = [
+                'q_group',
+                'group',
+                'q_message',
+                'message',
+                'presence',
+                'status',
+                'companionCount',
+                'companionNames',
+                'phone',
+                'email',
+                'name',
+                'rsvpCode',
+              ].includes(q.id);
+              return matchesEvent && !isStandardField;
+            });
 
-            {questions.length === 0 || Object.keys(guest.answers || {}).length === 0 ? (
-              <div className="p-4 rounded-xl border border-dashed border-[#24152F]/20 bg-[#FAF6EE]/50 text-center text-[#24152F]/60">
-                Nenhuma resposta adicional enviada pelo convidado.
-              </div>
-            ) : (
+            if (customQuestions.length === 0) {
+              return null;
+            }
+
+            return (
               <div className="space-y-3">
-                {questions.map((q) => {
-                  const ans = guest.answers ? guest.answers[q.id] : undefined;
-                  if (ans === undefined || ans === null) return null;
+                <h4 className="text-xs font-bold uppercase tracking-wider text-[#24152F]/60 flex items-center gap-1.5 pb-1 border-b border-[#24152F]/10">
+                  <FileQuestion className="w-3.5 h-3.5 text-[#24152F]" />
+                  <span>Respostas do Formulário</span>
+                </h4>
 
-                  return (
-                    <div
-                      key={q.id}
-                      className="p-3.5 rounded-xl border border-[#24152F]/10 bg-white space-y-1.5 shadow-2xs"
-                    >
-                      {/* Pergunta */}
-                      <p className="font-bold text-xs text-[#24152F] leading-snug">
-                        {q.title}
-                      </p>
-                      {/* Resposta separada visualmente */}
-                      <div className="p-2.5 rounded-lg bg-[#FAF6EE] border border-[#24152F]/10 text-xs font-medium text-[#24152F] break-words">
-                        {Array.isArray(ans) ? ans.join(', ') : String(ans)}
+                <div className="space-y-3">
+                  {customQuestions.map((q) => {
+                    const rawAns = guest.answers ? guest.answers[q.id] : undefined;
+                    const hasAnswer =
+                      rawAns !== undefined &&
+                      rawAns !== null &&
+                      rawAns !== '' &&
+                      !(Array.isArray(rawAns) && rawAns.length === 0);
+
+                    return (
+                      <div
+                        key={q.id}
+                        className="p-3.5 rounded-xl border border-[#24152F]/10 bg-white space-y-1.5 shadow-2xs"
+                      >
+                        {/* Pergunta */}
+                        <p className="font-bold text-xs text-[#24152F] leading-snug">
+                          {q.title}
+                        </p>
+                        {/* Resposta separada visualmente */}
+                        <div
+                          className={`p-2.5 rounded-lg border text-xs break-words ${
+                            hasAnswer
+                              ? 'bg-[#FAF6EE] border-[#24152F]/10 font-medium text-[#24152F]'
+                              : 'bg-[#FAF6EE]/40 border-[#24152F]/5 text-[#24152F]/50 italic'
+                          }`}
+                        >
+                          {hasAnswer
+                            ? Array.isArray(rawAns)
+                              ? rawAns.join(', ')
+                              : String(rawAns)
+                            : 'Não respondida'}
+                        </div>
                       </div>
-                    </div>
-                  );
-                })}
+                    );
+                  })}
+                </div>
               </div>
-            )}
-          </div>
+            );
+          })()}
         </div>
 
         {/* Footer Actions */}

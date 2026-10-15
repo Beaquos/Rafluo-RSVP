@@ -607,6 +607,48 @@ export const EventModal: React.FC<EventModalProps> = ({
                 <span className="text-xs text-[#24152F]/70 font-semibold">anos</span>
               </div>
             </div>
+
+            {/* Configuração de Recepção ou Credenciamento (Item 1 do Prompt) */}
+            <div className="sm:col-span-2 p-4 rounded-xl border border-[#24152F]/20 bg-[#FAF6EE] space-y-2.5">
+              <div>
+                <label className="font-bold text-xs sm:text-sm text-[#24152F] block">
+                  Este evento terá recepção ou credenciamento?
+                </label>
+                <span className="text-[11px] text-[#24152F]/70 block mt-0.5 leading-relaxed">
+                  Se selecionado Sim, habilita a geração de QR Code individual após a confirmação e a área de Credenciamento no painel com leitura por câmera e busca. O padrão é Não.
+                </span>
+              </div>
+
+              <div className="grid grid-cols-2 gap-2.5 pt-1">
+                <button
+                  type="button"
+                  id="btn-reception-no"
+                  onClick={() => setFormData({ ...formData, hasReception: false })}
+                  className={`py-2 px-3 rounded-xl text-xs font-bold border transition-all cursor-pointer flex items-center justify-center gap-2 ${
+                    !formData.hasReception
+                      ? 'bg-[#24152F] text-[#F7F1E5] border-[#24152F] shadow-xs'
+                      : 'bg-white border-[#24152F]/20 text-[#24152F] hover:bg-white/80'
+                  }`}
+                >
+                  <span className={`w-2 h-2 rounded-full ${!formData.hasReception ? 'bg-[#DFFF5F]' : 'bg-[#24152F]/30'}`} />
+                  <span>Não</span>
+                </button>
+
+                <button
+                  type="button"
+                  id="btn-reception-yes"
+                  onClick={() => setFormData({ ...formData, hasReception: true })}
+                  className={`py-2 px-3 rounded-xl text-xs font-bold border transition-all cursor-pointer flex items-center justify-center gap-2 ${
+                    formData.hasReception
+                      ? 'bg-[#24152F] text-[#F7F1E5] border-[#24152F] shadow-xs'
+                      : 'bg-white border-[#24152F]/20 text-[#24152F] hover:bg-white/80'
+                  }`}
+                >
+                  <span className={`w-2 h-2 rounded-full ${formData.hasReception ? 'bg-[#DFFF5F]' : 'bg-[#24152F]/30'}`} />
+                  <span>Sim</span>
+                </button>
+              </div>
+            </div>
           </div>
 
           <div className="flex flex-col-reverse sm:flex-row items-center justify-end gap-2.5 pt-4 border-t border-[#24152F]/10">

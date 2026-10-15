@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { X, UserPlus, Check, Plus, Trash2, Users, User, Baby, Tag } from 'lucide-react';
-import { GuestData, InviteMember } from '../../data/mockData';
+import { GuestData, InviteMember, GUEST_GROUP_OPTIONS } from '../../data/mockData';
 import { getInviteMembers } from '../../utils/inviteUtils';
 
 interface GuestModalProps {
@@ -267,14 +267,11 @@ export const GuestModal: React.FC<GuestModalProps> = ({
                 onChange={(e) => setGroup(e.target.value)}
                 className="w-full px-3 py-2 rounded-xl border border-[#24152F]/20 dark:border-[#3F2553] bg-[#FAF6EE] dark:bg-[#2A1738] text-[#24152F] dark:text-[#F7F1E5] focus:outline-none focus:ring-1 focus:ring-[#24152F] font-medium"
               >
-                <option value="Família">Família</option>
-                <option value="Família Noivo">Família Noivo</option>
-                <option value="Família Noiva">Família Noiva</option>
-                <option value="Padrinhos">Padrinhos</option>
-                <option value="Amigos">Amigos</option>
-                <option value="Trabalho">Trabalho</option>
-                <option value="VIP">VIP</option>
-                <option value="Geral">Geral</option>
+                {GUEST_GROUP_OPTIONS.map((opt) => (
+                  <option key={opt} value={opt}>
+                    {opt}
+                  </option>
+                ))}
               </select>
             </div>
           </div>

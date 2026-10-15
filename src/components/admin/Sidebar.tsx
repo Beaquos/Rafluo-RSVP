@@ -14,6 +14,7 @@ import {
   Sparkles,
   Contact,
   Link as LinkIcon,
+  ShieldCheck,
 } from 'lucide-react';
 import { HubSection, NavSection, NavItem } from '../../types/navigation';
 import { formatDateBR } from '../../utils/dateUtils';
@@ -67,6 +68,11 @@ const HUB_NAV_ITEMS: { id: HubSection; label: string; icon: React.ComponentType<
     id: 'users',
     label: 'Usuários',
     icon: Users,
+  },
+  {
+    id: 'access-profiles',
+    label: 'Perfil de Acesso',
+    icon: ShieldCheck,
   },
   {
     id: 'settings',
@@ -336,7 +342,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
                     >
                       <Icon className="w-4 h-4" />
                     </div>
-                    <span className="text-xs font-semibold">{item.label}</span>
+                    <span className={`text-xs truncate ${isActive ? 'font-semibold text-[#F7F1E5]' : 'font-medium text-[#D2C4DC]'}`}>
+                      {item.label}
+                    </span>
                   </div>
 
                   {isActive && <ChevronRight className="w-3.5 h-3.5 text-[#DFFF5F]" />}
@@ -407,7 +415,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
                     >
                       {renderEventIcon(item.iconName, isActive)}
                     </div>
-                    <span className="truncate">{item.label}</span>
+                    <span className={`text-xs truncate ${isActive ? 'font-semibold text-[#F7F1E5]' : 'font-medium text-[#D2C4DC]'}`}>
+                      {item.label}
+                    </span>
                   </div>
 
                   {isActive && <ChevronRight className="w-3.5 h-3.5 text-[#DFFF5F]" />}

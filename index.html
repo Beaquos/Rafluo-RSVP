@@ -4,37 +4,174 @@
     <!-- Ignore Vite HMR WebSocket connection errors in sandbox iframe environment -->
     <script>
       (function() {
-        var isViteMsg = function(arg) {
+        var isViteArg = function(arg) {
           if (!arg) return false;
-          var str = typeof arg === 'string' ? arg : (arg.message || (typeof arg.toString === 'function' ? arg.toString() : ''));
-          return str.indexOf('[vite]') !== -1 || str.indexOf('WebSocket') !== -1 || str.indexOf('websocket') !== -1;
-        };
-        var _err = console.error;
-        console.error = function() {
-          for (var i = 0; i < arguments.length; i++) {
-            if (isViteMsg(arguments[i])) return;
+          try {
+            var str = '';
+            if (typeof arg === 'string') {
+              str = arg;
+            } else if (arg instanceof Error) {
+              str = (arg.message || '') + ' ' + (arg.stack || '');
+            } else if (typeof arg === 'object') {
+              str = (arg.message || '') + ' ' + (typeof arg.toString === 'function' ? arg.toString() : '');
+            }
+            var lower = str.toLowerCase();
+            return lower.indexOf('[vite]') !== -1 ||
+                   lower.indexOf('vite') !== -1 ||
+                   lower.indexOf('websocket') !== -1 ||
+                   lower.indexOf('ws://') !== -1 ||
+                   lower.indexOf('wss://') !== -1;
+          } catch (e) {
+            return false;
           }
-          _err.apply(console, arguments);
         };
-        var _warn = console.warn;
-        console.warn = function() {
-          for (var i = 0; i < arguments.length; i++) {
-            if (isViteMsg(arguments[i])) return;
-          }
-          _warn.apply(console, arguments);
-        };
+
+        ['error', 'warn', 'info', 'debug', 'log'].forEach(function(method) {
+          if (!console || !console[method]) return;
+          var original = console[method];
+          console[method] = function() {
+            for (var i = 0; i < arguments.length; i++) {
+              if (isViteArg(arguments[i])) return;
+            }
+            return original.apply(console, arguments);
+          };
+        });
+
         window.addEventListener('error', function(event) {
-          if (event && (isViteMsg(event.message) || isViteMsg(event.error))) {
+          if (event && (isViteArg(event.message) || isViteArg(event.error) || isViteArg(event.filename))) {
             event.preventDefault();
             event.stopImmediatePropagation();
+            return false;
           }
         }, true);
+
         window.addEventListener('unhandledrejection', function(event) {
-          if (event && isViteMsg(event.reason)) {
+          if (event && isViteArg(event.reason)) {
             event.preventDefault();
             event.stopImmediatePropagation();
+            return false;
           }
         }, true);
+
+        // Neutralize Vite error overlay custom element
+        if (typeof customElements !== 'undefined' && !customElements.get('vite-error-overlay')) {
+          try {
+            customElements.define('vite-error-overlay', class extends HTMLElement {
+              connectedCallback() {
+                try { this.remove(); } catch(e) {}
+              }
+            });
+          } catch(e) {}
+        }
+
+        // Safe mock WebSocket for Vite HMR in iframe/cloud sandbox environments
+        if (typeof window !== 'undefined' && window.WebSocket) {
+          var OrigWebSocket = window.WebSocket;
+          function MockViteWebSocket(url, protocols) {
+            var protoStr = Array.isArray(protocols) ? protocols.join(',') : (protocols || '');
+            var urlStr = typeof url === 'string' ? url : (url && url.toString ? url.toString() : '');
+
+            // In AI Studio Build sandbox environment, HMR is disabled.
+            // All local/origin WebSockets are mocked so they never emit native browser connection errors.
+            var isLocalOrVite = true;
+            try {
+              if (urlStr && !urlStr.includes(window.location.host) && !urlStr.includes('localhost') && !urlStr.startsWith('/') && !urlStr.startsWith('ws://') && !urlStr.startsWith('wss://')) {
+                // External 3rd party WebSocket if any
+                isLocalOrVite = false;
+              }
+            } catch (e) {}
+
+            if (!isLocalOrVite) {
+              try {
+                return new OrigWebSocket(url, protocols);
+              } catch (e) {
+                // Fall through to mock
+              }
+            }
+
+            var self = this instanceof MockViteWebSocket ? this : Object.create(MockViteWebSocket.prototype);
+            self.url = urlStr;
+            self.readyState = 1; // OPEN
+            self.OPEN = 1;
+            self.CLOSED = 3;
+            self.CONNECTING = 0;
+            self.CLOSING = 2;
+            self.binaryType = 'blob';
+            self.bufferedAmount = 0;
+            self.extensions = '';
+            self.protocol = protoStr || 'vite-hmr';
+
+            var listeners = {};
+            self._onopen = null;
+            self._onclose = null;
+            self._onerror = null;
+            self._onmessage = null;
+
+            Object.defineProperty(self, 'onopen', {
+              get: function() { return self._onopen; },
+              set: function(fn) {
+                self._onopen = fn;
+                if (typeof fn === 'function') {
+                  setTimeout(function() {
+                    try { fn({ type: 'open', target: self }); } catch (e) {}
+                  }, 0);
+                }
+              }
+            });
+            Object.defineProperty(self, 'onclose', {
+              get: function() { return self._onclose; },
+              set: function(fn) { self._onclose = fn; }
+            });
+            Object.defineProperty(self, 'onerror', {
+              get: function() { return self._onerror; },
+              set: function(fn) { self._onerror = fn; }
+            });
+            Object.defineProperty(self, 'onmessage', {
+              get: function() { return self._onmessage; },
+              set: function(fn) { self._onmessage = fn; }
+            });
+
+            self.send = function() {};
+            self.close = function() { self.readyState = 3; };
+            self.addEventListener = function(event, callback) {
+              listeners[event] = listeners[event] || [];
+              listeners[event].push(callback);
+              if (event === 'open') {
+                setTimeout(function() {
+                  try { callback(new Event('open')); } catch(e) {}
+                }, 0);
+              }
+            };
+            self.removeEventListener = function(event, callback) {
+              if (!listeners[event]) return;
+              listeners[event] = listeners[event].filter(function(cb) { return cb !== callback; });
+            };
+            self.dispatchEvent = function(event) {
+              var eventType = event && event.type;
+              if (listeners[eventType]) {
+                listeners[eventType].forEach(function(cb) {
+                  try { cb(event); } catch(e) {}
+                });
+              }
+              return true;
+            };
+
+            setTimeout(function() {
+              if (self._onopen) {
+                try { self._onopen({ type: 'open', target: self }); } catch(e) {}
+              }
+            }, 0);
+
+            return self;
+          }
+
+          MockViteWebSocket.prototype = OrigWebSocket.prototype;
+          MockViteWebSocket.CONNECTING = 0;
+          MockViteWebSocket.OPEN = 1;
+          MockViteWebSocket.CLOSING = 2;
+          MockViteWebSocket.CLOSED = 3;
+          window.WebSocket = MockViteWebSocket;
+        }
       })();
     </script>
     <meta charset="UTF-8" />

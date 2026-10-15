@@ -19,8 +19,19 @@ import {
   Timer,
   Baby,
   MessageSquare,
+  Tag,
+  QrCode,
+  Download,
+  Share2,
 } from 'lucide-react';
-import { EventData, GuestData, FormQuestionData, InviteMember } from '../../data/mockData';
+import {
+  EventData,
+  GuestData,
+  FormQuestionData,
+  InviteMember,
+  CompanionDetail,
+  GUEST_GROUP_OPTIONS,
+} from '../../data/mockData';
 import { formatDateBR } from '../../utils/dateUtils';
 import { getInviteMembers } from '../../utils/inviteUtils';
 import {
@@ -29,6 +40,11 @@ import {
   subscribeToCrossTabSync,
   saveStoredEventSingle,
 } from '../../utils/storageUtils';
+import {
+  ensureCheckInCode,
+  generateQrCodeDataUrl,
+  downloadConfirmationPng,
+} from '../../utils/receptionUtils';
 import { RafluoLogo } from '../common/RafluoLogo';
 
 // Phone formatting mask: (XX) XXXXX-XXXX or (XX) XXXX-XXXX
@@ -55,7 +71,8 @@ interface GuestRsvpViewProps {
     companionNames: string[],
     answers: Record<string, any>,
     guestInfo?: { name: string; phone: string; email: string },
-    members?: InviteMember[]
+    members?: InviteMember[],
+    checkInCode?: string
   ) => void;
   isPublicMode?: boolean;
   isPublicEventInvite?: boolean;
@@ -163,6 +180,17 @@ export const GuestRsvpView: React.FC<GuestRsvpViewProps> = ({
   );
   const [guestEmail, setGuestEmail] = useState<string>(isIndividual ? guest?.email || '' : '');
 
+  // Pergunta padrão: Qual é o seu grupo? (Item 3.1)
+  const [selectedGroup, setSelectedGroup] = useState<string>(() => {
+    if (isIndividual && guest?.group && GUEST_GROUP_OPTIONS.includes(guest.group as any)) {
+      return guest.group;
+    }
+    if (isIndividual && guest?.answers?.q_group && GUEST_GROUP_OPTIONS.includes(guest.answers.q_group)) {
+      return guest.answers.q_group;
+    }
+    return 'Família';
+  });
+
   // Form responses
   const [attending, setAttending] = useState<'sim' | 'nao' | null>(
     isIndividual
@@ -196,12 +224,30 @@ export const GuestRsvpView: React.FC<GuestRsvpViewProps> = ({
     return [''];
   });
 
-  // Adjust companionNamesList when companionCount changes
+  // Categorias dos acompanhantes quando credenciamento estiver ativo (Adulto ou Criança)
+  const [companionCategoriesList, setCompanionCategoriesList] = useState<('Adulto' | 'Criança')[]>(() => {
+    if (isIndividual && guest?.companionDetails && guest.companionDetails.length > 0) {
+      return guest.companionDetails.map((d) => d.category);
+    }
+    if (isIndividual && guest?.members && guest.members.length > 1) {
+      return guest.members.filter((m) => !m.isPrimary).map((m) => m.category);
+    }
+    return ['Adulto'];
+  });
+
+  // Adjust companionNamesList and categories when companionCount changes
   useEffect(() => {
     setCompanionNamesList((prev) => {
       const next = [...prev];
       while (next.length < companionCount) {
         next.push('');
+      }
+      return next.slice(0, companionCount);
+    });
+    setCompanionCategoriesList((prev) => {
+      const next = [...prev];
+      while (next.length < companionCount) {
+        next.push('Adulto');
       }
       return next.slice(0, companionCount);
     });
@@ -241,6 +287,28 @@ export const GuestRsvpView: React.FC<GuestRsvpViewProps> = ({
   );
 
   const [validationError, setValidationError] = useState<string | null>(null);
+
+  // QR Code e Credenciamento (Itens 2, 3 e 4)
+  const [activeCheckInCode, setActiveCheckInCode] = useState<string>(() => {
+    return guest?.checkInCode || (guest?.status === 'confirmed' ? ensureCheckInCode(event.id, null) : '');
+  });
+  const [qrCodeDataUrl, setQrCodeDataUrl] = useState<string>('');
+  const [isDownloadingImage, setIsDownloadingImage] = useState(false);
+
+  // Generate QR Code data URL whenever event.hasReception is true and guest confirmed
+  useEffect(() => {
+    let active = true;
+    if (event.hasReception && submitted && attending === 'sim' && activeCheckInCode) {
+      generateQrCodeDataUrl(activeCheckInCode).then((url) => {
+        if (active) setQrCodeDataUrl(url);
+      });
+    } else {
+      setQrCodeDataUrl('');
+    }
+    return () => {
+      active = false;
+    };
+  }, [event.hasReception, submitted, attending, activeCheckInCode]);
 
   // Live countdown state (Itens 3 e 4)
   const [timeLeft, setTimeLeft] = useState<{
@@ -329,9 +397,17 @@ export const GuestRsvpView: React.FC<GuestRsvpViewProps> = ({
         });
       }
 
-      const confirmedNames = updatedMembers.filter((m) => m.status === 'confirmed').map((m) => m.name);
+      const confirmedMembers = updatedMembers.filter((m) => m.status === 'confirmed');
+      const confirmedNames = confirmedMembers.map((m) => m.name);
       const declinedNames = updatedMembers.filter((m) => m.status === 'declined').map((m) => m.name);
       const overallStatus: 'confirmed' | 'declined' = confirmedNames.length > 0 ? 'confirmed' : 'declined';
+
+      // QR Code check-in code para o titular/reserva
+      let finalCheckInCode = activeCheckInCode;
+      if (overallStatus === 'confirmed' && (!finalCheckInCode || finalCheckInCode.trim().length === 0)) {
+        finalCheckInCode = ensureCheckInCode(event.id, guest?.checkInCode);
+        setActiveCheckInCode(finalCheckInCode);
+      }
 
       setSubmissionSummary({ confirmed: confirmedNames, declined: declinedNames });
       setAttending(overallStatus === 'confirmed' ? 'sim' : 'nao');
@@ -339,6 +415,7 @@ export const GuestRsvpView: React.FC<GuestRsvpViewProps> = ({
       const answers: Record<string, any> = {
         ...customAnswers,
         q_presence: overallStatus === 'confirmed' ? 'sim' : 'nao',
+        q_group: selectedGroup,
         q_dietary: dietary,
         q_message: message,
       };
@@ -347,6 +424,7 @@ export const GuestRsvpView: React.FC<GuestRsvpViewProps> = ({
         name: guest?.name || guestName,
         phone: guestPhone.trim() || guest?.phone || '',
         email: guestEmail.trim() || guest?.email || '',
+        group: selectedGroup,
       };
 
       onSubmitRsvp(
@@ -356,7 +434,8 @@ export const GuestRsvpView: React.FC<GuestRsvpViewProps> = ({
         confirmedNames.slice(1),
         answers,
         guestInfo,
-        updatedMembers
+        updatedMembers,
+        event.hasReception && overallStatus === 'confirmed' ? finalCheckInCode : undefined
       );
       setSubmitted(true);
       return;
@@ -399,6 +478,13 @@ export const GuestRsvpView: React.FC<GuestRsvpViewProps> = ({
         : [];
     const declinedNames = finalStatus === 'declined' ? [primaryName] : [];
 
+    // QR Code check-in code para o titular/reserva
+    let finalCheckInCode = activeCheckInCode;
+    if (finalStatus === 'confirmed' && (!finalCheckInCode || finalCheckInCode.trim().length === 0)) {
+      finalCheckInCode = ensureCheckInCode(event.id, guest?.checkInCode);
+      setActiveCheckInCode(finalCheckInCode);
+    }
+
     setSubmissionSummary({ confirmed: confirmedNames, declined: declinedNames });
 
     // Construir os registros individuais dos membros vinculados ao convite (Itens 5, 6, 7 e 12)
@@ -409,26 +495,33 @@ export const GuestRsvpView: React.FC<GuestRsvpViewProps> = ({
         category: 'Adulto',
         status: finalStatus,
         isPrimary: true,
+        checkedIn: false,
       },
-      ...validCompanionNames.map((name, i) => ({
-        id: `${targetGuestId}-comp-${i}`,
-        name,
-        category: 'Adulto' as const,
-        status: finalStatus,
-        isPrimary: false,
-      })),
+      ...validCompanionNames.map((name, i) => {
+        const cat = companionCategoriesList[i] || 'Adulto';
+        return {
+          id: `${targetGuestId}-comp-${i}`,
+          name,
+          category: cat,
+          status: finalStatus,
+          isPrimary: false,
+          checkedIn: false,
+        };
+      }),
       ...validChildNames.map((name, i) => ({
         id: `${targetGuestId}-child-${i}`,
         name,
         category: 'Criança' as const,
         status: finalStatus,
         isPrimary: false,
+        checkedIn: false,
       })),
     ];
 
     const answers: Record<string, any> = {
       ...customAnswers,
       q_presence: attending,
+      q_group: selectedGroup,
       q_has_companions: hasCompanions,
       q_companion_count: finalCompanionCount,
       q_companion_names: validCompanionNames.join(', '),
@@ -443,6 +536,7 @@ export const GuestRsvpView: React.FC<GuestRsvpViewProps> = ({
       name: primaryName,
       phone: guestPhone.trim(),
       email: guestEmail.trim(),
+      group: selectedGroup,
     };
 
     onSubmitRsvp(
@@ -452,7 +546,8 @@ export const GuestRsvpView: React.FC<GuestRsvpViewProps> = ({
       [...validCompanionNames, ...validChildNames],
       answers,
       guestInfo,
-      members
+      members,
+      event.hasReception && finalStatus === 'confirmed' ? finalCheckInCode : undefined
     );
     setSubmitted(true);
   };
@@ -736,6 +831,85 @@ export const GuestRsvpView: React.FC<GuestRsvpViewProps> = ({
               </div>
             )}
 
+            {/* SEÇÃO 3 e 4: QR CODE E CREDENCIAMENTO — Exibido somente se o evento tiver credenciamento ativado e presença confirmada */}
+            {event.hasReception && attending === 'sim' && activeCheckInCode && (
+              <div className="mt-4 p-5 rounded-2xl bg-[#FAF6EE] border border-[#24152F]/15 space-y-3.5 text-center max-w-sm mx-auto shadow-xs">
+                <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#24152F] text-[#DFFF5F] text-[10px] font-bold uppercase tracking-wider">
+                  <QrCode className="w-3.5 h-3.5" />
+                  <span>QR Code de Entrada • Credenciamento</span>
+                </div>
+
+                <div className="space-y-1">
+                  <p className="text-[11px] text-[#24152F]/60 font-semibold uppercase tracking-wider">
+                    {event.name}
+                  </p>
+                  <h4 className="text-base sm:text-lg font-bold text-[#24152F]">
+                    {displayNameForCard}
+                  </h4>
+                  <div className="inline-flex items-center gap-1 text-xs font-semibold text-emerald-700 bg-emerald-100/70 px-2.5 py-0.5 rounded-full">
+                    <Check className="w-3 h-3 stroke-[3]" />
+                    <span>Presença Confirmada</span>
+                  </div>
+                </div>
+
+                {/* QR Code Container */}
+                <div className="bg-white p-4 rounded-2xl border border-[#24152F]/15 inline-block shadow-sm">
+                  {qrCodeDataUrl ? (
+                    <img
+                      src={qrCodeDataUrl}
+                      alt={`QR Code de Credenciamento para ${displayNameForCard}`}
+                      className="w-48 h-48 sm:w-52 sm:h-52 mx-auto object-contain"
+                    />
+                  ) : (
+                    <div className="w-48 h-48 flex items-center justify-center text-xs text-[#24152F]/50">
+                      Gerando QR Code...
+                    </div>
+                  )}
+                </div>
+
+                <div className="space-y-1">
+                  <p className="text-[11px] font-mono text-[#24152F]/60">
+                    Reserva: <strong>{activeCheckInCode}</strong>
+                  </p>
+                  <p className="text-[11px] text-[#24152F]/75 leading-relaxed">
+                    Apresente este QR Code na recepção para registrar a entrada de todos os integrantes da sua reserva.
+                  </p>
+                </div>
+
+                {/* Botão Salvar Confirmação (Item 3 do Prompt) */}
+                <div className="pt-1">
+                  <button
+                    type="button"
+                    id="btn-save-confirmation-png"
+                    disabled={isDownloadingImage || !qrCodeDataUrl}
+                    onClick={async () => {
+                      if (!qrCodeDataUrl) return;
+                      setIsDownloadingImage(true);
+                      await downloadConfirmationPng({
+                        eventName: event.name,
+                        guestName: displayNameForCard,
+                        qrCodeDataUrl,
+                        checkInCode: activeCheckInCode,
+                        eventDate: formatDateBR(event.date),
+                        eventTime: event.time,
+                        eventLocation: event.location,
+                        totalCompanions: submissionSummary?.confirmed ? Math.max(0, submissionSummary.confirmed.length - 1) : (hasCompanions === 'sim' ? companionCount : 0),
+                        companionNames: submissionSummary?.confirmed ? submissionSummary.confirmed.slice(1) : companionNamesList.filter(Boolean),
+                      });
+                      setIsDownloadingImage(false);
+                    }}
+                    className="w-full py-2.5 px-4 rounded-xl bg-[#24152F] hover:bg-[#180D20] text-[#F7F1E5] font-semibold text-xs sm:text-sm flex items-center justify-center gap-2 shadow-sm transition-all cursor-pointer active:scale-98 disabled:opacity-50"
+                  >
+                    <Download className="w-4 h-4 text-[#DFFF5F]" />
+                    <span>{isDownloadingImage ? 'Gerando imagem...' : 'Salvar confirmação'}</span>
+                  </button>
+                  <p className="text-[10px] text-[#24152F]/60 mt-1">
+                    Gera uma imagem nítida (PNG) com o QR Code para salvar na sua galeria.
+                  </p>
+                </div>
+              </div>
+            )}
+
             <div className="pt-3 flex flex-wrap items-center justify-center gap-2.5">
               {event.allowResponseEdit !== false ? (
                 <button
@@ -956,6 +1130,38 @@ export const GuestRsvpView: React.FC<GuestRsvpViewProps> = ({
             {/* Conditional Branch: If Attending (only if at least one guest confirms) */}
             {(isGroupedInvite ? Object.values(memberDecisions).some((d) => d === 'confirmed') : attending === 'sim') && (
               <div className="space-y-5 pt-4 border-t border-[#24152F]/10">
+                {/* Pergunta padrão: Qual é o seu grupo? (Item 3.1) */}
+                <div className="space-y-2.5">
+                  <div className="flex items-center justify-between">
+                    <label className="block text-xs font-bold text-[#24152F] flex items-center gap-1.5">
+                      <Tag className="w-3.5 h-3.5 text-[#24152F]" />
+                      <span>Qual é o seu grupo?</span> <span className="text-rose-500">*</span>
+                    </label>
+                    <span className="text-[10px] text-[#24152F]/60">Selecione uma opção</span>
+                  </div>
+
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                    {GUEST_GROUP_OPTIONS.map((grp) => {
+                      const isSelected = selectedGroup === grp;
+                      return (
+                        <button
+                          key={grp}
+                          type="button"
+                          onClick={() => setSelectedGroup(grp)}
+                          className={`p-2.5 sm:p-3 rounded-xl border-2 text-xs font-bold cursor-pointer transition-all text-center flex items-center justify-center gap-1.5 ${
+                            isSelected
+                              ? 'bg-[#24152F] text-[#F7F1E5] border-[#24152F] shadow-xs'
+                              : 'bg-white border-[#24152F]/20 text-[#24152F] hover:bg-[#FAF6EE]'
+                          }`}
+                        >
+                          {isSelected && <Check className="w-3.5 h-3.5 text-[#DFFF5F] stroke-[3]" />}
+                          <span>{grp}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
                 {/* 5. Acompanhantes: preenchimento quando anfitrião permitiu cotas não preenchidas nominalmente */}
                 {maxAllowedCompanions > 0 && (!isGroupedInvite || maxAllowedCompanions > (initialMembers.length - 1)) && (
                   <div className="space-y-3">
@@ -1007,13 +1213,20 @@ export const GuestRsvpView: React.FC<GuestRsvpViewProps> = ({
                           />
                         </div>
 
-                        {/* Campos individuais para o nome de cada acompanhante (Item 5) */}
-                        <div className="space-y-2.5 pt-1">
+                        {/* Campos individuais para o nome e categoria de cada acompanhante (Item 5) */}
+                        <div className="space-y-3 pt-1">
                           {Array.from({ length: companionCount }).map((_, idx) => (
-                            <div key={`comp-field-${idx}`}>
-                              <label className="block text-[11px] font-bold text-[#24152F] mb-1">
-                                Acompanhante {idx + 1} — Nome <span className="text-rose-500">*</span>
-                              </label>
+                            <div key={`comp-field-${idx}`} className="p-3 rounded-xl bg-white border border-[#24152F]/15 space-y-2">
+                              <div className="flex items-center justify-between">
+                                <label className="block text-[11px] font-bold text-[#24152F]">
+                                  Acompanhante {idx + 1} — Nome <span className="text-rose-500">*</span>
+                                </label>
+                                {event.hasReception && (
+                                  <span className="text-[10px] font-bold text-[#24152F]/70">
+                                    Categoria:
+                                  </span>
+                                )}
+                              </div>
                               <input
                                 type="text"
                                 required
@@ -1027,8 +1240,48 @@ export const GuestRsvpView: React.FC<GuestRsvpViewProps> = ({
                                   });
                                 }}
                                 placeholder={`Nome completo do acompanhante ${idx + 1}`}
-                                className="w-full px-3 py-2 rounded-lg border border-[#24152F]/20 bg-white text-xs text-[#24152F] focus:outline-none focus:ring-1 focus:ring-[#24152F]"
+                                className="w-full px-3 py-2 rounded-lg border border-[#24152F]/20 bg-[#FAF6EE]/50 text-xs text-[#24152F] focus:outline-none focus:ring-1 focus:ring-[#24152F]"
                               />
+
+                              {/* Categoria quando recepção/credenciamento estiver ativado (Item 5 do Prompt) */}
+                              {event.hasReception && (
+                                <div className="flex items-center gap-2 pt-1">
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setCompanionCategoriesList((prev) => {
+                                        const next = [...prev];
+                                        next[idx] = 'Adulto';
+                                        return next;
+                                      });
+                                    }}
+                                    className={`flex-1 py-1.5 px-2.5 rounded-lg text-xs font-bold border transition-all cursor-pointer text-center ${
+                                      (companionCategoriesList[idx] || 'Adulto') === 'Adulto'
+                                        ? 'bg-[#24152F] text-[#F7F1E5] border-[#24152F] shadow-2xs'
+                                        : 'bg-[#FAF6EE] text-[#24152F] border-[#24152F]/20 hover:bg-[#FAF6EE]/80'
+                                    }`}
+                                  >
+                                    Adulto
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setCompanionCategoriesList((prev) => {
+                                        const next = [...prev];
+                                        next[idx] = 'Criança';
+                                        return next;
+                                      });
+                                    }}
+                                    className={`flex-1 py-1.5 px-2.5 rounded-lg text-xs font-bold border transition-all cursor-pointer text-center ${
+                                      companionCategoriesList[idx] === 'Criança'
+                                        ? 'bg-[#24152F] text-[#F7F1E5] border-[#24152F] shadow-2xs'
+                                        : 'bg-[#FAF6EE] text-[#24152F] border-[#24152F]/20 hover:bg-[#FAF6EE]/80'
+                                    }`}
+                                  >
+                                    Criança
+                                  </button>
+                                </div>
+                              )}
                             </div>
                           ))}
                         </div>

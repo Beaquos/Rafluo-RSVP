@@ -477,10 +477,10 @@ export const MasterEventsHub: React.FC<MasterEventsHubProps> = ({
                               setOpenActionMenuId(null);
                               const canDelete =
                                 !currentUser ||
-                                currentUser.role === 'Super Administrador' ||
-                                currentUser.accessProfiles?.includes('Super Administrador') ||
-                                currentUser.role === 'Gestor de Eventos' ||
-                                currentUser.accessProfiles?.includes('Gestor de Eventos');
+                                currentUser.role === 'Administrador' ||
+                                currentUser.accessProfiles?.includes('Administrador') ||
+                                currentUser.role === 'Operacional' ||
+                                currentUser.accessProfiles?.includes('Operacional');
 
                               if (canDelete) {
                                 setEventToDelete(ev);

@@ -249,6 +249,146 @@ async function startServer() {
     res.json(newGuest);
   });
 
+  // 6. Credenciamento & Check-In endpoints (Validação no backend antes de registrar entrada)
+  app.post('/api/checkin/validate', (req: Request, res: Response) => {
+    const { eventId, code, phone } = req.body;
+    if (!eventId) {
+      return res.status(400).json({ error: 'eventId obrigatório' });
+    }
+
+    const event = db.events.find((e) => e.id === eventId);
+    if (!event) {
+      return res.status(404).json({ error: 'Evento não encontrado' });
+    }
+
+    if (!event.hasReception) {
+      return res.status(400).json({ error: 'Este evento não possui credenciamento ativado' });
+    }
+
+    // Busca por código QR / checkInCode / rsvpCode
+    if (code) {
+      const cleanCode = String(code).trim().toLowerCase();
+      const guest = db.guests.find(
+        (g) =>
+          g.eventId === eventId &&
+          ((g.checkInCode && g.checkInCode.toLowerCase() === cleanCode) ||
+            (g.rsvpCode && g.rsvpCode.toLowerCase() === cleanCode) ||
+            g.id.toLowerCase() === cleanCode)
+      );
+
+      if (!guest) {
+        return res.status(404).json({
+          valid: false,
+          error: 'QR Code ou código de reserva não localizado para este evento.',
+        });
+      }
+
+      if (guest.status === 'declined') {
+        return res.status(400).json({
+          valid: false,
+          guest,
+          error: 'Este convidado informou que não comparecerá ao evento.',
+        });
+      }
+
+      return res.json({ valid: true, guest });
+    }
+
+    // Busca manual por telefone (Item 7)
+    if (phone) {
+      const digits = String(phone).replace(/\D/g, '');
+      if (digits.length < 4) {
+        return res.status(400).json({ error: 'Informe ao menos 4 dígitos para busca por telefone' });
+      }
+
+      const matchingGuests = db.guests.filter((g) => {
+        if (g.eventId !== eventId) return false;
+        const guestDigits = (g.phone || '').replace(/\D/g, '');
+        return guestDigits.includes(digits);
+      });
+
+      return res.json({ valid: true, guests: matchingGuests });
+    }
+
+    return res.status(400).json({ error: 'Informe code ou phone para validação' });
+  });
+
+  // Registro ou reversão de check-in (Item 8 e 9)
+  app.post('/api/checkin/record', (req: Request, res: Response) => {
+    const { eventId, guestId, memberIds, action, operator } = req.body as {
+      eventId: string;
+      guestId: string;
+      memberIds: string[];
+      action?: 'checkin' | 'undo';
+      operator?: string;
+    };
+
+    if (!eventId || !guestId || !Array.isArray(memberIds)) {
+      return res.status(400).json({ error: 'Parâmetros incompletos' });
+    }
+
+    const guestIndex = db.guests.findIndex((g) => g.id === guestId && g.eventId === eventId);
+    if (guestIndex < 0) {
+      return res.status(404).json({ error: 'Convidado não encontrado no evento' });
+    }
+
+    const guest = db.guests[guestIndex];
+    const isUndo = action === 'undo';
+    const nowIso = new Date().toISOString();
+    const opName = operator || 'Recepção';
+
+    const members = (guest.members || []).map((m) => {
+      if (memberIds.includes(m.id)) {
+        return {
+          ...m,
+          checkedIn: !isUndo,
+          checkedInAt: !isUndo ? nowIso : null,
+          checkedInBy: !isUndo ? opName : null,
+        };
+      }
+      return m;
+    });
+
+    const checkedInCount = members.filter((m) => m.checkedIn).length;
+    const totalCount = members.length || 1;
+    let checkInStatus: 'none' | 'partial' | 'complete' = 'none';
+    if (checkedInCount === totalCount && totalCount > 0) {
+      checkInStatus = 'complete';
+    } else if (checkedInCount > 0) {
+      checkInStatus = 'partial';
+    }
+
+    const updatedGuest: GuestData = {
+      ...guest,
+      members,
+      checkedInCount,
+      checkInStatus,
+      checkInHistory: [
+        ...(guest.checkInHistory || []),
+        {
+          timestamp: nowIso,
+          action: isUndo ? 'undo' : 'checkin',
+          memberIds,
+          memberNames: members.filter((m) => memberIds.includes(m.id)).map((m) => m.name),
+          operator: opName,
+          summary: isUndo
+            ? `Entrada desfeita para ${memberIds.length} pessoa(s) por ${opName}`
+            : `Entrada registrada para ${memberIds.length} pessoa(s) por ${opName}`,
+        },
+      ],
+    };
+
+    db.guests[guestIndex] = updatedGuest;
+    saveDb(db);
+
+    res.json({
+      success: true,
+      guest: updatedGuest,
+      checkedInCount,
+      checkInStatus,
+    });
+  });
+
   // Vite middleware in dev or static files in prod
   if (process.env.NODE_ENV === 'production' && fs.existsSync(path.resolve(__dirname, 'dist'))) {
     app.use(express.static(path.resolve(__dirname, 'dist')));
@@ -260,6 +400,7 @@ async function startServer() {
       server: {
         middlewareMode: true,
         hmr: false,
+        ws: false,
       },
       appType: 'spa',
     });

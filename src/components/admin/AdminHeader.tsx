@@ -47,6 +47,9 @@ const HUB_TITLES: Record<HubSection, { title: string }> = {
   users: {
     title: 'Usuários',
   },
+  'access-profiles': {
+    title: 'Perfil de Acesso',
+  },
   settings: {
     title: 'Configurações',
   },

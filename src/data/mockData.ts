@@ -41,6 +41,8 @@ export interface EventData {
   giftListItems?: string;
   giftListItemsList?: string[];
   childAgeLimit?: number;
+  // Credenciamento e Recepção
+  hasReception?: boolean; // Padrão: false (Não)
 }
 
 export interface ClientData {
@@ -53,6 +55,30 @@ export interface ClientData {
   notes?: string;
 }
 
+export const GUEST_GROUP_OPTIONS = [
+  'Família',
+  'Amigos',
+  'Padrinhos',
+  'Trabalho',
+  'Outro',
+] as const;
+
+export type GuestGroupOption = (typeof GUEST_GROUP_OPTIONS)[number];
+
+export interface CompanionDetail {
+  id: string;
+  name: string;
+  category: 'Adulto' | 'Criança';
+}
+
+export interface MemberCheckInStatus {
+  memberId: string;
+  name: string;
+  category: 'Adulto' | 'Criança';
+  checkedIn: boolean;
+  checkedInAt?: string | null;
+}
+
 export interface InviteMember {
   id: string;
   name: string;
@@ -60,6 +86,9 @@ export interface InviteMember {
   status: 'confirmed' | 'declined' | 'pending' | null;
   isPrimary?: boolean;
   age?: number;
+  checkedIn?: boolean;
+  checkedInAt?: string | null;
+  checkedInBy?: string | null;
 }
 
 export interface GuestData {
@@ -77,10 +106,24 @@ export interface GuestData {
   respondedAt: string | null;
   companionCount: number;
   companionNames: string[];
+  companionDetails?: CompanionDetail[];
   answers: Record<string, any>;
   // Nova estrutura de Convites agrupados (Itens 5, 6, 7 e 12)
   inviteName?: string;
   members?: InviteMember[];
+  // Identificador seguro e individual de check-in / QR Code
+  checkInCode?: string;
+  // Registro de entrada / credenciamento
+  checkInStatus?: 'none' | 'partial' | 'complete';
+  checkedInCount?: number;
+  checkInHistory?: {
+    timestamp: string;
+    action: 'checkin' | 'undo';
+    memberIds?: string[];
+    memberNames?: string[];
+    operator?: string;
+    summary: string;
+  }[];
 }
 
 export interface ManagerData {
@@ -140,6 +183,7 @@ export const INITIAL_EVENTS: EventData[] = [
     giftListItems: 'Jogo de Pratos de Porcelana\nFritadeira Elétrica Airfryer\nAparelho de Jantar 30 Peças',
     giftListItemsList: ['Jogo de Pratos de Porcelana', 'Fritadeira Elétrica Airfryer', 'Aparelho de Jantar 30 Peças', 'Cafeteira Nespresso'],
     childAgeLimit: 10,
+    hasReception: true,
   },
   {
     id: 'ev-02',
@@ -159,6 +203,7 @@ export const INITIAL_EVENTS: EventData[] = [
     status: 'active',
     allowResponseEdit: true,
     preventDuplicateResponses: true,
+    hasReception: false,
     coverImage: 'https://images.unsplash.com/photo-1530103862676-de8c9debad1d?auto=format&fit=crop&w=1200&q=80',
     welcomeMessage: 'Venha se divertir com a gente nos 7 aninhos da Sophia! Recreação mágica e muita alegria para toda a família.',
     showCoverImage: true,
@@ -283,11 +328,17 @@ export const INITIAL_GUESTS: GuestData[] = [
     notes: 'Padrinho do noivo. Precisa de transfer do aeroporto.',
     status: 'confirmed',
     respondedAt: '2026-09-21 10:14',
+    checkInCode: 'CKIN-EV01-7X9K2',
+    checkInStatus: 'none',
+    checkedInCount: 0,
     companionCount: 1,
     companionNames: ['Juliana Mendes'],
+    companionDetails: [
+      { id: 'cd-1', name: 'Juliana Mendes', category: 'Adulto' },
+    ],
     members: [
-      { id: 'm-g01-1', name: 'Carlos Eduardo Mendes', category: 'Adulto', status: 'confirmed', isPrimary: true },
-      { id: 'm-g01-2', name: 'Juliana Mendes', category: 'Adulto', status: 'confirmed' },
+      { id: 'm-g01-1', name: 'Carlos Eduardo Mendes', category: 'Adulto', status: 'confirmed', isPrimary: true, checkedIn: false },
+      { id: 'm-g01-2', name: 'Juliana Mendes', category: 'Adulto', status: 'confirmed', checkedIn: false },
     ],
     answers: {
       q_presence: 'sim',
@@ -309,15 +360,22 @@ export const INITIAL_GUESTS: GuestData[] = [
     group: 'Família Noiva',
     maxGuests: 2,
     rsvpCode: 'RAF-3M4P9',
+    checkInCode: 'CKIN-EV01-3M4P9',
+    checkInStatus: 'none',
+    checkedInCount: 0,
     notes: 'Tia da noiva. Mesa 04 reservada.',
     status: 'confirmed',
     respondedAt: '2026-09-20 18:32',
     companionCount: 2,
     companionNames: ['Lucas Duarte', 'Beatriz Duarte'],
+    companionDetails: [
+      { id: 'cd-2', name: 'Lucas Duarte', category: 'Adulto' },
+      { id: 'cd-3', name: 'Beatriz Duarte', category: 'Criança' },
+    ],
     members: [
-      { id: 'm-g02-1', name: 'Mariana Duarte', category: 'Adulto', status: 'confirmed', isPrimary: true },
-      { id: 'm-g02-2', name: 'Lucas Duarte', category: 'Adulto', status: 'confirmed' },
-      { id: 'm-g02-3', name: 'Beatriz Duarte', category: 'Criança', status: 'confirmed' },
+      { id: 'm-g02-1', name: 'Mariana Duarte', category: 'Adulto', status: 'confirmed', isPrimary: true, checkedIn: false },
+      { id: 'm-g02-2', name: 'Lucas Duarte', category: 'Adulto', status: 'confirmed', checkedIn: false },
+      { id: 'm-g02-3', name: 'Beatriz Duarte', category: 'Criança', status: 'confirmed', checkedIn: false },
     ],
     answers: {
       q_presence: 'sim',
@@ -366,10 +424,13 @@ export const INITIAL_GUESTS: GuestData[] = [
     notes: 'Colega de clínica da noiva.',
     status: 'confirmed',
     respondedAt: '2026-09-22 14:10',
+    checkInCode: 'CKIN-EV01-9Q1Z4',
+    checkInStatus: 'none',
+    checkedInCount: 0,
     companionCount: 0,
     companionNames: [],
     members: [
-      { id: 'm-g04-1', name: 'Ana Beatriz Souza', category: 'Adulto', status: 'confirmed', isPrimary: true },
+      { id: 'm-g04-1', name: 'Ana Beatriz Souza', category: 'Adulto', status: 'confirmed', isPrimary: true, checkedIn: false },
     ],
     answers: {
       q_presence: 'sim',
@@ -390,11 +451,17 @@ export const INITIAL_GUESTS: GuestData[] = [
     notes: 'Convite entregue pessoalmente.',
     status: 'confirmed',
     respondedAt: '2026-09-23 09:20',
+    checkInCode: 'CKIN-EV01-2T8Y1',
+    checkInStatus: 'none',
+    checkedInCount: 0,
     companionCount: 1,
     companionNames: ['Larissa Costa'],
+    companionDetails: [
+      { id: 'cd-5', name: 'Larissa Costa', category: 'Adulto' },
+    ],
     members: [
-      { id: 'm-g05-1', name: 'Henrique Faria', category: 'Adulto', status: 'confirmed', isPrimary: true },
-      { id: 'm-g05-2', name: 'Larissa Costa', category: 'Adulto', status: 'confirmed' },
+      { id: 'm-g05-1', name: 'Henrique Faria', category: 'Adulto', status: 'confirmed', isPrimary: true, checkedIn: false },
+      { id: 'm-g05-2', name: 'Larissa Costa', category: 'Adulto', status: 'confirmed', checkedIn: false },
     ],
     answers: {
       q_presence: 'sim',

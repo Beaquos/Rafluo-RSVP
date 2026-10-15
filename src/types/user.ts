@@ -1,5 +1,28 @@
-export type AdminUserStatus = 'active' | 'disabled' | 'temporary';
-export type AdminUserRole = 'Super Administrador' | 'Gestor de Eventos' | 'Cerimonialista';
+export type AdminUserRole =
+  | 'Administrador'
+  | 'Operacional'
+  | 'Credenciamento';
+
+export type AdminUserStatus = 'active' | 'temporary' | 'disabled';
+
+export const normalizeAdminRole = (role: string): AdminUserRole => {
+  if (role === 'Super Administrador' || role === 'Administrador' || role === 'Administrador (Padrão)') {
+    return 'Administrador';
+  }
+  if (role === 'Gestor de Eventos' || role === 'Operacional') {
+    return 'Operacional';
+  }
+  if (role === 'Cerimonialista' || role === 'Credenciamento') {
+    return 'Credenciamento';
+  }
+  return 'Operacional';
+};
+
+export const normalizeAdminProfiles = (profiles?: string[]): AdminUserRole[] => {
+  if (!profiles || profiles.length === 0) return ['Administrador'];
+  const mapped = profiles.map(normalizeAdminRole);
+  return Array.from(new Set(mapped));
+};
 
 export interface AdminUser {
   id: string;

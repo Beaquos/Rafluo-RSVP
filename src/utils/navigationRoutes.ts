@@ -12,6 +12,7 @@ export const HUB_ROUTES: Record<HubSection, string> = {
   clients: '/clientes',
   reports: '/relatorios',
   users: '/usuarios',
+  'access-profiles': '/perfis-de-acesso',
   settings: '/configuracoes',
 };
 
@@ -26,6 +27,7 @@ export const parseHubPath = (pathname: string): HubSection | null => {
   if (clean === '/clientes') return 'clients';
   if (clean === '/relatorios') return 'reports';
   if (clean === '/usuarios') return 'users';
+  if (clean === '/perfis-de-acesso' || clean === '/perfis' || clean === '/perfis-acesso') return 'access-profiles';
   if (clean === '/configuracoes' || clean === '/configuracao') return 'settings';
   return null;
 };

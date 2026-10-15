@@ -8,6 +8,7 @@ import { AdminLayout } from './components/admin/AdminLayout';
 import { HubDashboardView } from './components/admin/HubDashboardView';
 import { HubReportsView } from './components/admin/HubReportsView';
 import { HubUsersView } from './components/admin/HubUsersView';
+import { HubAccessProfilesView } from './components/admin/HubAccessProfilesView';
 import { HubClientsView } from './components/admin/HubClientsView';
 import { HubSettingsView } from './components/admin/HubSettingsView';
 import { UserProfileModal } from './components/admin/UserProfileModal';
@@ -39,7 +40,8 @@ import {
   ManagerData,
 } from './data/mockData';
 import { HubSection, NavSection } from './types/navigation';
-import { AdminUser, AdminUserStatus } from './types/user';
+import { AdminUser, AdminUserStatus, normalizeAdminRole, normalizeAdminProfiles } from './types/user';
+import { AccessProfile, INITIAL_ACCESS_PROFILES, normalizeAccessProfileName } from './types/accessProfile';
 import { copyToClipboard, getEventRsvpUrl, getGuestRsvpUrl } from './utils/linkUtils';
 import {
   parseCurrentUrl,
@@ -75,8 +77,8 @@ const INITIAL_ADMIN_USER: AdminUser = {
   phone: '(61) 98765-4321',
   photoUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=256&h=256&q=80',
   jobTitle: 'Diretora Geral & Assessora Chefe',
-  role: 'Super Administrador',
-  accessProfiles: ['Super Administrador'],
+  role: 'Administrador',
+  accessProfiles: ['Administrador'],
   status: 'active',
   createdAt: '2026-01-15',
 };
@@ -91,8 +93,8 @@ const INITIAL_ADMIN_USERS_LIST: AdminUser[] = [
     phone: '(61) 99123-4567',
     photoUrl: null,
     jobTitle: 'Gestor Operacional de Eventos',
-    role: 'Gestor de Eventos',
-    accessProfiles: ['Gestor de Eventos'],
+    role: 'Operacional',
+    accessProfiles: ['Operacional'],
     status: 'active',
     createdAt: '2026-02-10',
   },
@@ -104,8 +106,8 @@ const INITIAL_ADMIN_USERS_LIST: AdminUser[] = [
     phone: '(61) 98234-5678',
     photoUrl: null,
     jobTitle: 'Cerimonialista & Assessora',
-    role: 'Cerimonialista',
-    accessProfiles: ['Cerimonialista', 'Gestor de Eventos'],
+    role: 'Operacional',
+    accessProfiles: ['Operacional', 'Credenciamento'],
     status: 'active',
     createdAt: '2026-03-01',
   },
@@ -117,8 +119,8 @@ const INITIAL_ADMIN_USERS_LIST: AdminUser[] = [
     phone: '(61) 98345-6789',
     photoUrl: null,
     jobTitle: 'Assistente de Cerimonial',
-    role: 'Cerimonialista',
-    accessProfiles: ['Cerimonialista'],
+    role: 'Credenciamento',
+    accessProfiles: ['Credenciamento'],
     status: 'temporary',
     accessStart: '2026-10-01',
     accessEnd: '2026-10-31',
@@ -146,7 +148,37 @@ export default function App() {
   // Authentication State
   const [isAuthenticated, setIsAuthenticated] = useState(true);
   const [currentUser, setCurrentUser] = useState<AdminUser>(INITIAL_ADMIN_USER);
-  const [adminUsers, setAdminUsers] = useState<AdminUser[]>(INITIAL_ADMIN_USERS_LIST);
+  const [adminUsers, setAdminUsers] = useState<AdminUser[]>(() => {
+    try {
+      const stored = localStorage.getItem('rafluo_admin_users');
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          return parsed.map((u: AdminUser) => ({
+            ...u,
+            role: normalizeAdminRole(u.role),
+            accessProfiles: normalizeAdminProfiles(u.accessProfiles || [u.role]),
+          }));
+        }
+      }
+    } catch {}
+    return INITIAL_ADMIN_USERS_LIST;
+  });
+  const [accessProfiles, setAccessProfiles] = useState<AccessProfile[]>(() => {
+    try {
+      const stored = localStorage.getItem('rafluo_access_profiles');
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          return parsed.map((p: AccessProfile) => ({
+            ...p,
+            name: normalizeAccessProfileName(p.name),
+          }));
+        }
+      }
+    } catch {}
+    return INITIAL_ACCESS_PROFILES;
+  });
 
   // Modals Visibility
   const [isEventModalOpen, setIsEventModalOpen] = useState(false);
@@ -320,6 +352,7 @@ export default function App() {
       allowGuests: true,
       maxGuestsPerInvite: 2,
       status: 'active',
+      hasReception: false,
     };
     setEditingEvent(newDraft);
     setIsEventModalOpen(true);
@@ -541,7 +574,8 @@ export default function App() {
     companionNames: string[],
     answers: Record<string, any>,
     guestInfo?: { name: string; phone: string; email: string },
-    members?: InviteMember[]
+    members?: InviteMember[],
+    checkInCode?: string
   ) => {
     const updatedTimestamp = new Date().toISOString().split('T')[0];
 
@@ -554,12 +588,17 @@ export default function App() {
               displayName: guestInfo?.name || g.displayName,
               phone: guestInfo?.phone || g.phone,
               email: guestInfo?.email || g.email,
+              group: answers?.q_group || answers?.group || (guestInfo as any)?.group || g.group || 'Geral',
               status,
               companionCount,
               companionNames,
               respondedAt: updatedTimestamp,
               answers: { ...g.answers, ...answers },
               members: members || g.members,
+              // Preservar ou atualizar o código de check-in / QR Code
+              checkInCode: checkInCode || g.checkInCode,
+              checkInStatus: g.checkInStatus || 'none',
+              checkedInCount: g.checkedInCount || 0,
             }
           : g
       );
@@ -574,12 +613,14 @@ export default function App() {
         name: guestInfo?.name || targetG.name,
         phone: guestInfo?.phone || targetG.phone,
         email: guestInfo?.email || targetG.email,
+        group: answers?.q_group || answers?.group || (guestInfo as any)?.group || targetG.group || 'Geral',
         status,
         companionCount,
         companionNames,
         respondedAt: updatedTimestamp,
         answers: { ...targetG.answers, ...answers },
         members: members || targetG.members,
+        checkInCode: checkInCode || targetG.checkInCode,
       };
       fetch(`/api/rsvp/${encodeURIComponent(targetG.eventId)}`, {
         method: 'POST',
@@ -603,7 +644,8 @@ export default function App() {
     companionNames: string[],
     answers: Record<string, any>,
     guestInfo?: { name: string; phone: string; email: string },
-    members?: InviteMember[]
+    members?: InviteMember[],
+    checkInCode?: string
   ) => {
     if (!route.matchedEvent) return;
     const targetEvent = route.matchedEvent;
@@ -632,12 +674,16 @@ export default function App() {
           displayName: newName || existing.displayName,
           phone: guestInfo?.phone || existing.phone,
           email: guestInfo?.email || existing.email,
+          group: answers?.q_group || answers?.group || (guestInfo as any)?.group || existing.group || 'Geral',
           status,
           companionCount,
           companionNames,
           respondedAt: updatedTimestamp,
           answers: { ...existing.answers, ...answers },
           members: members || existing.members,
+          checkInCode: checkInCode || existing.checkInCode,
+          checkInStatus: existing.checkInStatus || 'none',
+          checkedInCount: existing.checkedInCount || 0,
         };
 
         setGuests((prev) => {
@@ -662,6 +708,7 @@ export default function App() {
       }
     }
 
+    const generatedRsvpCode = `RSVP-${targetEvent.id.toUpperCase().replace(/\W/g, '')}-${Date.now().toString().slice(-4)}`;
     const newGuest: GuestData = {
       id: `g-pub-${Date.now()}`,
       eventId: targetEvent.id,
@@ -670,9 +717,12 @@ export default function App() {
       inviteName: newName,
       phone: guestInfo?.phone || '',
       email: guestInfo?.email || '',
-      group: 'Geral',
+      group: answers?.q_group || answers?.group || (guestInfo as any)?.group || 'Família',
       maxGuests: targetEvent.maxGuestsPerInvite || 2,
-      rsvpCode: `RSVP-${targetEvent.id.toUpperCase().replace(/\W/g, '')}-${Date.now().toString().slice(-4)}`,
+      rsvpCode: generatedRsvpCode,
+      checkInCode: checkInCode || undefined,
+      checkInStatus: 'none',
+      checkedInCount: 0,
       notes: 'Confirmado pelo link público do evento',
       status,
       respondedAt: updatedTimestamp,
@@ -735,6 +785,30 @@ export default function App() {
       })
     );
     setToastMessage('Status do usuário administrativo alterado com sucesso.');
+  };
+
+  // Access Profiles Management
+  const handleSaveAccessProfile = (profile: AccessProfile) => {
+    setAccessProfiles((prev) => {
+      const exists = prev.some((p) => p.id === profile.id);
+      const next = exists
+        ? prev.map((p) => (p.id === profile.id ? profile : p))
+        : [...prev, profile];
+      try {
+        localStorage.setItem('rafluo_access_profiles', JSON.stringify(next));
+      } catch {}
+      return next;
+    });
+  };
+
+  const handleDeleteAccessProfile = (profileId: string) => {
+    setAccessProfiles((prev) => {
+      const next = prev.filter((p) => p.id !== profileId);
+      try {
+        localStorage.setItem('rafluo_access_profiles', JSON.stringify(next));
+      } catch {}
+      return next;
+    });
   };
 
   // Save / Update client
@@ -823,6 +897,13 @@ export default function App() {
           questions={portalQuestions}
           onBackToHub={() => navigateTo('/eventos')}
           onShowToast={(msg) => setToastMessage(msg)}
+          onUpdateGuest={(updatedGuest) => {
+            setGuests((prev) => {
+              const next = prev.map((g) => (g.id === updatedGuest.id ? updatedGuest : g));
+              saveStoredGuests(next);
+              return next;
+            });
+          }}
         />
       </>
     );
@@ -1007,6 +1088,15 @@ export default function App() {
                 currentUser={currentUser}
                 onSaveUser={handleSaveAdminUser}
                 onToggleStatus={handleToggleAdminUserStatus}
+                onShowToast={(msg) => setToastMessage(msg)}
+              />
+            )}
+
+            {currentHubSection === 'access-profiles' && (
+              <HubAccessProfilesView
+                profiles={accessProfiles}
+                onSaveProfile={handleSaveAccessProfile}
+                onDeleteProfile={handleDeleteAccessProfile}
                 onShowToast={(msg) => setToastMessage(msg)}
               />
             )}

@@ -23,6 +23,12 @@ import {
   User,
   SlidersHorizontal,
   X,
+  QrCode,
+  Phone,
+  Camera,
+  FileSpreadsheet,
+  FileText,
+  AlertTriangle,
 } from 'lucide-react';
 import { EventData, GuestData, ManagerData, FormQuestionData } from '../../data/mockData';
 import { formatDateBR, formatDateTimeBR } from '../../utils/dateUtils';
@@ -34,6 +40,8 @@ import { WhatsAppIcon } from '../common/WhatsAppIcon';
 import { RafluoLogo } from '../common/RafluoLogo';
 import { ThemeToggle } from '../common/ThemeToggle';
 import { Footer } from '../admin/Footer';
+import { ReceptionScannerModal } from './ReceptionScannerModal';
+import { ReceptionGuestModal } from './ReceptionGuestModal';
 
 export interface ClientPortalViewProps {
   event: EventData;
@@ -42,6 +50,7 @@ export interface ClientPortalViewProps {
   questions?: FormQuestionData[];
   onBackToHub?: () => void;
   onShowToast?: (message: string) => void;
+  onUpdateGuest?: (updatedGuest: GuestData) => void;
 }
 
 export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
@@ -51,6 +60,7 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
   questions = [],
   onBackToHub,
   onShowToast,
+  onUpdateGuest,
 }) => {
   // Authentication state for the client portal
   const storageKey = `rafluo_client_auth_${event.id}`;
@@ -325,6 +335,251 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
   };
 
   // ==========================================
+  // CREDENCIAMENTO E RECEPÇÃO (Itens 6 a 10 do Prompt)
+  // ==========================================
+  const [activeTab, setActiveTab] = useState<'rsvp' | 'credenciamento'>('rsvp');
+  const [isScannerOpen, setIsScannerOpen] = useState(false);
+  const [phoneSearchInput, setPhoneSearchInput] = useState('');
+  const [phoneSearchResults, setPhoneSearchResults] = useState<GuestData[] | null>(null);
+  const [selectedGuestForReception, setSelectedGuestForReception] = useState<GuestData | null>(null);
+  const [receptionSearchTerm, setReceptionSearchTerm] = useState('');
+  const [receptionFilter, setReceptionFilter] = useState<'all' | 'pending' | 'entered' | 'partial'>('all');
+  const [isValidatingQr, setIsValidatingQr] = useState(false);
+
+  // Convidados confirmados do evento
+  const confirmedReceptionGuests = useMemo(() => {
+    return eventGuests.filter((g) => g.status === 'confirmed');
+  }, [eventGuests]);
+
+  // Indicadores do credenciamento calculados a partir dos dados reais do sistema
+  const {
+    totalConfirmedPersons,
+    totalEnteredPersons,
+    totalPendingPersons,
+    attendanceRate,
+    confirmedAdults,
+    enteredAdults,
+    confirmedChildren,
+    enteredChildren,
+  } = useMemo(() => {
+    let totalConf = 0;
+    let totalEnt = 0;
+    let confAdults = 0;
+    let entAdults = 0;
+    let confKids = 0;
+    let entKids = 0;
+
+    confirmedReceptionGuests.forEach((guest) => {
+      const members = getInviteMembers(guest);
+      const confMembers = members.filter((m) => m.status === 'confirmed');
+      confMembers.forEach((m) => {
+        totalConf++;
+        const isChild = m.category === 'Criança';
+        if (isChild) {
+          confKids++;
+          if (m.checkedIn) entKids++;
+        } else {
+          confAdults++;
+          if (m.checkedIn) entAdults++;
+        }
+        if (m.checkedIn) totalEnt++;
+      });
+    });
+
+    const pending = Math.max(0, totalConf - totalEnt);
+    const rate = totalConf > 0 ? Math.round((totalEnt / totalConf) * 100) : 0;
+
+    return {
+      totalConfirmedPersons: totalConf,
+      totalEnteredPersons: totalEnt,
+      totalPendingPersons: pending,
+      attendanceRate: rate,
+      confirmedAdults: confAdults,
+      enteredAdults: entAdults,
+      confirmedChildren: confKids,
+      enteredChildren: entKids,
+    };
+  }, [confirmedReceptionGuests]);
+
+  // Validação do QR Code no backend (Item 7 do Prompt)
+  const handleValidateQrCode = async (code: string) => {
+    if (!code) return;
+    setIsValidatingQr(true);
+    try {
+      const res = await fetch('/api/checkin/validate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ eventId: event.id, code }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.valid || !data.guest) {
+        if (onShowToast) onShowToast(data.error || 'QR Code inválido ou não pertencente a este evento.');
+        return;
+      }
+      setSelectedGuestForReception(data.guest);
+      setIsScannerOpen(false);
+      if (onShowToast) onShowToast(`Reserva de "${data.guest.name}" localizada com sucesso!`);
+    } catch (err) {
+      console.error(err);
+      if (onShowToast) onShowToast('Erro ao validar código no servidor.');
+    } finally {
+      setIsValidatingQr(false);
+    }
+  };
+
+  // Busca manual por telefone (Item 7 do Prompt)
+  const handlePhoneSearch = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const query = phoneSearchInput.trim();
+    if (!query) {
+      setPhoneSearchResults(null);
+      return;
+    }
+    const cleanDigits = query.replace(/\D/g, '');
+    if (cleanDigits.length < 3) {
+      if (onShowToast) onShowToast('Informe ao menos 3 dígitos do telefone.');
+      return;
+    }
+
+    try {
+      const res = await fetch('/api/checkin/validate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ eventId: event.id, phone: cleanDigits }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        if (onShowToast) onShowToast(data.error || 'Erro ao buscar convidado por telefone.');
+        return;
+      }
+      const matches: GuestData[] = data.guests || [];
+      setPhoneSearchResults(matches);
+      if (matches.length === 0) {
+        if (onShowToast) onShowToast('Nenhum convidado encontrado com este telefone.');
+      } else if (matches.length === 1) {
+        setSelectedGuestForReception(matches[0]);
+        if (onShowToast) onShowToast(`Reserva de "${matches[0].name}" localizada!`);
+      }
+    } catch (err) {
+      console.error(err);
+      const localMatches = eventGuests.filter((g) => {
+        const digits = (g.phone || '').replace(/\D/g, '');
+        return digits.includes(cleanDigits);
+      });
+      setPhoneSearchResults(localMatches);
+    }
+  };
+
+  // Registro de check-in / desfazimento (Item 9 do Prompt)
+  const handleRecordCheckIn = async (
+    guestId: string,
+    memberIds: string[],
+    action: 'checkin' | 'undo',
+    operator?: string
+  ) => {
+    const op = operator || authenticatedUser || event.clientName || 'Recepção';
+    const res = await fetch('/api/checkin/record', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        eventId: event.id,
+        guestId,
+        memberIds,
+        action,
+        operator: op,
+      }),
+    });
+    const data = await res.json();
+    if (!res.ok || !data.success || !data.guest) {
+      throw new Error(data.error || 'Falha ao registrar credenciamento no servidor.');
+    }
+
+    const updatedGuest: GuestData = data.guest;
+    if (onUpdateGuest) {
+      onUpdateGuest(updatedGuest);
+    }
+    if (selectedGuestForReception?.id === updatedGuest.id) {
+      setSelectedGuestForReception(updatedGuest);
+    }
+    if (phoneSearchResults) {
+      setPhoneSearchResults((prev) =>
+        prev ? prev.map((g) => (g.id === updatedGuest.id ? updatedGuest : g)) : null
+      );
+    }
+    if (onShowToast) {
+      onShowToast(
+        action === 'checkin'
+          ? `Entrada registrada para ${memberIds.length} pessoa(s)!`
+          : `Entrada desfeita para ${memberIds.length} pessoa(s).`
+      );
+    }
+  };
+
+  // Exportar relatório de credenciamento (Item 10 do Prompt)
+  const handleExportReceptionXLSX = () => {
+    try {
+      exportReportToXLSX({
+        reportTitle: `Credenciamento_${event.name}`,
+        eventName: event.name,
+        filterLabel: 'Relatório de Credenciamento e Recepção',
+        guests: confirmedReceptionGuests,
+        events: [event],
+      });
+      if (onShowToast) onShowToast('Relatório de Credenciamento exportado com sucesso!');
+    } catch (err) {
+      console.error(err);
+      if (onShowToast) onShowToast('Erro ao exportar relatório.');
+    }
+  };
+
+  const handleExportReceptionPDF = () => {
+    try {
+      exportReportToPDF({
+        reportTitle: `Relatório de Credenciamento - ${event.name}`,
+        eventName: event.name,
+        filterLabel: `Recepção: ${totalEnteredPersons} de ${totalConfirmedPersons} presentes (${attendanceRate}%)`,
+        guests: confirmedReceptionGuests,
+        events: [event],
+      });
+      if (onShowToast) onShowToast('Documento PDF de Credenciamento gerado com sucesso!');
+    } catch (err) {
+      console.error(err);
+      if (onShowToast) onShowToast('Erro ao exportar PDF.');
+    }
+  };
+
+  // Lista de reservas confirmadas filtradas na tela de credenciamento
+  const displayedReceptionGuests = useMemo(() => {
+    return confirmedReceptionGuests.filter((g) => {
+      const q = receptionSearchTerm.trim().toLowerCase();
+      const matchesSearch =
+        q === '' ||
+        g.name.toLowerCase().includes(q) ||
+        g.displayName.toLowerCase().includes(q) ||
+        (g.phone && g.phone.includes(q)) ||
+        (g.checkInCode && g.checkInCode.toLowerCase().includes(q)) ||
+        (g.companionNames && g.companionNames.some((c) => c.toLowerCase().includes(q)));
+
+      if (!matchesSearch) return false;
+
+      const members = getInviteMembers(g).filter((m) => m.status === 'confirmed');
+      const enteredCount = members.filter((m) => m.checkedIn).length;
+      const totalCount = members.length;
+
+      if (receptionFilter === 'entered') {
+        return enteredCount === totalCount && totalCount > 0;
+      }
+      if (receptionFilter === 'pending') {
+        return enteredCount === 0;
+      }
+      if (receptionFilter === 'partial') {
+        return enteredCount > 0 && enteredCount < totalCount;
+      }
+      return true;
+    });
+  }, [confirmedReceptionGuests, receptionSearchTerm, receptionFilter]);
+
+  // ==========================================
   // VIEW 1: AUTHENTICATION / ACCESS GATEWAY
   // ==========================================
   if (!authenticatedUser) {
@@ -513,8 +768,66 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
           </div>
         </div>
 
-        {/* Shareable RSVP Link Card (Primary Action for the Client) */}
-        <div className="bg-[#24152F] text-[#F7F1E5] rounded-3xl p-6 sm:p-7 border border-[#3F2553] shadow-lg space-y-4 relative overflow-hidden">
+        {/* Tab Switcher - Exibido apenas quando o evento possuir recepção / credenciamento ativado (Item 1 & 6 do Prompt) */}
+        {event.hasReception && (
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-1.5 rounded-2xl bg-white dark:bg-[#1E1128] border border-[#24152F]/15 dark:border-[#3F2553] shadow-xs">
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                id="tab-btn-rsvp"
+                onClick={() => setActiveTab('rsvp')}
+                className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all cursor-pointer ${
+                  activeTab === 'rsvp'
+                    ? 'bg-[#24152F] text-[#F7F1E5] dark:bg-[#DFFF5F] dark:text-[#180D20] shadow-xs'
+                    : 'text-[#24152F]/70 dark:text-[#D2C4DC]/80 hover:bg-[#FAF6EE] dark:hover:bg-[#2A1738]'
+                }`}
+              >
+                <CheckCircle2 className="w-4 h-4" />
+                <span>Confirmações (RSVP)</span>
+                <span className="px-2 py-0.5 rounded-full text-[10px] bg-black/10 dark:bg-black/20 font-black">
+                  {confirmedCount}
+                </span>
+              </button>
+
+              <button
+                type="button"
+                id="tab-btn-credenciamento"
+                onClick={() => setActiveTab('credenciamento')}
+                className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all cursor-pointer ${
+                  activeTab === 'credenciamento'
+                    ? 'bg-[#24152F] text-[#F7F1E5] dark:bg-[#DFFF5F] dark:text-[#180D20] shadow-xs'
+                    : 'text-[#24152F]/70 dark:text-[#D2C4DC]/80 hover:bg-[#FAF6EE] dark:hover:bg-[#2A1738]'
+                }`}
+              >
+                <QrCode className="w-4 h-4 text-[#DFFF5F] dark:text-[#180D20]" />
+                <span>Credenciamento</span>
+                <span className="px-2 py-0.5 rounded-full text-[10px] bg-[#DFFF5F] text-[#180D20] font-black">
+                  {attendanceRate}%
+                </span>
+              </button>
+            </div>
+
+            {activeTab === 'credenciamento' && (
+              <div className="flex items-center gap-2 px-2 pb-1 sm:pb-0">
+                <button
+                  type="button"
+                  id="btn-scan-qr-shortcut"
+                  onClick={() => setIsScannerOpen(true)}
+                  className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-[#24152F] hover:bg-[#180D20] text-[#DFFF5F] text-xs font-bold transition-all shadow-xs cursor-pointer active:scale-95"
+                >
+                  <Camera className="w-3.5 h-3.5 text-[#DFFF5F]" />
+                  <span>Ler QR Code</span>
+                </button>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* CONTEÚDO RSVP: Mantido integralmente para eventos sem credenciamento ou na aba RSVP */}
+        {activeTab === 'rsvp' && (
+          <>
+            {/* Shareable RSVP Link Card (Primary Action for the Client) */}
+            <div className="bg-[#24152F] text-[#F7F1E5] rounded-3xl p-6 sm:p-7 border border-[#3F2553] shadow-lg space-y-4 relative overflow-hidden">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
             <div>
               <div className="flex items-center gap-2">
@@ -909,6 +1222,525 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
             </table>
           </div>
         </div>
+      </>
+    )}
+
+    {/* CONTEÚDO CREDENCIAMENTO: Exibido exclusivamente na aba Credenciamento de eventos com hasReception = true */}
+    {activeTab === 'credenciamento' && event.hasReception && (
+      <div className="space-y-6">
+        {/* 1. Indicadores de Credenciamento (Item 6 do Prompt) */}
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+          {/* Total de Pessoas Confirmadas */}
+          <div className="bg-white dark:bg-[#1E1128] p-4 sm:p-5 rounded-2xl border border-[#24152F]/15 dark:border-[#3F2553] shadow-xs flex flex-col justify-between">
+            <div className="flex items-center justify-between text-[#24152F] dark:text-[#F7F1E5]">
+              <span className="text-xs font-bold text-[#24152F]/70 dark:text-[#D2C4DC]/80">
+                Total de Pessoas Confirmadas
+              </span>
+              <div className="w-8 h-8 rounded-xl bg-[#24152F] text-[#DFFF5F] flex items-center justify-center shadow-xs flex-shrink-0">
+                <Users className="w-4 h-4 text-[#DFFF5F]" />
+              </div>
+            </div>
+            <div className="mt-2">
+              <p className="text-2xl sm:text-3xl font-extrabold text-[#24152F] dark:text-[#F7F1E5]">
+                {totalConfirmedPersons}
+              </p>
+              <p className="text-[11px] text-[#24152F]/60 dark:text-[#D2C4DC]/60 mt-0.5 font-medium">
+                {confirmedAdults} adultos • {confirmedChildren} crianças
+              </p>
+            </div>
+          </div>
+
+          {/* Total de Entradas Efetivamente Registradas */}
+          <div className="bg-white dark:bg-[#1E1128] p-4 sm:p-5 rounded-2xl border border-[#24152F]/15 dark:border-[#3F2553] shadow-xs flex flex-col justify-between">
+            <div className="flex items-center justify-between text-[#24152F] dark:text-[#F7F1E5]">
+              <span className="text-xs font-bold text-[#24152F] dark:text-[#F7F1E5]">
+                Entradas Registradas
+              </span>
+              <div className="w-8 h-8 rounded-xl bg-[#DFFF5F] text-[#180D20] flex items-center justify-center shadow-xs flex-shrink-0">
+                <CheckCircle2 className="w-4 h-4 text-[#180D20]" />
+              </div>
+            </div>
+            <div className="mt-2">
+              <div className="flex items-baseline gap-2">
+                <p className="text-2xl sm:text-3xl font-extrabold text-[#24152F] dark:text-[#F7F1E5]">
+                  {totalEnteredPersons}
+                </p>
+                <span className="text-[11px] sm:text-xs font-bold px-2 py-0.5 rounded-full bg-[#DFFF5F] text-[#180D20] shadow-2xs">
+                  {attendanceRate}%
+                </span>
+              </div>
+              <p className="text-[11px] text-[#24152F]/70 dark:text-[#D2C4DC]/70 mt-0.5 font-medium">
+                {enteredAdults} adultos • {enteredChildren} crianças presentes
+              </p>
+            </div>
+          </div>
+
+          {/* Total de Pessoas que Ainda Não Entraram */}
+          <div className="bg-white dark:bg-[#1E1128] p-4 sm:p-5 rounded-2xl border border-[#24152F]/15 dark:border-[#3F2553] shadow-xs flex flex-col justify-between">
+            <div className="flex items-center justify-between text-[#24152F] dark:text-[#F7F1E5]">
+              <span className="text-xs font-bold text-[#24152F]/70 dark:text-[#D2C4DC]/80">
+                Ainda Não Entraram
+              </span>
+              <div className="w-8 h-8 rounded-xl bg-[#24152F]/10 dark:bg-white/10 text-[#24152F] dark:text-[#F7F1E5] flex items-center justify-center shadow-xs flex-shrink-0">
+                <Clock className="w-4 h-4" />
+              </div>
+            </div>
+            <div className="mt-2">
+              <p className="text-2xl sm:text-3xl font-extrabold text-[#24152F] dark:text-[#F7F1E5]">
+                {totalPendingPersons}
+              </p>
+              <p className="text-[11px] text-[#24152F]/60 dark:text-[#D2C4DC]/60 mt-0.5 font-medium">
+                Aguardados na recepção
+              </p>
+            </div>
+          </div>
+
+          {/* Percentual de Comparecimento */}
+          <div className="bg-white dark:bg-[#1E1128] p-4 sm:p-5 rounded-2xl border border-[#24152F]/15 dark:border-[#3F2553] shadow-xs flex flex-col justify-between">
+            <div className="flex items-center justify-between text-[#24152F] dark:text-[#F7F1E5]">
+              <span className="text-xs font-bold text-[#24152F]/70 dark:text-[#D2C4DC]/80">
+                Comparecimento
+              </span>
+              <div className="w-8 h-8 rounded-xl bg-[#24152F] text-[#DFFF5F] flex items-center justify-center shadow-xs flex-shrink-0">
+                <QrCode className="w-4 h-4 text-[#DFFF5F]" />
+              </div>
+            </div>
+            <div className="mt-2">
+              <p className="text-2xl sm:text-3xl font-extrabold text-[#24152F] dark:text-[#F7F1E5]">
+                {attendanceRate}%
+              </p>
+              <div className="w-full bg-[#FAF6EE] dark:bg-[#2A1738] rounded-full h-1.5 mt-2 overflow-hidden border border-[#24152F]/10">
+                <div
+                  className="bg-[#24152F] dark:bg-[#DFFF5F] h-full rounded-full transition-all duration-500"
+                  style={{ width: `${Math.min(100, attendanceRate)}%` }}
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* 2. Recepção Action Hub: Leitor QR Code e Busca Manual por Telefone (Item 7 do Prompt) */}
+        <div className="bg-white dark:bg-[#1E1128] rounded-3xl p-5 sm:p-7 border border-[#24152F]/15 dark:border-[#3F2553] shadow-sm space-y-5">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 border-b border-[#24152F]/10 dark:border-[#3F2553]/60 pb-4">
+            <div>
+              <h3 className="text-base sm:text-lg font-bold text-[#24152F] dark:text-[#F7F1E5] flex items-center gap-2">
+                <QrCode className="w-5 h-5 text-[#24152F] dark:text-[#DFFF5F]" />
+                <span>Identificação e Entrada na Recepção</span>
+              </h3>
+              <p className="text-xs text-[#24152F]/60 dark:text-[#D2C4DC]/60 mt-0.5">
+                Utilize a câmera para ler o QR Code ou faça a busca pelo telefone cadastrado do titular.
+              </p>
+            </div>
+
+            {/* Exportar relatório de credenciamento (Item 10) */}
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={handleExportReceptionXLSX}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-[#24152F]/20 dark:border-[#3F2553] bg-[#FAF6EE] dark:bg-[#2A1738] hover:bg-[#FAF6EE]/80 text-[#24152F] dark:text-[#F7F1E5] text-xs font-semibold transition-colors cursor-pointer"
+                title="Exportar planilha XLSX de credenciamento"
+              >
+                <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-600" />
+                <span>XLSX</span>
+              </button>
+              <button
+                type="button"
+                onClick={handleExportReceptionPDF}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-[#24152F]/20 dark:border-[#3F2553] bg-[#FAF6EE] dark:bg-[#2A1738] hover:bg-[#FAF6EE]/80 text-[#24152F] dark:text-[#F7F1E5] text-xs font-semibold transition-colors cursor-pointer"
+                title="Exportar documento PDF oficial de credenciamento"
+              >
+                <FileText className="w-3.5 h-3.5 text-rose-600" />
+                <span>PDF</span>
+              </button>
+            </div>
+          </div>
+
+          {/* Dois métodos de identificação lado a lado */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* Método 1: Leitura de QR Code */}
+            <div className="p-4 sm:p-5 rounded-2xl bg-[#FAF6EE]/60 dark:bg-[#2A1738]/50 border border-[#24152F]/15 dark:border-[#3F2553] flex flex-col justify-between space-y-4">
+              <div className="space-y-1.5">
+                <div className="flex items-center gap-2">
+                  <div className="w-7 h-7 rounded-lg bg-[#24152F] text-[#DFFF5F] flex items-center justify-center">
+                    <Camera className="w-4 h-4 text-[#DFFF5F]" />
+                  </div>
+                  <h4 className="text-xs sm:text-sm font-bold text-[#24152F] dark:text-[#F7F1E5]">
+                    Leitura de QR Code
+                  </h4>
+                </div>
+                <p className="text-[11px] text-[#24152F]/70 dark:text-[#D2C4DC]/70 leading-relaxed">
+                  Utilize a câmera do celular, tablet ou computador para ler o QR Code da reserva. A validação é realizada pelo servidor antes de registrar a entrada.
+                </p>
+              </div>
+
+              <button
+                type="button"
+                id="btn-open-scanner-modal"
+                onClick={() => setIsScannerOpen(true)}
+                className="w-full py-3 px-4 rounded-xl bg-[#24152F] hover:bg-[#180D20] text-[#DFFF5F] font-bold text-xs sm:text-sm flex items-center justify-center gap-2 shadow-xs transition-all cursor-pointer active:scale-98"
+              >
+                <Camera className="w-4 h-4 text-[#DFFF5F]" />
+                <span>Abrir Leitor de QR Code</span>
+              </button>
+            </div>
+
+            {/* Método 2: Busca por Telefone */}
+            <div className="p-4 sm:p-5 rounded-2xl bg-[#FAF6EE]/60 dark:bg-[#2A1738]/50 border border-[#24152F]/15 dark:border-[#3F2553] flex flex-col justify-between space-y-4">
+              <div className="space-y-1.5">
+                <div className="flex items-center gap-2">
+                  <div className="w-7 h-7 rounded-lg bg-[#24152F] text-[#DFFF5F] flex items-center justify-center">
+                    <Phone className="w-4 h-4 text-[#DFFF5F]" />
+                  </div>
+                  <h4 className="text-xs sm:text-sm font-bold text-[#24152F] dark:text-[#F7F1E5]">
+                    Busca por Telefone
+                  </h4>
+                </div>
+                <p className="text-[11px] text-[#24152F]/70 dark:text-[#D2C4DC]/70 leading-relaxed">
+                  Alternativa rápida caso o convidado não consiga apresentar o QR Code. Localiza a ficha completa da reserva.
+                </p>
+              </div>
+
+              <form onSubmit={handlePhoneSearch} className="space-y-2">
+                <div className="flex gap-2">
+                  <div className="relative flex-1">
+                    <Phone className="w-4 h-4 text-[#24152F]/40 dark:text-[#D2C4DC]/40 absolute left-3 top-1/2 -translate-y-1/2" />
+                    <input
+                      type="text"
+                      value={phoneSearchInput}
+                      onChange={(e) => setPhoneSearchInput(e.target.value)}
+                      placeholder="Digite o telefone cadastrado..."
+                      className="w-full pl-9 pr-3 py-2.5 rounded-xl border border-[#24152F]/20 dark:border-[#3F2553] bg-white dark:bg-[#1E1128] text-xs text-[#24152F] dark:text-[#F7F1E5] placeholder:text-[#24152F]/40 dark:placeholder:text-[#D2C4DC]/40 focus:outline-none focus:ring-1 focus:ring-[#DFFF5F]"
+                    />
+                  </div>
+                  <button
+                    type="submit"
+                    id="btn-search-phone-checkin"
+                    className="px-4 py-2.5 rounded-xl bg-[#24152F] dark:bg-[#DFFF5F] text-[#F7F1E5] dark:text-[#180D20] text-xs font-bold hover:bg-[#180D20] dark:hover:bg-[#CEF04A] transition-colors cursor-pointer shadow-2xs"
+                  >
+                    Buscar
+                  </button>
+                </div>
+
+                {phoneSearchResults !== null && (
+                  <div className="flex items-center justify-between text-[11px] pt-1">
+                    <span className="text-[#24152F]/70 dark:text-[#D2C4DC]/70">
+                      {phoneSearchResults.length} reserva(s) encontrada(s)
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setPhoneSearchResults(null);
+                        setPhoneSearchInput('');
+                      }}
+                      className="text-rose-600 dark:text-rose-400 font-semibold hover:underline cursor-pointer"
+                    >
+                      Limpar busca
+                    </button>
+                  </div>
+                )}
+              </form>
+            </div>
+          </div>
+
+          {/* Resultados da busca por telefone (Item 7 do Prompt) */}
+          {phoneSearchResults !== null && (
+            <div className="p-4 rounded-2xl bg-white dark:bg-[#1E1128] border-2 border-[#24152F]/20 dark:border-[#3F2553] space-y-3 animate-in fade-in">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold text-[#24152F] dark:text-[#F7F1E5] flex items-center gap-1.5">
+                  <Users className="w-3.5 h-3.5" />
+                  <span>Resultados da Busca por Telefone</span>
+                </span>
+              </div>
+
+              {phoneSearchResults.length === 0 ? (
+                <p className="text-xs text-rose-700 dark:text-rose-400 py-2">
+                  Nenhum convidado confirmado encontrado com esse telefone para este evento.
+                </p>
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                  {phoneSearchResults.map((matchedGuest) => {
+                    const members = getInviteMembers(matchedGuest).filter((m) => m.status === 'confirmed');
+                    return (
+                      <div
+                        key={matchedGuest.id}
+                        className="p-3.5 rounded-xl border border-[#24152F]/15 dark:border-[#3F2553] bg-[#FAF6EE]/50 dark:bg-[#2A1738] flex items-center justify-between gap-3"
+                      >
+                        <div className="min-w-0">
+                          <p className="font-bold text-xs sm:text-sm text-[#24152F] dark:text-[#F7F1E5] truncate">
+                            {matchedGuest.displayName || matchedGuest.name}
+                          </p>
+                          <p className="text-[10px] text-[#24152F]/60 dark:text-[#D2C4DC]/60 mt-0.5">
+                            Tel: {matchedGuest.phone || 'Não informado'} • {members.length} pessoa(s)
+                          </p>
+                          <span className="inline-block mt-1 text-[10px] font-mono text-[#24152F]/70 dark:text-[#D2C4DC]/70">
+                            {matchedGuest.checkInCode || 'Sem código'}
+                          </span>
+                        </div>
+
+                        <button
+                          type="button"
+                          onClick={() => setSelectedGuestForReception(matchedGuest)}
+                          className="px-3.5 py-2 rounded-xl bg-[#24152F] text-[#DFFF5F] hover:bg-[#180D20] text-xs font-bold transition-all cursor-pointer shadow-xs flex-shrink-0"
+                        >
+                          Abrir Ficha
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* 3. Tabela / Lista de Credenciamento em Tempo Real (Item 8 e 9 do Prompt) */}
+        <div className="bg-white dark:bg-[#1E1128] rounded-3xl border border-[#24152F]/15 dark:border-[#3F2553] shadow-sm p-4 sm:p-6 space-y-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-[#24152F]/10 dark:border-[#3F2553]/60">
+            <div>
+              <h3 className="text-base sm:text-lg font-bold text-[#24152F] dark:text-[#F7F1E5]">
+                Lista de Credenciamento em Tempo Real
+              </h3>
+              <p className="text-xs text-[#24152F]/60 dark:text-[#D2C4DC]/60 mt-0.5">
+                Acompanhe quem já entrou e registre a entrada nominal individual de cada pessoa
+              </p>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-1.5">
+              <button
+                type="button"
+                onClick={() => setReceptionFilter('all')}
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-colors cursor-pointer ${
+                  receptionFilter === 'all'
+                    ? 'bg-[#24152F] text-[#F7F1E5] dark:bg-[#DFFF5F] dark:text-[#180D20]'
+                    : 'bg-[#FAF6EE] dark:bg-[#2A1738] text-[#24152F]/70 dark:text-[#D2C4DC]/70'
+                }`}
+              >
+                Todos ({confirmedReceptionGuests.length})
+              </button>
+              <button
+                type="button"
+                onClick={() => setReceptionFilter('pending')}
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-colors cursor-pointer ${
+                  receptionFilter === 'pending'
+                    ? 'bg-[#24152F] text-[#F7F1E5] dark:bg-[#DFFF5F] dark:text-[#180D20]'
+                    : 'bg-[#FAF6EE] dark:bg-[#2A1738] text-[#24152F]/70 dark:text-[#D2C4DC]/70'
+                }`}
+              >
+                Pendentes ({confirmedReceptionGuests.filter((g) => (g.checkedInCount || 0) === 0).length})
+              </button>
+              <button
+                type="button"
+                onClick={() => setReceptionFilter('entered')}
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-colors cursor-pointer ${
+                  receptionFilter === 'entered'
+                    ? 'bg-[#24152F] text-[#F7F1E5] dark:bg-[#DFFF5F] dark:text-[#180D20]'
+                    : 'bg-[#FAF6EE] dark:bg-[#2A1738] text-[#24152F]/70 dark:text-[#D2C4DC]/70'
+                }`}
+              >
+                Completos ({confirmedReceptionGuests.filter((g) => g.checkInStatus === 'complete').length})
+              </button>
+            </div>
+          </div>
+
+          {/* Barra de pesquisa na tabela */}
+          <div className="relative">
+            <Search className="w-4 h-4 text-[#24152F]/40 dark:text-[#D2C4DC]/40 absolute left-3 top-1/2 -translate-y-1/2" />
+            <input
+              type="text"
+              value={receptionSearchTerm}
+              onChange={(e) => setReceptionSearchTerm(e.target.value)}
+              placeholder="Pesquisar por titular, acompanhante, telefone ou código QR..."
+              className="w-full pl-9 pr-3 py-2.5 rounded-xl border border-[#24152F]/20 dark:border-[#3F2553] bg-white dark:bg-[#1E1128] text-xs text-[#24152F] dark:text-[#F7F1E5] placeholder:text-[#24152F]/40 dark:placeholder:text-[#D2C4DC]/40 focus:outline-none focus:ring-1 focus:ring-[#DFFF5F]"
+            />
+          </div>
+
+          {/* Tabela de credenciamento */}
+          <div className="overflow-hidden md:overflow-x-auto rounded-xl border border-[#24152F]/10 dark:border-[#3F2553] bg-white dark:bg-[#1E1128]">
+            <table className="w-full text-left text-xs md:whitespace-nowrap md:min-w-[700px]">
+              <thead className="bg-[#FAF6EE] dark:bg-[#2A1738] text-[#24152F]/80 dark:text-[#D2C4DC] font-bold border-b border-[#24152F]/10 dark:border-[#3F2553]">
+                <tr>
+                  <th className="py-3 px-4">Titular & Reserva</th>
+                  <th className="py-3 px-3">Participantes Nominais</th>
+                  <th className="py-3 px-3">Código QR</th>
+                  <th className="py-3 px-3">Status Entrada</th>
+                  <th className="py-3 px-4 text-right">Ação</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-[#24152F]/5 dark:divide-[#3F2553]/50 text-[#24152F] dark:text-[#F7F1E5]">
+                {displayedReceptionGuests.length === 0 ? (
+                  <tr>
+                    <td colSpan={5} className="py-8 text-center text-xs text-[#24152F]/60 dark:text-[#D2C4DC]/60">
+                      Nenhuma reserva confirmada localizada.
+                    </td>
+                  </tr>
+                ) : (
+                  displayedReceptionGuests.map((g) => {
+                    const members = getInviteMembers(g).filter((m) => m.status === 'confirmed');
+                    const enteredCount = members.filter((m) => m.checkedIn).length;
+                    const totalCount = members.length;
+                    const isAllEntered = totalCount > 0 && enteredCount === totalCount;
+                    const isPartiallyEntered = enteredCount > 0 && !isAllEntered;
+
+                    return (
+                      <tr key={g.id} className="hover:bg-[#FAF6EE]/30 dark:hover:bg-[#2A1738]/30 transition-colors">
+                        {/* Titular */}
+                        <td className="py-3.5 px-4 font-bold align-top">
+                          <p className="text-xs sm:text-sm font-bold text-[#24152F] dark:text-[#F7F1E5]">
+                            {g.displayName || g.name}
+                          </p>
+                          <p className="text-[11px] text-[#24152F]/60 dark:text-[#D2C4DC]/60 font-normal">
+                            Tel: {g.phone || 'Não informado'} • Tag: {g.group || 'Geral'}
+                          </p>
+                        </td>
+
+                        {/* Participantes Nominais (Item 8 do Prompt) */}
+                        <td className="py-3.5 px-3 align-top">
+                          <div className="space-y-1">
+                            {members.map((m) => (
+                              <div key={m.id} className="flex items-center gap-1.5 text-[11px]">
+                                <span
+                                  className={`w-2 h-2 rounded-full flex-shrink-0 ${
+                                    m.checkedIn ? 'bg-emerald-500' : 'bg-gray-300 dark:bg-gray-600'
+                                  }`}
+                                />
+                                <span className="font-semibold text-[#24152F] dark:text-[#F7F1E5]">
+                                  {m.name}
+                                </span>
+                                <span className="text-[10px] text-[#24152F]/60 dark:text-[#D2C4DC]/60">
+                                  ({m.isPrimary ? 'Titular' : 'Acomp.'} • {m.category})
+                                </span>
+                                {m.checkedIn && (
+                                  <span className="text-[9px] font-bold text-emerald-700 dark:text-emerald-400">
+                                    ✓ Entrou
+                                  </span>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        </td>
+
+                        {/* Código QR */}
+                        <td className="py-3.5 px-3 align-top font-mono text-[11px] text-[#24152F]/80 dark:text-[#D2C4DC]">
+                          {g.checkInCode || '—'}
+                        </td>
+
+                        {/* Status de Entrada */}
+                        <td className="py-3.5 px-3 align-top">
+                          {isAllEntered ? (
+                            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 border border-emerald-300">
+                              <Check className="w-3 h-3" /> Completo ({enteredCount}/{totalCount})
+                            </span>
+                          ) : isPartiallyEntered ? (
+                            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300 border border-amber-300">
+                              Parcial ({enteredCount}/{totalCount})
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300 border border-gray-300">
+                              Pendente (0/{totalCount})
+                            </span>
+                          )}
+                        </td>
+
+                        {/* Ação: Abrir Ficha */}
+                        <td className="py-3.5 px-4 text-right align-top">
+                          <button
+                            type="button"
+                            onClick={() => setSelectedGuestForReception(g)}
+                            className="px-3.5 py-1.5 rounded-xl bg-[#24152F] hover:bg-[#180D20] text-[#DFFF5F] font-bold text-xs inline-flex items-center gap-1.5 transition-colors cursor-pointer shadow-2xs"
+                          >
+                            <QrCode className="w-3.5 h-3.5" />
+                            <span>Credenciar</span>
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        {/* 4. Relatórios e Histórico de Entradas (Item 10 do Prompt) */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {/* Discriminação Adultos vs Crianças */}
+          <div className="bg-white dark:bg-[#1E1128] rounded-3xl p-5 border border-[#24152F]/15 dark:border-[#3F2553] shadow-xs space-y-3">
+            <h4 className="text-xs sm:text-sm font-bold text-[#24152F] dark:text-[#F7F1E5] flex items-center gap-2">
+              <Users className="w-4 h-4 text-[#24152F] dark:text-[#DFFF5F]" />
+              <span>Distribuição por Faixa Etária</span>
+            </h4>
+            <div className="grid grid-cols-2 gap-3 pt-1">
+              <div className="p-3 rounded-xl bg-[#FAF6EE] dark:bg-[#2A1738] border border-[#24152F]/10">
+                <span className="text-[11px] font-bold text-[#24152F]/70 dark:text-[#D2C4DC]/70 block">Adultos</span>
+                <p className="text-lg font-extrabold text-[#24152F] dark:text-[#F7F1E5] mt-1">
+                  {enteredAdults} <span className="text-xs font-normal text-[#24152F]/60">de {confirmedAdults}</span>
+                </p>
+                <span className="text-[10px] text-emerald-700 dark:text-emerald-400 font-bold block mt-0.5">
+                  {confirmedAdults > 0 ? Math.round((enteredAdults / confirmedAdults) * 100) : 0}% presentes
+                </span>
+              </div>
+
+              <div className="p-3 rounded-xl bg-[#FAF6EE] dark:bg-[#2A1738] border border-[#24152F]/10">
+                <span className="text-[11px] font-bold text-[#24152F]/70 dark:text-[#D2C4DC]/70 block">Crianças</span>
+                <p className="text-lg font-extrabold text-[#24152F] dark:text-[#F7F1E5] mt-1">
+                  {enteredChildren} <span className="text-xs font-normal text-[#24152F]/60">de {confirmedChildren}</span>
+                </p>
+                <span className="text-[10px] text-emerald-700 dark:text-emerald-400 font-bold block mt-0.5">
+                  {confirmedChildren > 0 ? Math.round((enteredChildren / confirmedChildren) * 100) : 0}% presentes
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {/* Histórico recente de entradas com operador */}
+          <div className="bg-white dark:bg-[#1E1128] rounded-3xl p-5 border border-[#24152F]/15 dark:border-[#3F2553] shadow-xs space-y-3">
+            <h4 className="text-xs sm:text-sm font-bold text-[#24152F] dark:text-[#F7F1E5] flex items-center gap-2">
+              <Clock className="w-4 h-4 text-[#24152F] dark:text-[#DFFF5F]" />
+              <span>Últimas Entradas Registradas</span>
+            </h4>
+
+            <div className="space-y-2 max-h-40 overflow-y-auto pr-1">
+              {confirmedReceptionGuests
+                .flatMap((g) =>
+                  (g.members || [])
+                    .filter((m) => m.checkedIn && m.checkedInAt)
+                    .map((m) => ({
+                      member: m,
+                      guest: g,
+                    }))
+                )
+                .sort((a, b) => new Date(b.member.checkedInAt!).getTime() - new Date(a.member.checkedInAt!).getTime())
+                .slice(0, 5)
+                .map((item, idx) => (
+                  <div
+                    key={idx}
+                    className="p-2.5 rounded-xl bg-[#FAF6EE]/60 dark:bg-[#2A1738]/50 border border-[#24152F]/10 flex items-center justify-between text-xs"
+                  >
+                    <div>
+                      <p className="font-bold text-[#24152F] dark:text-[#F7F1E5]">
+                        {item.member.name}
+                      </p>
+                      <p className="text-[10px] text-[#24152F]/60 dark:text-[#D2C4DC]/60">
+                        Reserva: {item.guest.displayName || item.guest.name}
+                        {item.member.checkedInBy && ` • Operador: ${item.member.checkedInBy}`}
+                      </p>
+                    </div>
+                    <span className="text-[10px] font-mono text-[#24152F]/70 dark:text-[#D2C4DC]/70">
+                      {formatDateTimeBR(item.member.checkedInAt!)}
+                    </span>
+                  </div>
+                ))}
+
+              {totalEnteredPersons === 0 && (
+                <p className="text-xs text-[#24152F]/50 dark:text-[#D2C4DC]/50 py-3 text-center">
+                  Nenhuma entrada registrada até o momento.
+                </p>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+    )}
       </main>
       
       {/* Rodapé Padronizado com o Sistema Administrativo */}
@@ -972,26 +1804,54 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
                 </div>
               )}
 
-              {/* Answers to questions */}
-              {selectedGuestForDetail.answers && Object.keys(selectedGuestForDetail.answers).length > 0 && (
-                <div className="p-3.5 rounded-xl border border-[#24152F]/10 dark:border-[#3F2553] bg-white dark:bg-[#24152F]/40 space-y-2">
-                  <p className="font-bold text-[#24152F] dark:text-[#F7F1E5]">Respostas do Formulário</p>
-                  <div className="space-y-2">
-                    {Object.entries(selectedGuestForDetail.answers).map(([key, val]) => {
-                      const questionObj = questions.find((q) => q.id === key);
-                      const title = questionObj ? questionObj.title : key;
-                      return (
-                        <div key={key} className="border-t border-[#24152F]/5 dark:border-[#3F2553]/50 pt-1.5">
-                          <p className="text-[11px] font-semibold text-[#24152F]/60 dark:text-[#D2C4DC]/60">{title}</p>
-                          <p className="text-xs font-bold text-[#24152F] dark:text-[#F7F1E5] mt-0.5">
-                            {Array.isArray(val) ? val.join(', ') : String(val)}
-                          </p>
-                        </div>
-                      );
-                    })}
+              {/* Answers to questions — Exibir SOMENTE quando o formulário do evento possuir perguntas personalizadas */}
+              {(() => {
+                const eventCustomQuestions = (questions || []).filter((q) => {
+                  const matchesEvent = !q.eventId || q.eventId === (event?.id || selectedGuestForDetail.eventId);
+                  const isStandardField = [
+                    'q_group',
+                    'group',
+                    'q_message',
+                    'message',
+                    'presence',
+                    'status',
+                    'companionCount',
+                    'companionNames',
+                    'phone',
+                    'email',
+                    'name',
+                    'rsvpCode',
+                  ].includes(q.id);
+                  return matchesEvent && !isStandardField;
+                });
+
+                if (eventCustomQuestions.length === 0) return null;
+
+                return (
+                  <div className="p-3.5 rounded-xl border border-[#24152F]/10 dark:border-[#3F2553] bg-white dark:bg-[#24152F]/40 space-y-2">
+                    <p className="font-bold text-[#24152F] dark:text-[#F7F1E5]">Respostas do Formulário</p>
+                    <div className="space-y-2">
+                      {eventCustomQuestions.map((questionObj) => {
+                        const rawAns = selectedGuestForDetail.answers ? selectedGuestForDetail.answers[questionObj.id] : undefined;
+                        const hasAnswer =
+                          rawAns !== undefined &&
+                          rawAns !== null &&
+                          rawAns !== '' &&
+                          !(Array.isArray(rawAns) && rawAns.length === 0);
+
+                        return (
+                          <div key={questionObj.id} className="border-t border-[#24152F]/5 dark:border-[#3F2553]/50 pt-1.5">
+                            <p className="text-[11px] font-semibold text-[#24152F]/60 dark:text-[#D2C4DC]/60">{questionObj.title}</p>
+                            <p className="text-xs font-bold text-[#24152F] dark:text-[#F7F1E5] mt-0.5">
+                              {hasAnswer ? (Array.isArray(rawAns) ? rawAns.join(', ') : String(rawAns)) : 'Não respondida'}
+                            </p>
+                          </div>
+                        );
+                      })}
+                    </div>
                   </div>
-                </div>
-              )}
+                );
+              })()}
 
               {selectedGuestForDetail.notes && (
                 <div className="p-3 rounded-xl bg-purple-50/50 dark:bg-[#2E1B3C]/50 border border-purple-200/50 dark:border-[#3F2553] text-[#24152F] dark:text-[#F7F1E5]">
@@ -1146,6 +2006,20 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
           </div>
         </div>
       )}
+
+      {/* Modais de Credenciamento e Recepção */}
+      <ReceptionScannerModal
+        isOpen={isScannerOpen}
+        onClose={() => setIsScannerOpen(false)}
+        onScanSuccess={handleValidateQrCode}
+      />
+
+      <ReceptionGuestModal
+        guest={selectedGuestForReception}
+        operatorName={authenticatedUser || event.clientName || 'Recepção'}
+        onClose={() => setSelectedGuestForReception(null)}
+        onRecordCheckIn={handleRecordCheckIn}
+      />
     </div>
   );
 };

@@ -1,26 +1,21 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useMemo } from 'react';
 import {
   ShieldCheck,
   Plus,
   Mail,
-  Calendar,
   Phone,
-  Check,
   X,
-  Edit2,
-  CalendarRange,
-  User,
-  Shield,
   Camera,
   Trash2,
   Upload,
   Clock,
+  Check,
   CheckCircle2,
-  XCircle,
-  AlertCircle,
+  Pen,
+  Search,
+  SlidersHorizontal,
 } from 'lucide-react';
-import { AdminUser, AdminUserStatus, AdminUserRole } from '../../types/user';
-import { formatDateBR, checkTemporaryUserAccess } from '../../utils/dateUtils';
+import { AdminUser, AdminUserStatus, AdminUserRole, normalizeAdminRole, normalizeAdminProfiles } from '../../types/user';
 
 interface HubUsersViewProps {
   adminUsers: AdminUser[];
@@ -30,21 +25,26 @@ interface HubUsersViewProps {
   onShowToast: (message: string) => void;
 }
 
-const ACCESS_PROFILES: { id: AdminUserRole; name: string; description: string; isDefault?: boolean }[] = [
+const ACCESS_PROFILES: {
+  id: AdminUserRole;
+  name: string;
+  description: string;
+  isDefault?: boolean;
+}[] = [
   {
-    id: 'Super Administrador',
-    name: 'Super Administrador',
+    id: 'Administrador',
+    name: 'Administrador',
     description: 'Acesso completo e irrestrito a todas as áreas, relatórios, configurações e usuários do Rafluo.',
     isDefault: true,
   },
   {
-    id: 'Gestor de Eventos',
-    name: 'Gestor de Eventos',
+    id: 'Operacional',
+    name: 'Operacional',
     description: 'Criação, edição e gerenciamento operacional completo de eventos, convidados e relatórios.',
   },
   {
-    id: 'Cerimonialista',
-    name: 'Cerimonialista',
+    id: 'Credenciamento',
+    name: 'Credenciamento',
     description: 'Operação presencial do evento, realização de check-in e consulta da lista de convidados.',
   },
 ];
@@ -56,27 +56,92 @@ export const HubUsersView: React.FC<HubUsersViewProps> = ({
   onToggleStatus,
   onShowToast,
 }) => {
+  const [searchTerm, setSearchTerm] = useState('');
+  const [filterSelectedStatuses, setFilterSelectedStatuses] = useState<AdminUserStatus[]>([]);
+  const [draftSelectedStatuses, setDraftSelectedStatuses] = useState<AdminUserStatus[]>([]);
+  const [filterSelectedProfiles, setFilterSelectedProfiles] = useState<AdminUserRole[]>([]);
+  const [draftSelectedProfiles, setDraftSelectedProfiles] = useState<AdminUserRole[]>([]);
+  const [isFilterModalOpen, setIsFilterModalOpen] = useState(false);
+
+  const USER_STATUS_OPTIONS: { id: AdminUserStatus; label: string }[] = [
+    { id: 'active', label: 'Ativo' },
+    { id: 'temporary', label: 'Temporário' },
+    { id: 'disabled', label: 'Desativado' },
+  ];
+
+  const USER_PROFILE_OPTIONS: { id: AdminUserRole; label: string }[] = [
+    { id: 'Administrador', label: 'Administrador' },
+    { id: 'Operacional', label: 'Operacional' },
+    { id: 'Credenciamento', label: 'Credenciamento' },
+  ];
+
+  const filteredUsers = useMemo(() => {
+    return adminUsers.filter((user) => {
+      const fullName = `${user.name} ${user.lastName}`.toLowerCase();
+      const email = user.email.toLowerCase();
+      const phone = (user.phone || '').toLowerCase();
+      const query = searchTerm.toLowerCase().trim();
+
+      const matchesSearch =
+        !query ||
+        fullName.includes(query) ||
+        email.includes(query) ||
+        phone.includes(query);
+
+      const matchesStatus =
+        filterSelectedStatuses.length === 0 ||
+        filterSelectedStatuses.includes(user.status);
+
+      const userProfiles = normalizeAdminProfiles(
+        user.accessProfiles && user.accessProfiles.length > 0
+          ? user.accessProfiles
+          : [user.role]
+      );
+
+      const matchesProfile =
+        filterSelectedProfiles.length === 0 ||
+        userProfiles.some((p) => filterSelectedProfiles.includes(normalizeAdminRole(p)));
+
+      return matchesSearch && matchesStatus && matchesProfile;
+    });
+  }, [adminUsers, searchTerm, filterSelectedStatuses, filterSelectedProfiles]);
+
+  const activeFiltersCount =
+    filterSelectedStatuses.length + filterSelectedProfiles.length;
+
+  // Modal State
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [editingUser, setEditingUser] = useState<AdminUser | null>(null);
+  const [modalMode, setModalMode] = useState<'create' | 'edit'>('create');
+  const [selectedUser, setSelectedUser] = useState<AdminUser | null>(null);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Form State
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<{
+    name: string;
+    lastName: string;
+    email: string;
+    phone: string;
+    role: AdminUserRole;
+    accessProfiles: AdminUserRole[];
+    status: AdminUserStatus;
+    accessEnd: string;
+    photoUrl: string | null;
+  }>({
     name: '',
     lastName: '',
     email: '',
     phone: '',
-    role: 'Gestor de Eventos' as AdminUserRole,
-    accessProfiles: ['Gestor de Eventos'] as AdminUserRole[],
-    status: 'active' as AdminUserStatus,
+    role: 'Operacional',
+    accessProfiles: ['Operacional'],
+    status: 'active',
     accessEnd: '',
-    photoUrl: null as string | null,
+    photoUrl: null,
   });
 
   const [errors, setErrors] = useState<Record<string, string>>({});
 
-  // Phone mask helper: (99) 99999-9999
+  // Phone mask: (99) 99999-9999
   const formatPhoneBR = (value: string) => {
     const numbers = value.replace(/\D/g, '').slice(0, 11);
     if (numbers.length <= 2) return numbers;
@@ -87,37 +152,16 @@ export const HubUsersView: React.FC<HubUsersViewProps> = ({
     return `(${numbers.slice(0, 2)}) ${numbers.slice(2, 7)}-${numbers.slice(7, 11)}`;
   };
 
-  const toggleProfile = (profileId: AdminUserRole) => {
-    setFormData((prev) => {
-      const exists = prev.accessProfiles.includes(profileId);
-      let updated: AdminUserRole[];
-      if (exists) {
-        // Prevent deselecting all profiles
-        if (prev.accessProfiles.length === 1) {
-          onShowToast('O usuário deve possuir ao menos um perfil de acesso.');
-          return prev;
-        }
-        updated = prev.accessProfiles.filter((p) => p !== profileId);
-      } else {
-        updated = [...prev.accessProfiles, profileId];
-      }
-      return {
-        ...prev,
-        accessProfiles: updated,
-        role: updated.includes('Super Administrador') ? 'Super Administrador' : (updated[0] || 'Gestor de Eventos'),
-      };
-    });
-  };
-
   const handleOpenCreate = () => {
-    setEditingUser(null);
+    setSelectedUser(null);
+    setModalMode('create');
     setFormData({
       name: '',
       lastName: '',
       email: '',
       phone: '',
-      role: 'Gestor de Eventos',
-      accessProfiles: ['Gestor de Eventos'],
+      role: 'Operacional',
+      accessProfiles: ['Operacional'],
       status: 'active',
       accessEnd: '',
       photoUrl: null,
@@ -127,15 +171,20 @@ export const HubUsersView: React.FC<HubUsersViewProps> = ({
   };
 
   const handleOpenEdit = (user: AdminUser) => {
-    setEditingUser(user);
-    const userProfiles = user.accessProfiles && user.accessProfiles.length > 0 ? user.accessProfiles : [user.role];
+    setSelectedUser(user);
+    setModalMode('edit');
+    const profiles = normalizeAdminProfiles(
+      user.accessProfiles && user.accessProfiles.length > 0
+        ? user.accessProfiles
+        : [user.role]
+    );
     setFormData({
       name: user.name,
       lastName: user.lastName,
       email: user.email,
       phone: user.phone || '',
-      role: user.role,
-      accessProfiles: userProfiles,
+      role: normalizeAdminRole(user.role),
+      accessProfiles: profiles,
       status: user.status,
       accessEnd: user.accessEnd || '',
       photoUrl: user.photoUrl || null,
@@ -146,8 +195,53 @@ export const HubUsersView: React.FC<HubUsersViewProps> = ({
 
   const handleCloseModal = () => {
     setIsModalOpen(false);
-    setEditingUser(null);
+    setSelectedUser(null);
     setErrors({});
+  };
+
+  const toggleProfile = (profileId: AdminUserRole) => {
+    setFormData((prev) => {
+      const isCurrentlySelected = prev.accessProfiles.includes(profileId);
+
+      // Regra 1.3: Administrador
+      // Ao selecionar, Operacional e Credenciamento são desmarcados automaticamente e ficam indisponíveis
+      if (profileId === 'Administrador') {
+        if (isCurrentlySelected) {
+          // Desmarca Administrador -> libera os outros perfis
+          return {
+            ...prev,
+            accessProfiles: [],
+            role: 'Operacional',
+          };
+        } else {
+          // Marca Administrador -> desmarca Operacional e Credenciamento automaticamente
+          return {
+            ...prev,
+            accessProfiles: ['Administrador'],
+            role: 'Administrador',
+          };
+        }
+      }
+
+      // Se Administrador estiver marcado, os outros perfis estão indisponíveis para seleção
+      if (prev.accessProfiles.includes('Administrador')) {
+        return prev;
+      }
+
+      // Regra 1.3: Operacional e Credenciamento podem ser selecionados individualmente ou simultaneamente (Operacional + Credenciamento)
+      let updated: AdminUserRole[];
+      if (isCurrentlySelected) {
+        updated = prev.accessProfiles.filter((p) => p !== profileId);
+      } else {
+        updated = [...prev.accessProfiles, profileId];
+      }
+
+      return {
+        ...prev,
+        accessProfiles: updated,
+        role: updated.includes('Operacional') ? 'Operacional' : updated[0] || 'Operacional',
+      };
+    });
   };
 
   const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -176,27 +270,30 @@ export const HubUsersView: React.FC<HubUsersViewProps> = ({
   };
 
   const validate = () => {
-    const newErrors: Record<string, string> = {};
-    if (!formData.name.trim()) newErrors.name = 'Nome é obrigatório';
-    if (!formData.lastName.trim()) newErrors.lastName = 'Sobrenome é obrigatório';
+    const errs: Record<string, string> = {};
+    if (!formData.name.trim()) errs.name = 'Nome é obrigatório';
+    if (!formData.lastName.trim()) errs.lastName = 'Sobrenome é obrigatório';
     if (!formData.email.trim()) {
-      newErrors.email = 'E-mail é obrigatório';
+      errs.email = 'E-mail é obrigatório';
     } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email.trim())) {
-      newErrors.email = 'Insira um e-mail válido';
+      errs.email = 'Insira um e-mail válido';
     }
     if (!formData.accessProfiles || formData.accessProfiles.length === 0) {
-      newErrors.accessProfiles = 'Selecione ao menos um perfil de acesso';
+      errs.accessProfiles = 'Selecione ao menos um perfil de acesso';
+    } else if (
+      formData.accessProfiles.includes('Administrador') &&
+      formData.accessProfiles.length > 1
+    ) {
+      errs.accessProfiles = 'O perfil Administrador não pode ser combinado com outros perfis';
     }
     if (formData.phone.trim() && formData.phone.replace(/\D/g, '').length < 10) {
-      newErrors.phone = 'Insira um telefone válido com DDD';
+      errs.phone = 'Insira um telefone válido com DDD';
     }
-    if (formData.status === 'temporary') {
-      if (!formData.accessEnd) {
-        newErrors.accessEnd = 'Data de fim do acesso é obrigatória para usuário temporário';
-      }
+    if (formData.status === 'temporary' && !formData.accessEnd) {
+      errs.accessEnd = 'Data de fim do acesso é obrigatória para usuário temporário';
     }
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
+    setErrors(errs);
+    return Object.keys(errs).length === 0;
   };
 
   const handleSave = (e: React.FormEvent) => {
@@ -204,72 +301,50 @@ export const HubUsersView: React.FC<HubUsersViewProps> = ({
     if (!validate()) return;
 
     const userToSave: AdminUser = {
-      id: editingUser ? editingUser.id : `usr-${Date.now().toString().slice(-4)}`,
+      id: selectedUser ? selectedUser.id : `usr-${Date.now().toString().slice(-4)}`,
       name: formData.name.trim(),
       lastName: formData.lastName.trim(),
       email: formData.email.trim(),
       phone: formData.phone.trim(),
+      jobTitle: selectedUser?.jobTitle,
       photoUrl: formData.photoUrl,
-      role: formData.accessProfiles.includes('Super Administrador')
-        ? 'Super Administrador'
-        : (formData.accessProfiles[0] || 'Gestor de Eventos'),
+      role: formData.accessProfiles.includes('Administrador')
+        ? 'Administrador'
+        : formData.accessProfiles.includes('Operacional')
+        ? 'Operacional'
+        : 'Credenciamento',
       accessProfiles: formData.accessProfiles,
       status: formData.status,
       accessEnd: formData.status === 'temporary' ? formData.accessEnd : undefined,
-      createdAt: editingUser ? editingUser.createdAt : new Date().toISOString().split('T')[0],
+      createdAt: selectedUser
+        ? selectedUser.createdAt
+        : new Date().toISOString().split('T')[0],
     };
 
     onSaveUser(userToSave);
     handleCloseModal();
     onShowToast(
-      editingUser
+      modalMode === 'edit'
         ? `Usuário "${userToSave.name} ${userToSave.lastName}" atualizado com sucesso!`
         : `Usuário "${userToSave.name} ${userToSave.lastName}" cadastrado com sucesso!`
     );
   };
 
-  const renderStatusBadge = (user: AdminUser) => {
-    if (user.status === 'active') {
-      return (
-        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-50 text-emerald-800 border border-emerald-200">
-          <span className="w-1.5 h-1.5 rounded-full bg-emerald-600" />
-          Ativo
-        </span>
-      );
-    }
-
-    if (user.status === 'disabled') {
-      return (
-        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-rose-50 text-rose-800 border border-rose-200">
-          <span className="w-1.5 h-1.5 rounded-full bg-rose-600" />
-          Desativado
-        </span>
-      );
-    }
-
-    // Status Temporário: mesmo padrão visual em laranja, sem ícone de calendário (Item 10)
-    return (
-      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-orange-50 text-orange-800 border border-orange-200">
-        <span className="w-1.5 h-1.5 rounded-full bg-orange-500" />
-        Temporário
-      </span>
-    );
-  };
-
   return (
     <div id="hub-users-view" className="space-y-6 pb-12">
-      {/* Top Header com H1 e descrição contextual (Item 1) */}
+      {/* 1. Page Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div className="space-y-1">
-          <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-[#24152F]">
+          <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-[#24152F] dark:text-[#F7F1E5]">
             Usuários
           </h1>
-          <p className="text-xs sm:text-sm text-[#24152F]/70 font-normal">
+          <p className="text-xs sm:text-sm text-[#24152F]/70 dark:text-[#E2D7EA]/80 font-normal">
             Gerencie a equipe e permissões de acesso administrativo.
           </p>
         </div>
 
         <button
+          type="button"
           onClick={handleOpenCreate}
           className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-[#24152F] hover:bg-[#180D20] text-[#F7F1E5] text-xs sm:text-sm font-semibold shadow-xs transition-all active:scale-95 cursor-pointer w-full sm:w-fit border border-[#3F2553]"
         >
@@ -280,57 +355,116 @@ export const HubUsersView: React.FC<HubUsersViewProps> = ({
         </button>
       </div>
 
-      {/* Governance Note: Perfeitamente alinhada com ícone e texto no mesmo container (Item 9) */}
-      <div className="p-3.5 sm:p-4 rounded-xl bg-[#FAF6EE] border border-[#24152F]/15 flex items-center gap-3">
-        <div className="w-8 h-8 rounded-lg bg-[#24152F] text-[#DFFF5F] flex items-center justify-center flex-shrink-0">
-          <ShieldCheck className="w-4 h-4" />
+      {/* Filter and Search Bar (Padronizado idêntico à tela de Clientes) */}
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 p-3 rounded-2xl bg-[#FAF6EE]/60 dark:bg-[#1E1128] border border-[#24152F]/10 dark:border-[#3F2553]">
+        <div className="flex items-center gap-2.5 flex-1 max-w-lg">
+          <div className="relative flex-1">
+            <input
+              type="text"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              placeholder="Buscar por nome, e-mail ou telefone..."
+              className="w-full pl-9 pr-3.5 py-2 text-xs sm:text-sm rounded-xl border border-[#24152F]/15 dark:border-[#3F2553] bg-white dark:bg-[#120919] text-[#24152F] dark:text-[#F7F1E5] placeholder:text-[#24152F]/40 focus:outline-none focus:ring-2 focus:ring-[#24152F]"
+            />
+            <Search className="w-4 h-4 text-[#24152F]/40 absolute left-3 top-2.5 sm:top-3" />
+          </div>
+
+          <button
+            type="button"
+            id="btn-open-user-filter-modal"
+            onClick={() => {
+              setDraftSelectedStatuses([...filterSelectedStatuses]);
+              setDraftSelectedProfiles([...filterSelectedProfiles]);
+              setIsFilterModalOpen(true);
+            }}
+            className={`relative flex items-center justify-center p-2.5 h-10 w-10 rounded-xl border text-xs font-semibold transition-colors cursor-pointer flex-shrink-0 shadow-2xs ${
+              activeFiltersCount > 0
+                ? 'bg-[#24152F] text-[#F7F1E5] border-[#24152F]'
+                : 'bg-white dark:bg-[#1E1128] border-[#24152F]/20 dark:border-[#3F2553] text-[#24152F] dark:text-[#F7F1E5] hover:bg-[#FAF6EE] dark:hover:bg-[#2A1738]'
+            }`}
+            title="Filtrar usuários"
+          >
+            <SlidersHorizontal className={`w-4 h-4 ${activeFiltersCount > 0 ? 'text-[#DFFF5F]' : 'text-[#24152F] dark:text-[#F7F1E5]'}`} />
+            {activeFiltersCount > 0 && (
+              <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-[#DFFF5F] text-[#180D20] text-[10px] font-black flex items-center justify-center">
+                {activeFiltersCount}
+              </span>
+            )}
+          </button>
         </div>
-        <div className="text-xs text-[#24152F]/80 leading-normal flex-1">
-          <strong className="text-[#24152F] font-bold">Controle de Acessos:</strong> Usuários com status{' '}
-          <span className="font-semibold text-emerald-800">Ativo</span> acessam normalmente o sistema; os{' '}
-          <span className="font-semibold text-rose-800">Desativados</span> não podem realizar login; e os{' '}
-          <span className="font-semibold text-orange-800">Temporários</span> possuem prazo limite de acesso.
+
+        {/* Resumo de usuários exibidos */}
+        <div className="text-xs text-[#24152F]/65 dark:text-[#D2C4DC]/70 font-medium flex items-center gap-2 justify-end">
+          <span>Exibindo <strong>{filteredUsers.length}</strong> de {adminUsers.length}</span>
+          {(activeFiltersCount > 0 || searchTerm) && (
+            <button
+              type="button"
+              onClick={() => {
+                setFilterSelectedStatuses([]);
+                setFilterSelectedProfiles([]);
+                setSearchTerm('');
+              }}
+              className="text-[11px] text-rose-700 dark:text-rose-400 underline font-semibold hover:text-rose-800 cursor-pointer ml-1"
+            >
+              Limpar filtros
+            </button>
+          )}
         </div>
       </div>
 
-      {/* Users List com Título sem contador (Item 11) */}
-      <div className="bg-white rounded-2xl border border-[#24152F]/10 shadow-xs overflow-hidden">
-        <div className="p-4 sm:p-5 border-b border-[#24152F]/10">
-          <h3 className="text-base font-bold text-[#24152F]">
+      {/* 2. Card Usuários Cadastrados */}
+      <div className="bg-white dark:bg-[#1E1128] rounded-2xl border border-[#24152F]/10 dark:border-[#3F2553] shadow-xs overflow-hidden">
+        <div className="p-4 sm:p-5 border-b border-[#24152F]/10 dark:border-[#3F2553]/60 flex items-center justify-between">
+          <h3 className="text-base font-bold text-[#24152F] dark:text-[#F7F1E5]">
             Usuários Cadastrados
           </h3>
+          <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-[#24152F]/5 dark:bg-white/10 text-[#24152F] dark:text-[#F7F1E5]">
+            {filteredUsers.length} {filteredUsers.length === 1 ? 'usuário' : 'usuários'}
+          </span>
         </div>
 
-        <div className="divide-y divide-[#24152F]/5">
-          {adminUsers.map((user) => {
+        <div className="divide-y divide-[#24152F]/5 dark:divide-[#3F2553]/40">
+          {filteredUsers.length === 0 ? (
+            <div className="p-8 text-center text-xs text-[#24152F]/60 dark:text-[#D2C4DC]/60">
+              Nenhum usuário encontrado com os critérios pesquisados.
+            </div>
+          ) : (
+            filteredUsers.map((user) => {
             const isSelf = user.id === currentUser.id;
+            const profiles = normalizeAdminProfiles(
+              user.accessProfiles && user.accessProfiles.length > 0
+                ? user.accessProfiles
+                : [user.role]
+            );
 
             return (
               <div
                 key={user.id}
-                className="p-3.5 sm:p-4.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4 hover:bg-[#FAF6EE]/40 transition-colors"
+                className="p-3.5 sm:p-4.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4 hover:bg-[#FAF6EE]/40 dark:hover:bg-[#2A1738]/40 transition-colors"
               >
-                {/* 1. Nome, Foto & E-mail */}
+                {/* Left: Avatar + Details */}
                 <div className="flex items-center gap-3 min-w-0">
+                  {/* Avatar */}
                   <div className="w-10 h-10 rounded-full bg-[#24152F] text-[#DFFF5F] font-bold text-xs sm:text-sm flex items-center justify-center flex-shrink-0 overflow-hidden shadow-2xs">
                     {user.photoUrl ? (
                       <img
-                        src={user.photoUrl}
                         alt={`${user.name} ${user.lastName}`}
                         className="w-full h-full object-cover"
                         referrerPolicy="no-referrer"
+                        src={user.photoUrl}
                       />
                     ) : (
                       <span>
-                        {user.name.charAt(0)}
-                        {user.lastName.charAt(0)}
+                        {user.name.charAt(0).toUpperCase()}
+                        {user.lastName ? user.lastName.charAt(0).toUpperCase() : ''}
                       </span>
                     )}
                   </div>
 
+                  {/* Info */}
                   <div className="min-w-0">
                     <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
-                      <h4 className="text-sm font-bold text-[#24152F] truncate">
+                      <h4 className="text-sm font-bold text-[#24152F] dark:text-[#F7F1E5] truncate">
                         {user.name} {user.lastName}
                       </h4>
                       {isSelf && (
@@ -338,63 +472,77 @@ export const HubUsersView: React.FC<HubUsersViewProps> = ({
                           Você
                         </span>
                       )}
-                      {(user.accessProfiles && user.accessProfiles.length > 0 ? user.accessProfiles : [user.role]).map((prof) => (
+                      {profiles.map((p) => (
                         <span
-                          key={prof}
-                          className="text-[10px] sm:text-[11px] font-medium bg-[#24152F]/5 text-[#24152F] px-2 py-0.5 rounded-md border border-[#24152F]/10"
+                          key={p}
+                          className="text-[10px] sm:text-[11px] font-medium bg-[#24152F]/5 dark:bg-white/5 text-[#24152F] dark:text-[#F7F1E5] px-2 py-0.5 rounded-md border border-[#24152F]/10 dark:border-white/10"
                         >
-                          {prof}
+                          {p}
                         </span>
                       ))}
                     </div>
 
-                    <div className="flex items-center gap-1 mt-0.5 text-xs text-[#24152F]/70 truncate">
-                      <Mail className="w-3 h-3 text-[#24152F]/40 flex-shrink-0" />
+                    <div className="flex items-center gap-1 mt-0.5 text-xs text-[#24152F]/70 dark:text-[#E2D7EA]/70 truncate">
+                      <Mail className="w-3 h-3 text-[#24152F]/40 dark:text-[#E2D7EA]/40 flex-shrink-0" />
                       <span className="truncate">{user.email}</span>
                     </div>
                   </div>
                 </div>
 
-                {/* 2. Status Badge & Ações */}
-                <div className="flex items-center justify-between sm:justify-end gap-3 flex-shrink-0 pt-2 sm:pt-0 border-t sm:border-t-0 border-[#24152F]/5">
+                {/* Right: Status badge + Editar button */}
+                <div className="flex items-center justify-between sm:justify-end gap-3 flex-shrink-0 pt-2 sm:pt-0 border-t sm:border-t-0 border-[#24152F]/5 dark:border-[#3F2553]/30">
                   <div className="flex-shrink-0">
-                    {renderStatusBadge(user)}
+                    {user.status === 'active' ? (
+                      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-50 text-emerald-800 border border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800">
+                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-600"></span>
+                        Ativo
+                      </span>
+                    ) : user.status === 'temporary' ? (
+                      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-orange-50 text-orange-800 border border-orange-200 dark:bg-orange-950/40 dark:text-orange-300 dark:border-orange-800">
+                        <span className="w-1.5 h-1.5 rounded-full bg-orange-500"></span>
+                        Temporário
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-rose-50 text-rose-800 border border-rose-200 dark:bg-rose-950/40 dark:text-rose-300 dark:border-rose-800">
+                        <span className="w-1.5 h-1.5 rounded-full bg-rose-600"></span>
+                        Desativado
+                      </span>
+                    )}
                   </div>
 
                   <button
                     type="button"
                     onClick={() => handleOpenEdit(user)}
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-[#24152F]/15 hover:border-[#24152F] hover:bg-[#FAF6EE] text-[#24152F] text-xs font-semibold transition-all cursor-pointer shadow-2xs"
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-[#24152F]/15 hover:border-[#24152F] hover:bg-[#FAF6EE] text-[#24152F] dark:text-[#F7F1E5] dark:border-[#3F2553] dark:hover:bg-[#2A1738] text-xs font-semibold transition-all cursor-pointer shadow-2xs"
                     title="Editar dados e status do usuário"
                   >
-                    <Edit2 className="w-3.5 h-3.5 text-[#24152F]" />
+                    <Pen className="w-3.5 h-3.5 text-[#24152F] dark:text-[#F7F1E5]" />
                     <span>Editar</span>
                   </button>
                 </div>
               </div>
             );
-          })}
+          })
+        )}
         </div>
       </div>
 
-      {/* Modal Criar / Editar Usuário - Restored to original Rafluo Identity */}
+      {/* 4. Modal de Criação / Edição de Usuário */}
       {isModalOpen && (
-        <div className="fixed inset-0 z-50 bg-[#24152F]/70 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4 overflow-y-auto">
-          <div className="bg-white rounded-3xl border border-[#24152F]/15 shadow-2xl max-w-lg w-full overflow-hidden my-auto animate-in fade-in zoom-in-95 duration-150">
-            {/* Header: Dark Plum banner with Lime Icon */}
-            <div className="p-4 sm:p-5 bg-[#24152F] text-[#F7F1E5] flex items-center justify-between border-b border-[#3F2553]">
-              <div className="flex items-center gap-2.5">
-                <div className="w-8 h-8 rounded-xl bg-[#DFFF5F] text-[#180D20] flex items-center justify-center font-bold">
-                  <User className="w-4 h-4" />
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4 overflow-y-auto">
+          <div className="bg-white dark:bg-[#1E1128] rounded-2xl sm:rounded-3xl border border-[#24152F]/20 dark:border-[#3F2553] w-full max-w-xl shadow-2xl overflow-hidden my-auto max-h-[92vh] flex flex-col animate-in fade-in zoom-in-95">
+            {/* Modal Header */}
+            <div className="bg-[#1A1033] text-[#F7F1E5] p-5 sm:p-6 flex items-center justify-between flex-shrink-0">
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-xl bg-[#DFFF5F] text-[#180D20] flex items-center justify-center font-bold flex-shrink-0">
+                  <ShieldCheck className="w-5 h-5" />
                 </div>
                 <div>
                   <h3 className="text-base font-bold">
-                    {editingUser ? 'Editar Usuário' : 'Novo Usuário'}
+                    {modalMode === 'create' ? 'Novo Usuário' : 'Editar Usuário'}
                   </h3>
                   <p className="text-xs text-[#D2C4DC]">
-                    {editingUser
-                      ? 'Atualize os dados e permissões de acesso'
-                      : 'Cadastre um novo usuário administrativo no Rafluo'}
+                    Preencha os dados cadastrais e perfis de acesso
                   </p>
                 </div>
               </div>
@@ -408,32 +556,31 @@ export const HubUsersView: React.FC<HubUsersViewProps> = ({
               </button>
             </div>
 
-            {/* Form */}
-            <form onSubmit={handleSave} className="p-5 sm:p-6 space-y-5 max-h-[82vh] overflow-y-auto">
+            {/* Modal Body */}
+            <form onSubmit={handleSave} className="p-5 sm:p-6 overflow-y-auto space-y-4 flex-1">
               {/* Foto de Perfil */}
-              <div className="flex flex-col sm:flex-row items-center gap-4 p-3 rounded-2xl bg-[#FAF6EE] border border-[#24152F]/10">
+              <div className="flex flex-col sm:flex-row items-center gap-4 p-4 rounded-2xl bg-[#FAF6EE]/70 dark:bg-[#120919]/60 border border-[#24152F]/10 dark:border-[#3F2553]">
                 <div className="relative flex-shrink-0">
-                  <div className="w-16 h-16 rounded-full bg-[#24152F] text-[#DFFF5F] font-bold text-lg flex items-center justify-center overflow-hidden border-2 border-white shadow-xs">
-                    {formData.photoUrl ? (
-                      <img
-                        src={formData.photoUrl}
-                        alt="Preview do usuário"
-                        className="w-full h-full object-cover"
-                      />
-                    ) : (
-                      <span>
-                        {formData.name ? formData.name.charAt(0).toUpperCase() : 'U'}
-                        {formData.lastName ? formData.lastName.charAt(0).toUpperCase() : ''}
-                      </span>
-                    )}
-                  </div>
+                  {formData.photoUrl ? (
+                    <img
+                      src={formData.photoUrl}
+                      alt="Avatar"
+                      className="w-14 h-14 rounded-full object-cover border-2 border-[#1A1033]"
+                    />
+                  ) : (
+                    <div className="w-14 h-14 rounded-full bg-[#1A1033] text-[#DFFF5F] font-bold text-lg flex items-center justify-center shadow-2xs">
+                      {formData.name ? formData.name.charAt(0).toUpperCase() : 'U'}
+                      {formData.lastName ? formData.lastName.charAt(0).toUpperCase() : ''}
+                    </div>
+                  )}
+
                   <button
                     type="button"
                     onClick={() => fileInputRef.current?.click()}
-                    className="absolute bottom-0 right-0 p-1.5 rounded-full bg-[#24152F] hover:bg-[#180D20] text-[#DFFF5F] border border-white shadow-xs transition-colors cursor-pointer"
+                    className="absolute -bottom-1 -right-1 p-1.5 rounded-full bg-[#1A1033] text-[#DFFF5F] border-2 border-white shadow-xs hover:bg-[#120919] cursor-pointer"
                     title="Carregar foto"
                   >
-                    <Camera className="w-3 h-3" />
+                    <Camera className="w-3.5 h-3.5" />
                   </button>
                   <input
                     ref={fileInputRef}
@@ -445,24 +592,26 @@ export const HubUsersView: React.FC<HubUsersViewProps> = ({
                 </div>
 
                 <div className="flex-1 text-center sm:text-left">
-                  <h4 className="text-xs font-bold text-[#24152F]">Foto de Perfil</h4>
-                  <p className="text-[11px] text-[#24152F]/60 mt-0.5">
+                  <h4 className="text-xs font-bold text-[#1A1033] dark:text-[#F7F1E5]">
+                    Foto de Perfil
+                  </h4>
+                  <p className="text-[11px] text-[#6B6B76] dark:text-[#E2D7EA]/60 mt-0.5">
                     Envie uma foto em PNG ou JPG (máx. 5MB)
                   </p>
                   <div className="flex items-center justify-center sm:justify-start gap-2 mt-2">
                     <button
                       type="button"
                       onClick={() => fileInputRef.current?.click()}
-                      className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold bg-white border border-[#24152F]/15 hover:bg-[#FAF6EE] text-[#24152F] transition-colors cursor-pointer"
+                      className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold bg-white dark:bg-[#1E1128] border border-[#24152F]/15 dark:border-[#3F2553] hover:bg-[#FAF6EE] text-[#1A1033] dark:text-[#F7F1E5] transition-colors cursor-pointer"
                     >
-                      <Upload className="w-3 h-3 text-[#24152F]/60" />
+                      <Upload className="w-3 h-3 text-[#6B6B76]" />
                       <span>{formData.photoUrl ? 'Substituir' : 'Upload'}</span>
                     </button>
                     {formData.photoUrl && (
                       <button
                         type="button"
                         onClick={handleRemovePhoto}
-                        className="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-semibold text-rose-600 hover:bg-rose-50 transition-colors cursor-pointer"
+                        className="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-semibold text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/30 transition-colors cursor-pointer"
                       >
                         <Trash2 className="w-3 h-3" />
                         <span>Remover</span>
@@ -473,9 +622,9 @@ export const HubUsersView: React.FC<HubUsersViewProps> = ({
               </div>
 
               {/* Nome & Sobrenome */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
                 <div>
-                  <label className="block text-xs font-bold text-[#24152F] mb-1.5">
+                  <label className="block text-xs font-bold text-[#1A1033] dark:text-[#F7F1E5] mb-1">
                     Nome *
                   </label>
                   <input
@@ -483,15 +632,15 @@ export const HubUsersView: React.FC<HubUsersViewProps> = ({
                     value={formData.name}
                     onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                     placeholder="Ex: Carlos"
-                    className={`w-full px-3.5 py-2.5 text-xs sm:text-sm rounded-xl border bg-white text-[#24152F] placeholder:text-[#24152F]/30 focus:outline-none focus:ring-2 focus:ring-[#24152F] transition-all ${
-                      errors.name ? 'border-rose-500 ring-1 ring-rose-500' : 'border-[#24152F]/20'
+                    className={`w-full px-3.5 py-2 text-xs sm:text-sm rounded-xl border bg-white dark:bg-[#120919] text-[#1A1033] dark:text-[#F7F1E5] focus:outline-none focus:ring-2 focus:ring-[#1A1033] ${
+                      errors.name ? 'border-rose-500' : 'border-[#E9E3D8] dark:border-[#3F2553]'
                     }`}
                   />
                   {errors.name && <p className="text-[10px] text-rose-600 mt-1">{errors.name}</p>}
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold text-[#24152F] mb-1.5">
+                  <label className="block text-xs font-bold text-[#1A1033] dark:text-[#F7F1E5] mb-1">
                     Sobrenome *
                   </label>
                   <input
@@ -499,17 +648,19 @@ export const HubUsersView: React.FC<HubUsersViewProps> = ({
                     value={formData.lastName}
                     onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
                     placeholder="Ex: Pereira"
-                    className={`w-full px-3.5 py-2.5 text-xs sm:text-sm rounded-xl border bg-white text-[#24152F] placeholder:text-[#24152F]/30 focus:outline-none focus:ring-2 focus:ring-[#24152F] transition-all ${
-                      errors.lastName ? 'border-rose-500 ring-1 ring-rose-500' : 'border-[#24152F]/20'
+                    className={`w-full px-3.5 py-2 text-xs sm:text-sm rounded-xl border bg-white dark:bg-[#120919] text-[#1A1033] dark:text-[#F7F1E5] focus:outline-none focus:ring-2 focus:ring-[#1A1033] ${
+                      errors.lastName ? 'border-rose-500' : 'border-[#E9E3D8] dark:border-[#3F2553]'
                     }`}
                   />
-                  {errors.lastName && <p className="text-[10px] text-rose-600 mt-1">{errors.lastName}</p>}
+                  {errors.lastName && (
+                    <p className="text-[10px] text-rose-600 mt-1">{errors.lastName}</p>
+                  )}
                 </div>
               </div>
 
               {/* E-mail */}
               <div>
-                <label className="block text-xs font-bold text-[#24152F] mb-1.5">
+                <label className="block text-xs font-bold text-[#1A1033] dark:text-[#F7F1E5] mb-1">
                   E-mail *
                 </label>
                 <div className="relative">
@@ -518,94 +669,100 @@ export const HubUsersView: React.FC<HubUsersViewProps> = ({
                     value={formData.email}
                     onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                     placeholder="usuario@rafluo.com"
-                    className={`w-full pl-9 pr-3.5 py-2.5 text-xs sm:text-sm rounded-xl border bg-white text-[#24152F] placeholder:text-[#24152F]/30 focus:outline-none focus:ring-2 focus:ring-[#24152F] transition-all ${
-                      errors.email ? 'border-rose-500 ring-1 ring-rose-500' : 'border-[#24152F]/20'
+                    className={`w-full pl-9 pr-3.5 py-2 text-xs sm:text-sm rounded-xl border bg-white dark:bg-[#120919] text-[#1A1033] dark:text-[#F7F1E5] focus:outline-none focus:ring-2 focus:ring-[#1A1033] ${
+                      errors.email ? 'border-rose-500' : 'border-[#E9E3D8] dark:border-[#3F2553]'
                     }`}
                   />
-                  <Mail className="w-4 h-4 text-[#24152F]/40 absolute left-3 top-3.5" />
+                  <Mail className="w-4 h-4 text-[#6B6B76] absolute left-3 top-2.5" />
                 </div>
                 {errors.email && <p className="text-[10px] text-rose-600 mt-1">{errors.email}</p>}
               </div>
 
-              {/* Telefone (WhatsApp) */}
+              {/* Telefone */}
               <div>
-                <label className="block text-xs font-bold text-[#24152F] mb-1.5">
+                <label className="block text-xs font-bold text-[#1A1033] dark:text-[#F7F1E5] mb-1">
                   Telefone (WhatsApp)
                 </label>
                 <div className="relative">
                   <input
                     type="text"
                     value={formData.phone}
-                    onChange={(e) => setFormData({ ...formData, phone: formatPhoneBR(e.target.value) })}
+                    onChange={(e) =>
+                      setFormData({ ...formData, phone: formatPhoneBR(e.target.value) })
+                    }
                     placeholder="(11) 98765-4321"
-                    className={`w-full pl-9 pr-3.5 py-2.5 text-xs sm:text-sm rounded-xl border bg-white text-[#24152F] placeholder:text-[#24152F]/30 focus:outline-none focus:ring-2 focus:ring-[#24152F] transition-all ${
-                      errors.phone ? 'border-rose-500 ring-1 ring-rose-500' : 'border-[#24152F]/20'
+                    className={`w-full pl-9 pr-3.5 py-2 text-xs sm:text-sm rounded-xl border bg-white dark:bg-[#120919] text-[#1A1033] dark:text-[#F7F1E5] focus:outline-none focus:ring-2 focus:ring-[#1A1033] ${
+                      errors.phone ? 'border-rose-500' : 'border-[#E9E3D8] dark:border-[#3F2553]'
                     }`}
                   />
-                  <Phone className="w-4 h-4 text-[#24152F]/40 absolute left-3 top-3.5" />
+                  <Phone className="w-4 h-4 text-[#6B6B76] absolute left-3 top-2.5" />
                 </div>
                 {errors.phone && <p className="text-[10px] text-rose-600 mt-1">{errors.phone}</p>}
               </div>
 
-              {/* Perfil de Acesso (Múltipla Seleção) */}
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <label className="block text-xs font-bold text-[#24152F]">
-                    Perfil de Acesso *
+              {/* Perfis de Acesso */}
+              <div className="space-y-2 pt-1">
+                <div>
+                  <label className="block text-xs font-bold text-[#1A1033] dark:text-[#F7F1E5]">
+                    Perfis de Acesso *
                   </label>
-                  <span className="text-[11px] text-[#24152F]/60 font-medium">
-                    (Múltipla seleção)
-                  </span>
+                  <p className="text-[11px] text-[#6B6B76] dark:text-[#E2D7EA]/65 leading-tight mt-0.5">
+                    Selecione os perfis do usuário.
+                  </p>
                 </div>
-                <p className="text-[11px] text-[#24152F]/70 leading-tight">
-                  Selecione os perfis de acesso deste usuário. O <strong>Super Administrador</strong> é o perfil padrão do sistema com acesso irrestrito a todas as áreas do Rafluo.
-                </p>
 
                 <div className="space-y-2 pt-1">
                   {ACCESS_PROFILES.map((profile) => {
                     const isSelected = formData.accessProfiles.includes(profile.id);
+                    const isAdministradorActive = formData.accessProfiles.includes('Administrador');
+                    const isDisabled = profile.id !== 'Administrador' && isAdministradorActive;
+
                     return (
                       <div
                         key={profile.id}
-                        role="checkbox"
-                        aria-checked={isSelected}
-                        tabIndex={0}
-                        onClick={() => toggleProfile(profile.id)}
-                        onKeyDown={(e) => {
-                          if (e.key === ' ' || e.key === 'Enter') {
-                            e.preventDefault();
+                        onClick={() => {
+                          if (!isDisabled) {
                             toggleProfile(profile.id);
                           }
                         }}
-                        className={`p-3 rounded-xl border cursor-pointer transition-all flex items-start gap-3 select-none ${
-                          isSelected
-                            ? 'bg-[#FAF6EE] border-[#24152F] ring-1 ring-[#24152F] shadow-xs'
-                            : 'bg-white border-[#24152F]/15 hover:border-[#24152F]/40 hover:bg-[#FAF6EE]/30'
+                        className={`p-3 rounded-xl border transition-all flex items-start gap-3 select-none ${
+                          isDisabled
+                            ? 'opacity-40 cursor-not-allowed bg-stone-100 dark:bg-[#180d22] border-[#E9E3D8] dark:border-[#3F2553]'
+                            : isSelected
+                            ? 'bg-[#FAF6EE] dark:bg-[#2A1738] border-[#1A1033] dark:border-[#DFFF5F] shadow-xs ring-1 ring-[#1A1033] cursor-pointer'
+                            : 'bg-white dark:bg-[#120919] border-[#E9E3D8] dark:border-[#3F2553] hover:border-[#1A1033]/40 cursor-pointer'
                         }`}
                       >
                         <div
                           className={`w-5 h-5 rounded-md border flex items-center justify-center flex-shrink-0 mt-0.5 transition-colors ${
-                            isSelected
-                              ? 'bg-[#24152F] border-[#24152F] text-[#DFFF5F]'
-                              : 'bg-white border-[#24152F]/30 text-transparent'
+                            isDisabled
+                              ? 'bg-stone-200 dark:bg-stone-800 border-stone-300 text-transparent'
+                              : isSelected
+                              ? 'bg-[#1A1033] dark:bg-[#DFFF5F] border-[#1A1033] dark:border-[#DFFF5F] text-[#DFFF5F] dark:text-[#180D20]'
+                              : 'bg-white dark:bg-[#1E1128] border-[#E9E3D8] text-transparent'
                           }`}
                         >
                           <Check className="w-3.5 h-3.5 stroke-[3]" />
                         </div>
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2">
-                            <span className="text-xs font-bold text-[#24152F]">
+                            <span className="text-xs font-bold text-[#1A1033] dark:text-[#F7F1E5]">
                               {profile.name}
                             </span>
                             {profile.isDefault && (
-                              <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-md bg-[#DFFF5F] text-[#180D20]">
-                                Padrão do Sistema
+                              <span className="text-[10px] font-bold px-1.5 py-0.2 rounded-md bg-[#DFFF5F] text-[#180D20]">
+                                Padrão
                               </span>
                             )}
                           </div>
-                          <p className="text-[11px] text-[#24152F]/70 leading-tight mt-0.5">
+                          <p className="text-[11px] text-[#6B6B76] dark:text-[#E2D7EA]/60 leading-tight mt-0.5">
                             {profile.description}
                           </p>
+                          {isDisabled && (
+                            <p className="text-[10px] text-amber-700 dark:text-amber-400 font-medium mt-1">
+                              Indisponível enquanto o perfil Administrador estiver selecionado.
+                            </p>
+                          )}
                         </div>
                       </div>
                     );
@@ -617,45 +774,40 @@ export const HubUsersView: React.FC<HubUsersViewProps> = ({
               </div>
 
               {/* Status de Acesso */}
-              <div>
-                <label className="block text-xs font-bold text-[#24152F] mb-1.5">
+              <div className="pt-1">
+                <label className="block text-xs font-bold text-[#1A1033] dark:text-[#F7F1E5] mb-1.5">
                   Status de Acesso
                 </label>
-                <div className="grid grid-cols-3 gap-2.5">
-                  {/* Ativo */}
+                <div className="grid grid-cols-3 gap-2">
                   <button
                     type="button"
                     onClick={() => setFormData({ ...formData, status: 'active' })}
-                    className={`py-2 px-3 rounded-xl border text-xs font-semibold transition-all cursor-pointer text-center ${
+                    className={`py-2 px-3 rounded-xl border text-xs font-semibold transition-all text-center cursor-pointer ${
                       formData.status === 'active'
-                        ? 'bg-emerald-50 border-emerald-400 text-emerald-800 shadow-xs ring-1 ring-emerald-300'
-                        : 'bg-white border-[#24152F]/15 text-[#24152F]/70 hover:bg-[#FAF6EE]'
+                        ? 'bg-emerald-50 border-emerald-400 text-emerald-800 dark:bg-emerald-950/50 dark:text-emerald-300 font-bold shadow-xs'
+                        : 'bg-white dark:bg-[#120919] border-[#E9E3D8] dark:border-[#3F2553] text-[#6B6B76] dark:text-[#E2D7EA]/70'
                     }`}
                   >
                     Ativo
                   </button>
-
-                  {/* Temporário */}
                   <button
                     type="button"
                     onClick={() => setFormData({ ...formData, status: 'temporary' })}
-                    className={`py-2 px-3 rounded-xl border text-xs font-semibold transition-all cursor-pointer text-center ${
+                    className={`py-2 px-3 rounded-xl border text-xs font-semibold transition-all text-center cursor-pointer ${
                       formData.status === 'temporary'
-                        ? 'bg-orange-50 border-orange-400 text-orange-800 shadow-xs ring-1 ring-orange-300'
-                        : 'bg-white border-[#24152F]/15 text-[#24152F]/70 hover:bg-[#FAF6EE]'
+                        ? 'bg-amber-50 border-amber-400 text-amber-800 dark:bg-amber-950/50 dark:text-amber-300 font-bold shadow-xs'
+                        : 'bg-white dark:bg-[#120919] border-[#E9E3D8] dark:border-[#3F2553] text-[#6B6B76] dark:text-[#E2D7EA]/70'
                     }`}
                   >
                     Temporário
                   </button>
-
-                  {/* Desativado */}
                   <button
                     type="button"
                     onClick={() => setFormData({ ...formData, status: 'disabled' })}
-                    className={`py-2 px-3 rounded-xl border text-xs font-semibold transition-all cursor-pointer text-center ${
+                    className={`py-2 px-3 rounded-xl border text-xs font-semibold transition-all text-center cursor-pointer ${
                       formData.status === 'disabled'
-                        ? 'bg-rose-50 border-rose-400 text-rose-800 shadow-xs ring-1 ring-rose-300'
-                        : 'bg-white border-[#24152F]/15 text-[#24152F]/70 hover:bg-[#FAF6EE]'
+                        ? 'bg-rose-50 border-rose-400 text-rose-800 dark:bg-rose-950/50 dark:text-rose-300 font-bold shadow-xs'
+                        : 'bg-white dark:bg-[#120919] border-[#E9E3D8] dark:border-[#3F2553] text-[#6B6B76] dark:text-[#E2D7EA]/70'
                     }`}
                   >
                     Desativado
@@ -663,55 +815,167 @@ export const HubUsersView: React.FC<HubUsersViewProps> = ({
                 </div>
               </div>
 
-              {/* Período de Acesso (para Usuário Temporário - Item 10) */}
+              {/* Data de Fim para Temporário */}
               {formData.status === 'temporary' && (
-                <div className="p-4 rounded-2xl bg-orange-50/60 border border-orange-200 space-y-2 animate-in fade-in">
-                  <div className="flex items-center gap-2 text-xs font-bold text-orange-900">
-                    <Clock className="w-4 h-4 text-orange-700" />
+                <div className="p-3.5 rounded-2xl bg-amber-50/70 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 space-y-2 animate-in fade-in">
+                  <div className="flex items-center gap-2 text-xs font-bold text-amber-900 dark:text-amber-300">
+                    <Clock className="w-4 h-4 text-amber-700" />
                     <span>Janela de Acesso Temporário</span>
                   </div>
-
                   <div>
-                    <label className="block text-[11px] font-semibold text-orange-900 mb-1">
+                    <label className="block text-[11px] font-semibold text-amber-900 dark:text-amber-300 mb-1">
                       Data de Fim do Acesso *
                     </label>
                     <input
                       type="date"
                       value={formData.accessEnd}
                       onChange={(e) => setFormData({ ...formData, accessEnd: e.target.value })}
-                      className={`w-full px-3 py-2 text-xs rounded-xl border bg-white text-[#24152F] focus:outline-none focus:ring-2 focus:ring-orange-500 cursor-pointer ${
-                        errors.accessEnd ? 'border-rose-500' : 'border-orange-300'
+                      className={`w-full px-3 py-2 text-xs rounded-xl border bg-white dark:bg-[#120919] text-[#1A1033] dark:text-[#F7F1E5] focus:outline-none focus:ring-2 focus:ring-amber-500 ${
+                        errors.accessEnd ? 'border-rose-500' : 'border-amber-300 dark:border-amber-700'
                       }`}
                     />
                     {errors.accessEnd && (
                       <p className="text-[10px] text-rose-600 mt-1">{errors.accessEnd}</p>
                     )}
                   </div>
-
-                  <p className="text-[11px] text-orange-800/80 leading-tight pt-1">
-                    O acesso ao painel estará liberado a partir da criação até o fim desta data.
-                  </p>
                 </div>
               )}
-
-              {/* Actions Footer */}
-              <div className="pt-4 border-t border-[#24152F]/10 flex flex-col-reverse sm:flex-row items-center justify-end gap-2.5">
-                <button
-                  type="button"
-                  onClick={handleCloseModal}
-                  className="w-full sm:w-auto px-4 py-2.5 text-xs font-semibold rounded-xl text-[#24152F]/70 hover:text-[#24152F] hover:bg-[#FAF6EE] transition-colors cursor-pointer text-center"
-                >
-                  Cancelar
-                </button>
-                <button
-                  type="submit"
-                  className="w-full sm:w-auto flex items-center justify-center gap-2 px-5 py-2.5 text-xs font-bold rounded-xl bg-[#24152F] hover:bg-[#180D20] text-[#F7F1E5] transition-all cursor-pointer shadow-xs border border-[#3F2553] active:scale-98"
-                >
-                  <Check className="w-3.5 h-3.5 text-[#DFFF5F]" />
-                  <span>{editingUser ? 'Salvar Alterações' : 'Salvar Usuário'}</span>
-                </button>
-              </div>
             </form>
+
+            {/* Modal Footer */}
+            <div className="p-4 sm:p-5 border-t border-[#E9E3D8] dark:border-[#3F2553] bg-[#FAF6EE]/40 dark:bg-[#1E1128] flex items-center justify-end gap-2.5 flex-shrink-0">
+              <button
+                type="button"
+                onClick={handleCloseModal}
+                className="px-4 py-2.5 text-xs font-semibold rounded-xl text-[#6B6B76] dark:text-[#E2D7EA]/70 hover:bg-[#FAF6EE] dark:hover:bg-[#2A1738] transition-colors cursor-pointer"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={handleSave}
+                className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-[#1A1033] hover:bg-[#120919] text-white text-xs sm:text-sm font-semibold shadow-xs transition-all active:scale-95 cursor-pointer"
+              >
+                <CheckCircle2 className="w-4 h-4 text-[#DFFF5F]" />
+                <span>{modalMode === 'edit' ? 'Salvar Alterações' : 'Salvar Usuário'}</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Filtrar Usuários (Padronizado idêntico ao menu Clientes) */}
+      {isFilterModalOpen && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#24152F]/70 backdrop-blur-xs animate-in fade-in duration-150"
+        >
+          <div className="w-full max-w-md bg-white dark:bg-[#1E1128] rounded-2xl border border-[#24152F]/15 dark:border-[#3F2553] p-5 sm:p-6 shadow-2xl space-y-5 animate-in zoom-in-95 duration-100">
+            {/* Cabeçalho */}
+            <div className="flex items-center justify-between pb-3 border-b border-[#24152F]/10 dark:border-[#3F2553]">
+              <div className="flex items-center gap-2">
+                <SlidersHorizontal className="w-4 h-4 text-[#24152F] dark:text-[#DFFF5F]" />
+                <h3 className="text-base font-bold text-[#24152F] dark:text-[#F7F1E5]">Filtrar</h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsFilterModalOpen(false)}
+                className="w-8 h-8 rounded-full bg-[#FAF6EE] dark:bg-[#2A1738] text-[#24152F]/70 dark:text-[#D2C4DC] hover:text-[#24152F] hover:bg-[#EDE4D3] flex items-center justify-center transition-colors cursor-pointer"
+                title="Fechar modal de filtros"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="space-y-4 text-xs">
+              {/* Status — Chips selecionáveis */}
+              <div className="space-y-2">
+                <label className="block font-bold text-[#24152F] dark:text-[#F7F1E5]">
+                  Status do Usuário
+                </label>
+                <div className="flex flex-wrap gap-2 pt-0.5">
+                  {USER_STATUS_OPTIONS.map((status) => {
+                    const isSelected = draftSelectedStatuses.includes(status.id);
+                    return (
+                      <button
+                        key={status.id}
+                        type="button"
+                        onClick={() => {
+                          setDraftSelectedStatuses((prev) =>
+                            isSelected ? prev.filter((s) => s !== status.id) : [...prev, status.id]
+                          );
+                        }}
+                        className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition-all cursor-pointer ${
+                          isSelected
+                            ? 'bg-[#E8F0E4] border-[#A3C79E] text-[#1E3B1E] shadow-2xs font-bold'
+                            : 'bg-[#FAF6EE] dark:bg-[#2A1738] border-[#24152F]/15 dark:border-[#3F2553] text-[#24152F]/70 dark:text-[#D2C4DC] hover:bg-[#FAF6EE]/80'
+                        }`}
+                      >
+                        {isSelected && '✓ '}
+                        {status.label}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Perfil de Acesso — Chips selecionáveis */}
+              <div className="space-y-2">
+                <label className="block font-bold text-[#24152F] dark:text-[#F7F1E5]">
+                  Perfil de Acesso
+                </label>
+                <div className="flex flex-wrap gap-2 pt-0.5">
+                  {USER_PROFILE_OPTIONS.map((profile) => {
+                    const isSelected = draftSelectedProfiles.includes(profile.id);
+                    return (
+                      <button
+                        key={profile.id}
+                        type="button"
+                        onClick={() => {
+                          setDraftSelectedProfiles((prev) =>
+                            isSelected ? prev.filter((p) => p !== profile.id) : [...prev, profile.id]
+                          );
+                        }}
+                        className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition-all cursor-pointer ${
+                          isSelected
+                            ? 'bg-[#E8F0E4] border-[#A3C79E] text-[#1E3B1E] shadow-2xs font-bold'
+                            : 'bg-[#FAF6EE] dark:bg-[#2A1738] border-[#24152F]/15 dark:border-[#3F2553] text-[#24152F]/70 dark:text-[#D2C4DC] hover:bg-[#FAF6EE]/80'
+                        }`}
+                      >
+                        {isSelected && '✓ '}
+                        {profile.label}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+
+            {/* Botões do modal: Limpar filtros & Aplicar filtros */}
+            <div className="flex items-center justify-between gap-3 pt-3 border-t border-[#24152F]/10 dark:border-[#3F2553]">
+              <button
+                type="button"
+                onClick={() => {
+                  setDraftSelectedStatuses([]);
+                  setDraftSelectedProfiles([]);
+                }}
+                className="px-4 py-2 rounded-xl text-xs font-semibold text-[#24152F]/70 dark:text-[#D2C4DC]/70 hover:text-rose-700 hover:bg-rose-50 dark:hover:bg-rose-950/40 border border-transparent transition-colors cursor-pointer"
+              >
+                Limpar filtros
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setFilterSelectedStatuses(draftSelectedStatuses);
+                  setFilterSelectedProfiles(draftSelectedProfiles);
+                  setIsFilterModalOpen(false);
+                }}
+                className="px-5 py-2.5 rounded-xl bg-[#24152F] text-[#F7F1E5] dark:bg-[#DFFF5F] dark:text-[#180D20] text-xs font-bold hover:bg-[#180D20] transition-colors cursor-pointer shadow-xs border border-[#3F2553]"
+              >
+                Aplicar filtros
+              </button>
+            </div>
           </div>
         </div>
       )}
