@@ -31,6 +31,7 @@ import {
   InviteMember,
   CompanionDetail,
   GUEST_GROUP_OPTIONS,
+  normalizeGuestGroup,
 } from '../../data/mockData';
 import { formatDateBR } from '../../utils/dateUtils';
 import { getInviteMembers } from '../../utils/inviteUtils';
@@ -180,13 +181,13 @@ export const GuestRsvpView: React.FC<GuestRsvpViewProps> = ({
   );
   const [guestEmail, setGuestEmail] = useState<string>(isIndividual ? guest?.email || '' : '');
 
-  // Pergunta padrão: Qual é o seu grupo? (Item 3.1)
+  // Pergunta padrão: Qual é o seu grupo? (Item 3)
   const [selectedGroup, setSelectedGroup] = useState<string>(() => {
-    if (isIndividual && guest?.group && GUEST_GROUP_OPTIONS.includes(guest.group as any)) {
-      return guest.group;
-    }
-    if (isIndividual && guest?.answers?.q_group && GUEST_GROUP_OPTIONS.includes(guest.answers.q_group)) {
-      return guest.answers.q_group;
+    if (isIndividual && (guest?.group || guest?.answers?.q_group)) {
+      const normalized = normalizeGuestGroup(guest.group || guest.answers?.q_group);
+      if (GUEST_GROUP_OPTIONS.includes(normalized as any)) {
+        return normalized;
+      }
     }
     return 'Família';
   });

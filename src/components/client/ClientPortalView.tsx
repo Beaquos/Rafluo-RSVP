@@ -30,7 +30,14 @@ import {
   FileText,
   AlertTriangle,
 } from 'lucide-react';
-import { EventData, GuestData, ManagerData, FormQuestionData } from '../../data/mockData';
+import {
+  EventData,
+  GuestData,
+  ManagerData,
+  FormQuestionData,
+  GUEST_GROUP_OPTIONS,
+  normalizeGuestGroup,
+} from '../../data/mockData';
 import { formatDateBR, formatDateTimeBR } from '../../utils/dateUtils';
 import { getInviteMembers, getInviteGuestCountText } from '../../utils/inviteUtils';
 import { copyToClipboard, getEventRsvpUrl } from '../../utils/linkUtils';
@@ -102,12 +109,10 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
     return guests.filter((g) => g.eventId === event.id);
   }, [guests, event.id]);
 
-  // Grupos disponíveis no evento
+  // Grupos padronizados do Rafluo (Item 3 do Prompt)
   const availableGroups = useMemo(() => {
-    const defaultGroups = ['Amigos', 'Família'];
-    const dynamicGroups = eventGuests.map((g) => g.group).filter(Boolean) as string[];
-    return Array.from(new Set([...defaultGroups, ...dynamicGroups]));
-  }, [eventGuests]);
+    return Array.from(GUEST_GROUP_OPTIONS);
+  }, []);
 
   const hasActiveFilters =
     filterStatus !== 'all' ||
@@ -165,10 +170,10 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
         return false;
       }
 
-      // Filtro de Grupo (Tag)
+      // Filtro de Grupo (Tag) padronizado
       if (filterSelectedGroups.length > 0) {
-        const guestGroup = g.group || 'Geral';
-        if (!filterSelectedGroups.includes(guestGroup)) {
+        const guestGroupNorm = normalizeGuestGroup(g.group);
+        if (!filterSelectedGroups.includes(guestGroupNorm) && !filterSelectedGroups.includes(g.group)) {
           return false;
         }
       }
@@ -345,6 +350,7 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
   const [receptionSearchTerm, setReceptionSearchTerm] = useState('');
   const [receptionFilter, setReceptionFilter] = useState<'all' | 'pending' | 'entered' | 'partial'>('all');
   const [isValidatingQr, setIsValidatingQr] = useState(false);
+  const [isSubmittingCheckIn, setIsSubmittingCheckIn] = useState(false);
 
   // Convidados confirmados do evento
   const confirmedReceptionGuests = useMemo(() => {
@@ -408,12 +414,18 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
     try {
       const res = await fetch('/api/checkin/validate', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
         body: JSON.stringify({ eventId: event.id, code }),
       });
-      const data = await res.json();
-      if (!res.ok || !data.valid || !data.guest) {
-        if (onShowToast) onShowToast(data.error || 'QR Code inválido ou não pertencente a este evento.');
+      const text = await res.text();
+      let data: any = null;
+      try {
+        if (text && text.trim()) data = JSON.parse(text);
+      } catch (e) {
+        console.warn('Falha ao decodificar JSON:', e);
+      }
+      if (!res.ok || !data || !data.valid || !data.guest) {
+        if (onShowToast) onShowToast(data?.error || 'QR Code inválido ou não pertencente a este evento.');
         return;
       }
       setSelectedGuestForReception(data.guest);
@@ -444,12 +456,18 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
     try {
       const res = await fetch('/api/checkin/validate', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
         body: JSON.stringify({ eventId: event.id, phone: cleanDigits }),
       });
-      const data = await res.json();
-      if (!res.ok) {
-        if (onShowToast) onShowToast(data.error || 'Erro ao buscar convidado por telefone.');
+      const text = await res.text();
+      let data: any = null;
+      try {
+        if (text && text.trim()) data = JSON.parse(text);
+      } catch (e) {
+        console.warn('Falha ao decodificar JSON:', e);
+      }
+      if (!res.ok || !data) {
+        if (onShowToast) onShowToast(data?.error || 'Erro ao buscar convidado por telefone.');
         return;
       }
       const matches: GuestData[] = data.guests || [];
@@ -470,48 +488,85 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
     }
   };
 
-  // Registro de check-in / desfazimento (Item 9 do Prompt)
+  // Registro de check-in / desfazimento (Item 9 e 11 do Prompt)
   const handleRecordCheckIn = async (
     guestId: string,
     memberIds: string[],
     action: 'checkin' | 'undo',
     operator?: string
   ) => {
-    const op = operator || authenticatedUser || event.clientName || 'Recepção';
-    const res = await fetch('/api/checkin/record', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        eventId: event.id,
-        guestId,
-        memberIds,
-        action,
-        operator: op,
-      }),
-    });
-    const data = await res.json();
-    if (!res.ok || !data.success || !data.guest) {
-      throw new Error(data.error || 'Falha ao registrar credenciamento no servidor.');
-    }
+    if (isSubmittingCheckIn) return;
+    setIsSubmittingCheckIn(true);
 
-    const updatedGuest: GuestData = data.guest;
-    if (onUpdateGuest) {
-      onUpdateGuest(updatedGuest);
-    }
-    if (selectedGuestForReception?.id === updatedGuest.id) {
-      setSelectedGuestForReception(updatedGuest);
-    }
-    if (phoneSearchResults) {
-      setPhoneSearchResults((prev) =>
-        prev ? prev.map((g) => (g.id === updatedGuest.id ? updatedGuest : g)) : null
-      );
-    }
-    if (onShowToast) {
-      onShowToast(
-        action === 'checkin'
-          ? `Entrada registrada para ${memberIds.length} pessoa(s)!`
-          : `Entrada desfeita para ${memberIds.length} pessoa(s).`
-      );
+    try {
+      const op = operator || authenticatedUser || event.clientName || 'Recepção';
+      const targetGuest =
+        selectedGuestForReception?.id === guestId
+          ? selectedGuestForReception
+          : eventGuests.find((g) => g.id === guestId);
+
+      const res = await fetch('/api/checkin/record', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Accept: 'application/json',
+        },
+        body: JSON.stringify({
+          eventId: event.id,
+          guestId,
+          memberIds,
+          action,
+          operator: op,
+          guest: targetGuest,
+        }),
+      });
+
+      const contentType = res.headers.get('content-type') || '';
+      const text = await res.text();
+
+      let data: any = null;
+      if (text && (contentType.includes('application/json') || text.trim().startsWith('{'))) {
+        try {
+          data = JSON.parse(text);
+        } catch (e) {
+          console.warn('Resposta não pôde ser convertida para JSON:', text);
+        }
+      }
+
+      if (!res.ok || !data || !data.success || !data.guest) {
+        const errorMsg =
+          data?.error ||
+          (text && text.length < 180 ? text : null) ||
+          `Falha de comunicação (${res.status}). Não foi possível registrar a entrada.`;
+        throw new Error(errorMsg);
+      }
+
+      const updatedGuest: GuestData = data.guest;
+      if (onUpdateGuest) {
+        onUpdateGuest(updatedGuest);
+      }
+      if (selectedGuestForReception?.id === updatedGuest.id) {
+        setSelectedGuestForReception(updatedGuest);
+      }
+      if (phoneSearchResults) {
+        setPhoneSearchResults((prev) =>
+          prev ? prev.map((g) => (g.id === updatedGuest.id ? updatedGuest : g)) : null
+        );
+      }
+      if (onShowToast) {
+        onShowToast(
+          action === 'checkin'
+            ? `Entrada registrada para ${memberIds.length} pessoa(s)!`
+            : `Entrada desfeita para ${memberIds.length} pessoa(s).`
+        );
+      }
+    } catch (err: any) {
+      console.error('Erro ao registrar credenciamento:', err);
+      if (onShowToast) {
+        onShowToast(err?.message || 'Erro ao registrar credenciamento. Verifique sua conexão e tente novamente.');
+      }
+    } finally {
+      setIsSubmittingCheckIn(false);
     }
   };
 
@@ -783,7 +838,7 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
                 }`}
               >
                 <CheckCircle2 className="w-4 h-4" />
-                <span>Confirmações (RSVP)</span>
+                <span>Confirmações</span>
                 <span className="px-2 py-0.5 rounded-full text-[10px] bg-black/10 dark:bg-black/20 font-black">
                   {confirmedCount}
                 </span>
@@ -857,7 +912,7 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
                 className="flex-1 sm:flex-initial flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-[#DFFF5F] hover:bg-[#CEF04A] text-[#180D20] text-xs font-bold transition-all shadow-sm cursor-pointer active:scale-95"
               >
                 {isCopiedRsvp ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
-                <span>{isCopiedRsvp ? 'Link Copiado!' : 'Copiar Link'}</span>
+                <span>{isCopiedRsvp ? 'Copiado!' : 'Copiar'}</span>
               </button>
 
               <button
@@ -877,7 +932,7 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
                 className="flex-1 sm:flex-initial flex items-center justify-center gap-2 px-3.5 py-2.5 rounded-xl border border-white/20 hover:bg-white/10 text-[#F7F1E5] text-xs font-semibold transition-all cursor-pointer"
               >
                 <ExternalLink className="w-4 h-4 text-[#DFFF5F]" />
-                <span>Ver Convite</span>
+                <span>Ver</span>
               </a>
             </div>
           </div>
@@ -1180,21 +1235,21 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
                             )}
                           </td>
                           <td className="py-3.5 px-3 align-middle hidden md:table-cell">
-                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-[#E8F0E4] border border-[#A3C79E] text-[#1E3B1E]">
-                              {g.group || 'Geral'}
+                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-[#E8F0E4] border border-[#A3C79E] text-[#1E3B1E] leading-tight">
+                              {normalizeGuestGroup(g.group)}
                             </span>
                           </td>
                           <td className="py-3.5 px-3 align-middle hidden md:table-cell">
                             {g.status === 'confirmed' ? (
-                              <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold bg-[#E8F0E4] border border-[#A3C79E] text-[#1E3B1E]">
+                              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-[#E8F0E4] border border-[#A3C79E] text-[#1E3B1E] leading-tight">
                                 Confirmado
                               </span>
                             ) : g.status === 'declined' ? (
-                              <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold bg-rose-50 border border-rose-300 text-rose-800">
+                              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-rose-50 border border-rose-300 text-rose-800 leading-tight">
                                 Ausente
                               </span>
                             ) : (
-                              <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-gray-100 border border-gray-300 text-[#24152F]/60">
+                              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-gray-100 border border-gray-300 text-[#24152F]/70 leading-tight">
                                 Sem resposta
                               </span>
                             )}
@@ -1589,7 +1644,7 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
                             {g.displayName || g.name}
                           </p>
                           <p className="text-[11px] text-[#24152F]/60 dark:text-[#D2C4DC]/60 font-normal">
-                            Tel: {g.phone || 'Não informado'} • Tag: {g.group || 'Geral'}
+                            Tel: {g.phone || 'Não informado'} • Tag: {normalizeGuestGroup(g.group)}
                           </p>
                         </td>
 
@@ -1627,15 +1682,15 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
                         {/* Status de Entrada */}
                         <td className="py-3.5 px-3 align-top">
                           {isAllEntered ? (
-                            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 border border-emerald-300">
+                            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 border border-emerald-300 leading-tight">
                               <Check className="w-3 h-3" /> Completo ({enteredCount}/{totalCount})
                             </span>
                           ) : isPartiallyEntered ? (
-                            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300 border border-amber-300">
+                            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300 border border-amber-300 leading-tight">
                               Parcial ({enteredCount}/{totalCount})
                             </span>
                           ) : (
-                            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300 border border-gray-300">
+                            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300 border border-gray-300 leading-tight">
                               Pendente (0/{totalCount})
                             </span>
                           )}

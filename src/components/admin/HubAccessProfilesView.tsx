@@ -291,12 +291,9 @@ export const HubAccessProfilesView: React.FC<HubAccessProfilesViewProps> = ({
               <Shield className="w-4 h-4" />
             </div>
             <div>
-              <h3 className="text-base font-bold text-[#24152F] dark:text-[#F7F1E5]">
+              <h3 className="text-base font-bold text-[#24152F] dark:text-[#F7F1E5] leading-none">
                 Perfis Cadastrados
               </h3>
-              <p className="text-[11px] text-[#24152F]/60 dark:text-[#E2D7EA]/60">
-                Níveis de autorização e escopos operacionais no Rafluo
-              </p>
             </div>
           </div>
           <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-[#24152F]/5 dark:bg-white/10 text-[#24152F] dark:text-[#F7F1E5]">
@@ -353,12 +350,12 @@ export const HubAccessProfilesView: React.FC<HubAccessProfilesViewProps> = ({
                   <div className="flex items-center justify-between sm:justify-end gap-2.5 flex-shrink-0 pt-2 sm:pt-0 border-t sm:border-t-0 border-[#24152F]/5 dark:border-[#3F2553]/30">
                     <div className="flex-shrink-0">
                       {profile.status === 'active' ? (
-                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-50 text-emerald-800 border border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800">
+                        <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-50 text-emerald-800 border border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800 leading-tight">
                           <span className="w-1.5 h-1.5 rounded-full bg-emerald-600"></span>
                           Ativo
                         </span>
                       ) : (
-                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-rose-50 text-rose-800 border border-rose-200 dark:bg-rose-950/40 dark:text-rose-300 dark:border-rose-800">
+                        <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-rose-50 text-rose-800 border border-rose-200 dark:bg-rose-950/40 dark:text-rose-300 dark:border-rose-800 leading-tight">
                           <span className="w-1.5 h-1.5 rounded-full bg-rose-600"></span>
                           Inativo
                         </span>
@@ -613,7 +610,7 @@ export const HubAccessProfilesView: React.FC<HubAccessProfilesViewProps> = ({
                 </p>
                 <div className="mt-3 flex items-center gap-2">
                   <span
-                    className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-bold ${
+                    className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-semibold leading-tight ${
                       viewingProfile.status === 'active'
                         ? 'bg-emerald-50 text-emerald-800 border border-emerald-200'
                         : 'bg-rose-50 text-rose-800 border border-rose-200'

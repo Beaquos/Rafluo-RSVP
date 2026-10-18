@@ -44,8 +44,14 @@ import {
   MessageSquare,
   Image as ImageIcon,
 } from 'lucide-react';
-import { NavSection } from '../../types/navigation';
-import { EventData, GuestData, FormQuestionData, ManagerData } from '../../data/mockData';
+import {
+  EventData,
+  GuestData,
+  FormQuestionData,
+  ManagerData,
+  GUEST_GROUP_OPTIONS,
+  normalizeGuestGroup,
+} from '../../data/mockData';
 import { copyToClipboard, getEventRsvpUrl, getGuestRsvpUrl, getClientPanelUrl } from '../../utils/linkUtils';
 import { formatDateBR, formatDateTimeBR } from '../../utils/dateUtils';
 import { exportReportToXLSX, exportReportToPDF } from '../../utils/reportExportUtils';
@@ -53,6 +59,7 @@ import { getInviteMembers, getInviteGuestCountText, getInviteResponseCounts } fr
 import { ExportDataDropdown } from '../common/ExportDataDropdown';
 import { WhatsAppIcon } from '../common/WhatsAppIcon';
 import { WhatsAppModal } from '../modals/WhatsAppModal';
+import { NavSection } from '../../types/navigation';
 
 interface DashboardSkeletonProps {
   currentSection: NavSection;
@@ -275,16 +282,10 @@ export const DashboardSkeleton: React.FC<DashboardSkeletonProps> = ({
     );
   };
 
-  // Available groups for filter chips
+  // Available groups for filter chips padronizados (Item 3 do Prompt)
   const availableGroups = React.useMemo(() => {
-    const list = ['Amigos', 'Família'];
-    guests.forEach((g) => {
-      if (g.group && !list.includes(g.group)) {
-        list.push(g.group);
-      }
-    });
-    return list;
-  }, [guests]);
+    return Array.from(GUEST_GROUP_OPTIONS);
+  }, []);
 
   // Active filters count for filter button badge
   const activeFiltersCount =
@@ -324,9 +325,10 @@ export const DashboardSkeleton: React.FC<DashboardSkeletonProps> = ({
       }
     }
 
-    // Filter by group (multiple selection chips)
+    // Filter by group (multiple selection chips) padronizado
     if (filterSelectedGroups.length > 0) {
-      if (!filterSelectedGroups.includes(g.group)) {
+      const guestGroupNorm = normalizeGuestGroup(g.group);
+      if (!filterSelectedGroups.includes(guestGroupNorm) && !filterSelectedGroups.includes(g.group)) {
         return false;
       }
     }
@@ -645,21 +647,21 @@ export const DashboardSkeleton: React.FC<DashboardSkeletonProps> = ({
                             )}
                           </td>
                           <td className="py-3.5 px-3 align-middle hidden md:table-cell">
-                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-[#E8F0E4] border border-[#A3C79E] text-[#1E3B1E]">
-                              {g.group || 'Geral'}
+                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-[#E8F0E4] border border-[#A3C79E] text-[#1E3B1E] leading-tight">
+                              {normalizeGuestGroup(g.group)}
                             </span>
                           </td>
                           <td className="py-3.5 px-3 align-middle hidden md:table-cell">
                             {g.status === 'confirmed' ? (
-                              <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold bg-[#E8F0E4] border border-[#A3C79E] text-[#1E3B1E]">
+                              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-[#E8F0E4] border border-[#A3C79E] text-[#1E3B1E] leading-tight">
                                 Confirmado
                               </span>
                             ) : g.status === 'declined' ? (
-                              <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold bg-rose-50 border border-rose-300 text-rose-800">
+                              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-rose-50 border border-rose-300 text-rose-800 leading-tight">
                                 Ausente
                               </span>
                             ) : (
-                              <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-gray-100 border border-gray-300 text-[#24152F]/60">
+                              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-gray-100 border border-gray-300 text-[#24152F]/70 leading-tight">
                                 Sem resposta
                               </span>
                             )}
@@ -1036,57 +1038,64 @@ export const DashboardSkeleton: React.FC<DashboardSkeletonProps> = ({
                   </div>
 
                   {/* Ações da Lista de Convidados (Item 4: Exportar, Importar CSV e Cadastrar) */}
-                  <div className="flex flex-wrap items-center gap-2 justify-end">
-                    <ExportDataDropdown
-                      id="btn-export-guest-data"
-                      onExportXLSX={() => {
-                        try {
-                          exportReportToXLSX({
-                            reportTitle: `Lista_Convidados_${event.name}`,
-                            eventName: event.name,
-                            filterLabel: 'Lista de Convidados',
-                            guests,
-                            events: [event],
-                          });
-                          if (onShowToast) onShowToast('Planilha Excel (XLSX) exportada com sucesso!');
-                        } catch (err) {
-                          console.error(err);
-                          if (onShowToast) onShowToast('Erro ao exportar planilha XLSX.');
-                        }
-                      }}
-                      onExportPDF={() => {
-                        try {
-                          exportReportToPDF({
-                            reportTitle: `Lista de Convidados - ${event.name}`,
-                            eventName: event.name,
-                            filterLabel: 'Documento Oficial do Evento',
-                            guests,
-                            events: [event],
-                          });
-                          if (onShowToast) onShowToast('Documento PDF oficial gerado com sucesso!');
-                        } catch (err) {
-                          console.error(err);
-                          if (onShowToast) onShowToast('Erro ao exportar documento PDF.');
-                        }
-                      }}
-                    />
-                    <button
-                      id="btn-import-csv"
-                      type="button"
-                      onClick={onImportCsv}
-                      className="flex items-center justify-center gap-1.5 px-3 py-2 border border-[#24152F]/20 bg-[#F7F1E5] text-[#24152F] text-xs font-semibold rounded-xl hover:bg-[#EDE4D3] cursor-pointer transition-colors shadow-2xs"
-                    >
-                      <Upload className="w-3.5 h-3.5" /> <span>Importar CSV</span>
-                    </button>
-                    <button
-                      id="btn-add-guest"
-                      type="button"
-                      onClick={onAddGuest}
-                      className="flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-xl bg-[#24152F] hover:bg-[#180D20] text-[#F7F1E5] font-semibold text-xs shadow-2xs transition-all active:scale-98 cursor-pointer border border-[#3F2553]"
-                    >
-                      <Plus className="w-3.5 h-3.5 text-[#DFFF5F] flex-shrink-0" />
-                      <span>Cadastrar Convidado</span>
-                    </button>
+                  <div className="flex flex-col sm:flex-row sm:items-center gap-2 justify-end w-full sm:w-auto">
+                    <div className="w-full sm:w-auto">
+                      <ExportDataDropdown
+                        id="btn-export-guest-data"
+                        onExportXLSX={() => {
+                          try {
+                            exportReportToXLSX({
+                              reportTitle: `Lista_Convidados_${event.name}`,
+                              eventName: event.name,
+                              filterLabel: 'Lista de Convidados',
+                              guests,
+                              events: [event],
+                            });
+                            if (onShowToast) onShowToast('Planilha Excel (XLSX) exportada com sucesso!');
+                          } catch (err) {
+                            console.error(err);
+                            if (onShowToast) onShowToast('Erro ao exportar planilha XLSX.');
+                          }
+                        }}
+                        onExportPDF={() => {
+                          try {
+                            exportReportToPDF({
+                              reportTitle: `Lista de Convidados - ${event.name}`,
+                              eventName: event.name,
+                              filterLabel: 'Documento Oficial do Evento',
+                              guests,
+                              events: [event],
+                            });
+                            if (onShowToast) onShowToast('Documento PDF oficial gerado com sucesso!');
+                          } catch (err) {
+                            console.error(err);
+                            if (onShowToast) onShowToast('Erro ao exportar documento PDF.');
+                          }
+                        }}
+                      />
+                    </div>
+
+                    {/* Botões Importar CSV e Cadastrar Convidado lado a lado no mobile com mesmo tamanho (Item 4) */}
+                    <div className="grid grid-cols-2 gap-2 w-full sm:w-auto sm:flex sm:items-center">
+                      <button
+                        id="btn-import-csv"
+                        type="button"
+                        onClick={onImportCsv}
+                        className="w-full sm:w-auto flex items-center justify-center gap-1.5 px-3 py-2 border border-[#24152F]/20 bg-[#F7F1E5] text-[#24152F] text-xs font-semibold rounded-xl hover:bg-[#EDE4D3] cursor-pointer transition-colors shadow-2xs h-9 min-h-[36px]"
+                      >
+                        <Upload className="w-3.5 h-3.5 flex-shrink-0" />
+                        <span className="truncate">Importar CSV</span>
+                      </button>
+                      <button
+                        id="btn-add-guest"
+                        type="button"
+                        onClick={onAddGuest}
+                        className="w-full sm:w-auto flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-xl bg-[#24152F] hover:bg-[#180D20] text-[#F7F1E5] font-semibold text-xs shadow-2xs transition-all active:scale-98 cursor-pointer border border-[#3F2553] h-9 min-h-[36px]"
+                      >
+                        <Plus className="w-3.5 h-3.5 text-[#DFFF5F] flex-shrink-0" />
+                        <span className="truncate">Cadastrar Convidado</span>
+                      </button>
+                    </div>
                   </div>
                 </div>
 
@@ -1288,23 +1297,23 @@ export const DashboardSkeleton: React.FC<DashboardSkeletonProps> = ({
 
                                 {/* Grupo: centralizado verticalmente */}
                                 <td className="py-4 px-3 align-middle hidden md:table-cell">
-                                  <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-[#E8F0E4] border border-[#A3C79E] text-[#1E3B1E]">
-                                    {g.group || 'Geral'}
+                                  <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-[#E8F0E4] border border-[#A3C79E] text-[#1E3B1E] leading-tight">
+                                    {normalizeGuestGroup(g.group)}
                                   </span>
                                 </td>
 
                                 {/* Status: texto direto Confirmado ou Ausente (Item 3) */}
                                 <td className="py-4 px-3 align-middle whitespace-nowrap hidden md:table-cell">
                                   {g.status === 'confirmed' ? (
-                                    <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold bg-[#E8F0E4] border border-[#A3C79E] text-[#1E3B1E]">
+                                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-[#E8F0E4] border border-[#A3C79E] text-[#1E3B1E] leading-tight">
                                       Confirmado
                                     </span>
                                   ) : g.status === 'declined' ? (
-                                    <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold bg-rose-50 border border-rose-300 text-rose-800">
+                                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-rose-50 border border-rose-300 text-rose-800 leading-tight">
                                       Ausente
                                     </span>
                                   ) : (
-                                    <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-gray-100 border border-gray-300 text-[#24152F]/60">
+                                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-gray-100 border border-gray-300 text-[#24152F]/70 leading-tight">
                                       Sem resposta
                                     </span>
                                   )}

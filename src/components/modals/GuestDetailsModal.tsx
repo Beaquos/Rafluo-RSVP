@@ -13,7 +13,7 @@ import {
   FileQuestion,
   CalendarCheck,
 } from 'lucide-react';
-import { GuestData, FormQuestionData } from '../../data/mockData';
+import { GuestData, FormQuestionData, normalizeGuestGroup } from '../../data/mockData';
 import { formatDateTimeBR } from '../../utils/dateUtils';
 
 interface GuestDetailsModalProps {
@@ -168,9 +168,9 @@ export const GuestDetailsModal: React.FC<GuestDetailsModalProps> = ({
 
               <div className="p-3 rounded-xl bg-[#FAF6EE] border border-[#24152F]/10">
                 <span className="text-[11px] font-bold text-[#24152F]/60 block mb-0.5">Grupo:</span>
-                <p className="text-xs sm:text-sm font-semibold text-[#24152F]">
-                  {guest.group || 'Geral'}
-                </p>
+                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-[#E8F0E4] border border-[#A3C79E] text-[#1E3B1E] leading-tight">
+                  {normalizeGuestGroup(guest.group)}
+                </span>
               </div>
             </div>
 
@@ -197,15 +197,15 @@ export const GuestDetailsModal: React.FC<GuestDetailsModalProps> = ({
                 <span className="text-[11px] font-bold text-[#24152F]/60 block mb-1">Status:</span>
                 <div>
                   {guest.status === 'confirmed' ? (
-                    <span className="inline-block px-2.5 py-1 rounded-full text-xs font-bold bg-[#DFFF5F] text-[#180D20]">
+                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-[#E8F0E4] border border-[#A3C79E] text-[#1E3B1E] leading-tight">
                       Confirmado
                     </span>
                   ) : guest.status === 'declined' ? (
-                    <span className="inline-block px-2.5 py-1 rounded-full text-xs font-bold bg-[#24152F]/10 text-[#24152F]">
-                      Recusado
+                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-rose-50 border border-rose-300 text-rose-800 leading-tight">
+                      Ausente
                     </span>
                   ) : (
-                    <span className="inline-block px-2.5 py-1 rounded-full text-xs font-bold bg-amber-100 text-amber-900 border border-amber-200">
+                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-gray-100 border border-gray-300 text-[#24152F]/70 leading-tight">
                       Pendente
                     </span>
                   )}

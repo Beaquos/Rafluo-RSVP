@@ -4,9 +4,28 @@ import path from 'path';
 import { defineConfig } from 'vite';
 import { VitePWA } from 'vite-plugin-pwa';
 
+function silenceViteLogs() {
+  return {
+    name: 'silence-vite-logs',
+    enforce: 'post' as const,
+    transform(code: string, id: string) {
+      if (id.includes('vite/dist/client') || id.includes('client.mjs') || id.includes('@vite/client')) {
+        return {
+          code: code
+            .replace(/console\.(error|warn|info|debug|log)\s*\(/g, '(() => {})(')
+            .replace(/originalConsoleError\s*\(/g, '(() => {})(')
+            .replace(/\[vite\]/g, '[dev]'),
+          map: null,
+        };
+      }
+    },
+  };
+}
+
 export default defineConfig(() => {
   return {
     plugins: [
+      silenceViteLogs(),
       react(),
       tailwindcss(),
       VitePWA({

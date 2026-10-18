@@ -1,8 +1,9 @@
 import * as XLSX from 'xlsx';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
-import { EventData, GuestData } from '../data/mockData';
+import { EventData, GuestData, normalizeGuestGroup } from '../data/mockData';
 import { formatDateBR, formatDateTimeBR } from './dateUtils';
+import { getRafluoLogoPngDataUrl } from './logoUtils';
 
 interface ExportReportOptions {
   reportTitle: string;
@@ -36,7 +37,7 @@ export const exportReportToXLSX = ({
       Evento: ev ? ev.name : eventName || 'Geral',
       Convidado: g.name,
       'Telefone/WhatsApp': g.phone || '—',
-      Grupo: g.group || '—',
+      Grupo: normalizeGuestGroup(g.group),
       'Código RSVP': g.rsvpCode,
       Status: statusLabel,
       'Acompanhantes (Qtd)': g.companionCount || 0,
@@ -71,17 +72,17 @@ export const exportReportToXLSX = ({
 };
 
 /**
- * 2. Exporta relatório em PDF Oficial do Sistema Rafluo
- * Estrutura formal com cabeçalho institucional, dados da empresa,
- * filtros, tabela zebrada de alta legibilidade e rodapé de autenticação.
+ * 2. Exporta relatório em PDF Oficial do Sistema Rafluo (Item 8 do Prompt)
+ * Estrutura formal com cabeçalho institucional, logo oficial em alta resolução,
+ * dados da empresa, filtros, tabela zebrada de alta legibilidade e rodapé de autenticação.
  */
-export const exportReportToPDF = ({
+export const exportReportToPDF = async ({
   reportTitle,
   eventName,
   filterLabel,
   guests,
   events,
-}: ExportReportOptions): void => {
+}: ExportReportOptions): Promise<void> => {
   const doc = new jsPDF({
     orientation: 'landscape',
     unit: 'mm',
@@ -108,16 +109,26 @@ export const exportReportToPDF = ({
   doc.setFillColor(neonLime[0], neonLime[1], neonLime[2]);
   doc.rect(0, 27, pageWidth, 1.5, 'F');
 
-  // Logo / Nome do Sistema
+  // Logo Oficial do Sistema Rafluo (Item 8 do Prompt)
+  try {
+    const logoPng = await getRafluoLogoPngDataUrl(128);
+    if (logoPng) {
+      doc.addImage(logoPng, 'PNG', 14, 4.5, 19, 19);
+    }
+  } catch (err) {
+    console.warn('Erro ao carregar logo oficial no PDF:', err);
+  }
+
+  // Nome do Sistema e Descritor posicionados ao lado do logo oficial
   doc.setTextColor(linenBeige[0], linenBeige[1], linenBeige[2]);
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(18);
-  doc.text('RAFLUO', 14, 14);
+  doc.text('RAFLUO', 36, 14);
 
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(8.5);
   doc.setTextColor(neonLime[0], neonLime[1], neonLime[2]);
-  doc.text('GESTÃO INTELIGENTE DE CONFIRMAÇÕES', 14, 20);
+  doc.text('GESTÃO INTELIGENTE DE CONFIRMAÇÕES', 36, 20);
 
   // Dados da Empresa / Emissor no canto direito do cabeçalho
   doc.setTextColor(linenBeige[0], linenBeige[1], linenBeige[2]);

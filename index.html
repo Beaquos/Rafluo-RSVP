@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="pt-BR">
   <head>
-    <!-- Ignore Vite HMR WebSocket connection errors in sandbox iframe environment -->
+    <!-- Silence Vite HMR WebSocket connection errors in sandbox iframe environment -->
     <script>
       (function() {
         var isViteArg = function(arg) {
@@ -71,12 +71,9 @@
             var protoStr = Array.isArray(protocols) ? protocols.join(',') : (protocols || '');
             var urlStr = typeof url === 'string' ? url : (url && url.toString ? url.toString() : '');
 
-            // In AI Studio Build sandbox environment, HMR is disabled.
-            // All local/origin WebSockets are mocked so they never emit native browser connection errors.
             var isLocalOrVite = true;
             try {
               if (urlStr && !urlStr.includes(window.location.host) && !urlStr.includes('localhost') && !urlStr.startsWith('/') && !urlStr.startsWith('ws://') && !urlStr.startsWith('wss://')) {
-                // External 3rd party WebSocket if any
                 isLocalOrVite = false;
               }
             } catch (e) {}
@@ -84,9 +81,7 @@
             if (!isLocalOrVite) {
               try {
                 return new OrigWebSocket(url, protocols);
-              } catch (e) {
-                // Fall through to mock
-              }
+              } catch (e) {}
             }
 
             var self = this instanceof MockViteWebSocket ? this : Object.create(MockViteWebSocket.prototype);
@@ -138,7 +133,7 @@
               listeners[event].push(callback);
               if (event === 'open') {
                 setTimeout(function() {
-                  try { callback(new Event('open')); } catch(e) {}
+                  try { callback(new Event('open')); } catch (e) {}
                 }, 0);
               }
             };
@@ -150,7 +145,7 @@
               var eventType = event && event.type;
               if (listeners[eventType]) {
                 listeners[eventType].forEach(function(cb) {
-                  try { cb(event); } catch(e) {}
+                  try { cb(event); } catch (e) {}
                 });
               }
               return true;
@@ -158,7 +153,7 @@
 
             setTimeout(function() {
               if (self._onopen) {
-                try { self._onopen({ type: 'open', target: self }); } catch(e) {}
+                try { self._onopen({ type: 'open', target: self }); } catch (e) {}
               }
             }, 0);
 

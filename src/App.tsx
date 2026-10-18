@@ -38,6 +38,7 @@ import {
   ClientData,
   FormQuestionData,
   ManagerData,
+  normalizeGuestGroup,
 } from './data/mockData';
 import { HubSection, NavSection } from './types/navigation';
 import { AdminUser, AdminUserStatus, normalizeAdminRole, normalizeAdminProfiles } from './types/user';
@@ -588,7 +589,7 @@ export default function App() {
               displayName: guestInfo?.name || g.displayName,
               phone: guestInfo?.phone || g.phone,
               email: guestInfo?.email || g.email,
-              group: answers?.q_group || answers?.group || (guestInfo as any)?.group || g.group || 'Geral',
+              group: normalizeGuestGroup(answers?.q_group || answers?.group || (guestInfo as any)?.group || g.group),
               status,
               companionCount,
               companionNames,
@@ -613,7 +614,7 @@ export default function App() {
         name: guestInfo?.name || targetG.name,
         phone: guestInfo?.phone || targetG.phone,
         email: guestInfo?.email || targetG.email,
-        group: answers?.q_group || answers?.group || (guestInfo as any)?.group || targetG.group || 'Geral',
+        group: normalizeGuestGroup(answers?.q_group || answers?.group || (guestInfo as any)?.group || targetG.group),
         status,
         companionCount,
         companionNames,
@@ -674,7 +675,7 @@ export default function App() {
           displayName: newName || existing.displayName,
           phone: guestInfo?.phone || existing.phone,
           email: guestInfo?.email || existing.email,
-          group: answers?.q_group || answers?.group || (guestInfo as any)?.group || existing.group || 'Geral',
+          group: normalizeGuestGroup(answers?.q_group || answers?.group || (guestInfo as any)?.group || existing.group),
           status,
           companionCount,
           companionNames,
@@ -717,7 +718,7 @@ export default function App() {
       inviteName: newName,
       phone: guestInfo?.phone || '',
       email: guestInfo?.email || '',
-      group: answers?.q_group || answers?.group || (guestInfo as any)?.group || 'Família',
+      group: normalizeGuestGroup(answers?.q_group || answers?.group || (guestInfo as any)?.group || 'Família'),
       maxGuests: targetEvent.maxGuestsPerInvite || 2,
       rsvpCode: generatedRsvpCode,
       checkInCode: checkInCode || undefined,

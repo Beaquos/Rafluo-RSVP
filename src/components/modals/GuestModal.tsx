@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { X, UserPlus, Check, Plus, Trash2, Users, User, Baby, Tag } from 'lucide-react';
-import { GuestData, InviteMember, GUEST_GROUP_OPTIONS } from '../../data/mockData';
+import { GuestData, InviteMember, GUEST_GROUP_OPTIONS, normalizeGuestGroup } from '../../data/mockData';
 import { getInviteMembers } from '../../utils/inviteUtils';
 
 interface GuestModalProps {
@@ -24,7 +24,7 @@ export const GuestModal: React.FC<GuestModalProps> = ({
   const [primaryName, setPrimaryName] = useState('');
   const [phone, setPhone] = useState('');
   const [email, setEmail] = useState('');
-  const [group, setGroup] = useState('Família');
+  const [group, setGroup] = useState<string>('Família');
   const [notes, setNotes] = useState('');
 
   // Acompanhantes (Item 5: quantidade e nomes individuais)
@@ -44,7 +44,7 @@ export const GuestModal: React.FC<GuestModalProps> = ({
         setPrimaryName(guest.name);
         setPhone(guest.phone || '');
         setEmail(guest.email || '');
-        setGroup(guest.group || 'Geral');
+        setGroup(normalizeGuestGroup(guest.group));
         setNotes(guest.notes || '');
 
         const allMembers = getInviteMembers(guest);
@@ -162,7 +162,7 @@ export const GuestModal: React.FC<GuestModalProps> = ({
       inviteName: finalInviteName,
       phone: phone.trim(),
       email: email.trim().toLowerCase(),
-      group: group.trim() || 'Geral',
+      group: normalizeGuestGroup(group),
       maxGuests: Math.max(validCompanions.length + validChildren.length, defaultMaxGuests),
       rsvpCode: randomCode,
       notes: notes.trim(),

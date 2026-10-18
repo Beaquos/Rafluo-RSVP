@@ -313,80 +313,119 @@ async function startServer() {
     return res.status(400).json({ error: 'Informe code ou phone para validação' });
   });
 
-  // Registro ou reversão de check-in (Item 8 e 9)
+  // Registro ou reversão de check-in (Item 8, 9 e 11)
   app.post('/api/checkin/record', (req: Request, res: Response) => {
-    const { eventId, guestId, memberIds, action, operator } = req.body as {
-      eventId: string;
-      guestId: string;
-      memberIds: string[];
-      action?: 'checkin' | 'undo';
-      operator?: string;
-    };
+    res.setHeader('Content-Type', 'application/json');
+    try {
+      const { eventId, guestId, memberIds, action, operator, guest: clientGuest } = req.body as {
+        eventId: string;
+        guestId: string;
+        memberIds: string[];
+        action?: 'checkin' | 'undo';
+        operator?: string;
+        guest?: GuestData;
+      };
 
-    if (!eventId || !guestId || !Array.isArray(memberIds)) {
-      return res.status(400).json({ error: 'Parâmetros incompletos' });
-    }
-
-    const guestIndex = db.guests.findIndex((g) => g.id === guestId && g.eventId === eventId);
-    if (guestIndex < 0) {
-      return res.status(404).json({ error: 'Convidado não encontrado no evento' });
-    }
-
-    const guest = db.guests[guestIndex];
-    const isUndo = action === 'undo';
-    const nowIso = new Date().toISOString();
-    const opName = operator || 'Recepção';
-
-    const members = (guest.members || []).map((m) => {
-      if (memberIds.includes(m.id)) {
-        return {
-          ...m,
-          checkedIn: !isUndo,
-          checkedInAt: !isUndo ? nowIso : null,
-          checkedInBy: !isUndo ? opName : null,
-        };
+      if (!guestId || !Array.isArray(memberIds)) {
+        return res.status(400).json({ success: false, error: 'Parâmetros incompletos para credenciamento.' });
       }
-      return m;
-    });
 
-    const checkedInCount = members.filter((m) => m.checkedIn).length;
-    const totalCount = members.length || 1;
-    let checkInStatus: 'none' | 'partial' | 'complete' = 'none';
-    if (checkedInCount === totalCount && totalCount > 0) {
-      checkInStatus = 'complete';
-    } else if (checkedInCount > 0) {
-      checkInStatus = 'partial';
+      let guestIndex = db.guests.findIndex(
+        (g) => g.id === guestId && (eventId ? g.eventId === eventId : true)
+      );
+
+      // Fallback: se não encontrou com eventId exato, busca apenas pelo id do convidado
+      if (guestIndex < 0) {
+        guestIndex = db.guests.findIndex((g) => g.id === guestId);
+      }
+
+      // Se ainda não existir no banco do servidor mas foi enviado pelo cliente, insere na memória
+      if (guestIndex < 0 && clientGuest && clientGuest.id === guestId) {
+        db.guests.push(clientGuest);
+        guestIndex = db.guests.length - 1;
+      }
+
+      if (guestIndex < 0) {
+        return res.status(404).json({ success: false, error: 'Convidado não encontrado no sistema.' });
+      }
+
+      const guest = db.guests[guestIndex];
+      const isUndo = action === 'undo';
+      const nowIso = new Date().toISOString();
+      const opName = operator || 'Recepção';
+
+      // Idempotência: verificar se todos os membros selecionados já estão no estado desejado
+      const targetMembers = (guest.members || []).filter((m) => memberIds.includes(m.id));
+      const alreadyInState = targetMembers.every((m) => (isUndo ? !m.checkedIn : m.checkedIn));
+
+      if (alreadyInState && targetMembers.length > 0) {
+        // Já está no estado correto, retorna sucesso sem duplicar histórico
+        return res.json({
+          success: true,
+          guest,
+          checkedInCount: guest.checkedInCount || 0,
+          checkInStatus: guest.checkInStatus || 'none',
+          alreadyRecorded: true,
+        });
+      }
+
+      const members = (guest.members || []).map((m) => {
+        if (memberIds.includes(m.id)) {
+          return {
+            ...m,
+            checkedIn: !isUndo,
+            checkedInAt: !isUndo ? nowIso : null,
+            checkedInBy: !isUndo ? opName : null,
+          };
+        }
+        return m;
+      });
+
+      const checkedInCount = members.filter((m) => m.checkedIn).length;
+      const totalCount = members.length || 1;
+      let checkInStatus: 'none' | 'partial' | 'complete' = 'none';
+      if (checkedInCount === totalCount && totalCount > 0) {
+        checkInStatus = 'complete';
+      } else if (checkedInCount > 0) {
+        checkInStatus = 'partial';
+      }
+
+      const updatedGuest: GuestData = {
+        ...guest,
+        members,
+        checkedInCount,
+        checkInStatus,
+        checkInHistory: [
+          ...(guest.checkInHistory || []),
+          {
+            timestamp: nowIso,
+            action: isUndo ? 'undo' : 'checkin',
+            memberIds,
+            memberNames: members.filter((m) => memberIds.includes(m.id)).map((m) => m.name),
+            operator: opName,
+            summary: isUndo
+              ? `Entrada desfeita para ${memberIds.length} pessoa(s) por ${opName}`
+              : `Entrada registrada para ${memberIds.length} pessoa(s) por ${opName}`,
+          },
+        ],
+      };
+
+      db.guests[guestIndex] = updatedGuest;
+      saveDb(db);
+
+      return res.json({
+        success: true,
+        guest: updatedGuest,
+        checkedInCount,
+        checkInStatus,
+      });
+    } catch (err: any) {
+      console.error('Erro em /api/checkin/record:', err);
+      return res.status(500).json({
+        success: false,
+        error: err?.message || 'Erro interno ao processar credenciamento no servidor.',
+      });
     }
-
-    const updatedGuest: GuestData = {
-      ...guest,
-      members,
-      checkedInCount,
-      checkInStatus,
-      checkInHistory: [
-        ...(guest.checkInHistory || []),
-        {
-          timestamp: nowIso,
-          action: isUndo ? 'undo' : 'checkin',
-          memberIds,
-          memberNames: members.filter((m) => memberIds.includes(m.id)).map((m) => m.name),
-          operator: opName,
-          summary: isUndo
-            ? `Entrada desfeita para ${memberIds.length} pessoa(s) por ${opName}`
-            : `Entrada registrada para ${memberIds.length} pessoa(s) por ${opName}`,
-        },
-      ],
-    };
-
-    db.guests[guestIndex] = updatedGuest;
-    saveDb(db);
-
-    res.json({
-      success: true,
-      guest: updatedGuest,
-      checkedInCount,
-      checkInStatus,
-    });
   });
 
   // Vite middleware in dev or static files in prod
@@ -404,6 +443,7 @@ async function startServer() {
       },
       appType: 'spa',
     });
+
     app.use(vite.middlewares);
   }
 

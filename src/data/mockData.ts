@@ -65,6 +65,58 @@ export const GUEST_GROUP_OPTIONS = [
 
 export type GuestGroupOption = (typeof GUEST_GROUP_OPTIONS)[number];
 
+/**
+ * Normaliza e padroniza a classificação de Grupo de convidados do Rafluo.
+ * Mapeia seguramente nomenclaturas antigas (como 'Família Noiva' -> 'Família')
+ * preservando dados existentes sem perdas.
+ */
+export function normalizeGuestGroup(rawGroup?: string | null): string {
+  if (!rawGroup || !rawGroup.trim()) return 'Outro';
+  const trimmed = rawGroup.trim();
+  const lower = trimmed.toLowerCase();
+
+  if (
+    lower.startsWith('família') ||
+    lower.startsWith('familia') ||
+    lower.includes('noiva') ||
+    lower.includes('noivo') ||
+    lower.includes('parentes')
+  ) {
+    return 'Família';
+  }
+  if (
+    lower.startsWith('amig') ||
+    lower.includes('amigo') ||
+    lower.includes('amiga') ||
+    lower.includes('colegio') ||
+    lower.includes('faculdade')
+  ) {
+    return 'Amigos';
+  }
+  if (lower.startsWith('padrinh') || lower.startsWith('madrinh') || lower.includes('testemunha')) {
+    return 'Padrinhos';
+  }
+  if (
+    lower.startsWith('trabalh') ||
+    lower.includes('trabalho') ||
+    lower.includes('empresa') ||
+    lower.includes('serviço') ||
+    lower.includes('corporativo')
+  ) {
+    return 'Trabalho';
+  }
+  if (lower.startsWith('outr')) {
+    return 'Outro';
+  }
+
+  // Verifica se já é exatamente uma das 5 opções
+  const exact = GUEST_GROUP_OPTIONS.find((opt) => opt.toLowerCase() === lower);
+  if (exact) return exact;
+
+  // Se não puder ser classificado com segurança, preserva o registro existente
+  return trimmed;
+}
+
 export interface CompanionDetail {
   id: string;
   name: string;
@@ -357,7 +409,7 @@ export const INITIAL_GUESTS: GuestData[] = [
     inviteName: 'Família Duarte',
     phone: '(61) 99123-8877',
     email: 'mariana.duarte@email.com',
-    group: 'Família Noiva',
+    group: 'Família',
     maxGuests: 2,
     rsvpCode: 'RAF-3M4P9',
     checkInCode: 'CKIN-EV01-3M4P9',
@@ -476,7 +528,7 @@ export const INITIAL_GUESTS: GuestData[] = [
     inviteName: 'Isabela Ribeiro',
     phone: '(61) 98111-2233',
     email: 'isabela.rib@email.com',
-    group: 'Amigas de Escola',
+    group: 'Amigos',
     maxGuests: 1,
     rsvpCode: 'RAF-SOPH1',
     notes: 'Colega de turma do 1º ano.',
