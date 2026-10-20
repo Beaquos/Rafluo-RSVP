@@ -41,6 +41,8 @@ export interface EventData {
   giftListItems?: string;
   giftListItemsList?: string[];
   childAgeLimit?: number;
+  // Configuração explícita para permitir crianças no evento
+  allowChildren?: boolean;
   // Credenciamento e Recepção
   hasReception?: boolean; // Padrão: false (Não)
 }
@@ -154,6 +156,8 @@ export interface GuestData {
   maxGuests: number;
   rsvpCode: string;
   notes: string;
+  // Mensagem fornecida pelo próprio convidado (ex: fluxo de recusa ou mensagem especial)
+  guestMessage?: string;
   status: 'pending' | 'confirmed' | 'declined';
   respondedAt: string | null;
   companionCount: number;
@@ -235,6 +239,7 @@ export const INITIAL_EVENTS: EventData[] = [
     giftListItems: 'Jogo de Pratos de Porcelana\nFritadeira Elétrica Airfryer\nAparelho de Jantar 30 Peças',
     giftListItemsList: ['Jogo de Pratos de Porcelana', 'Fritadeira Elétrica Airfryer', 'Aparelho de Jantar 30 Peças', 'Cafeteira Nespresso'],
     childAgeLimit: 10,
+    allowChildren: true,
     hasReception: true,
   },
   {
@@ -251,6 +256,7 @@ export const INITIAL_EVENTS: EventData[] = [
     description: 'Comemoração infantil com buffet especial e recreação.',
     rsvpDeadline: '2026-10-31',
     allowGuests: true,
+    allowChildren: true,
     maxGuestsPerInvite: 1,
     status: 'active',
     allowResponseEdit: true,
@@ -281,6 +287,7 @@ export const INITIAL_EVENTS: EventData[] = [
     description: 'Chá de fraldas e recepção em família para chegada do Theo.',
     rsvpDeadline: '2026-11-20',
     allowGuests: true,
+    allowChildren: true,
     maxGuestsPerInvite: 2,
     status: 'draft',
     allowResponseEdit: true,
@@ -310,6 +317,7 @@ export const INITIAL_EVENTS: EventData[] = [
     description: 'Premiação e confraternização anual de parceiros do estúdio.',
     rsvpDeadline: '2026-08-01',
     allowGuests: false,
+    allowChildren: false,
     maxGuestsPerInvite: 1,
     status: 'closed',
     allowResponseEdit: false,
@@ -377,10 +385,10 @@ export const INITIAL_GUESTS: GuestData[] = [
     group: 'Padrinhos',
     maxGuests: 1,
     rsvpCode: 'RAF-7X9K2',
-    notes: 'Padrinho do noivo. Precisa de transfer do aeroporto.',
+    notes: '',
     status: 'confirmed',
     respondedAt: '2026-09-21 10:14',
-    checkInCode: 'CKIN-EV01-7X9K2',
+    checkInCode: 'RAF-7X9K2',
     checkInStatus: 'none',
     checkedInCount: 0,
     companionCount: 1,
@@ -412,10 +420,10 @@ export const INITIAL_GUESTS: GuestData[] = [
     group: 'Família',
     maxGuests: 2,
     rsvpCode: 'RAF-3M4P9',
-    checkInCode: 'CKIN-EV01-3M4P9',
+    checkInCode: 'RAF-3M4P9',
     checkInStatus: 'none',
     checkedInCount: 0,
-    notes: 'Tia da noiva. Mesa 04 reservada.',
+    notes: '',
     status: 'confirmed',
     respondedAt: '2026-09-20 18:32',
     companionCount: 2,
@@ -449,7 +457,9 @@ export const INITIAL_GUESTS: GuestData[] = [
     group: 'Amigos',
     maxGuests: 1,
     rsvpCode: 'RAF-8L2W5',
-    notes: 'Mora em SP, estará viajando a trabalho na data.',
+    checkInCode: 'RAF-8L2W5',
+    notes: '',
+    guestMessage: 'Infelizmente estarei fora do país nessa semana, mas desejo toda felicidade do mundo a vocês!',
     status: 'declined',
     respondedAt: '2026-09-19 14:05',
     companionCount: 0,
@@ -473,10 +483,10 @@ export const INITIAL_GUESTS: GuestData[] = [
     group: 'Trabalho',
     maxGuests: 1,
     rsvpCode: 'RAF-9Q1Z4',
-    notes: 'Colega de clínica da noiva.',
+    checkInCode: 'RAF-9Q1Z4',
+    notes: '',
     status: 'confirmed',
     respondedAt: '2026-09-22 14:10',
-    checkInCode: 'CKIN-EV01-9Q1Z4',
     checkInStatus: 'none',
     checkedInCount: 0,
     companionCount: 0,
@@ -500,10 +510,10 @@ export const INITIAL_GUESTS: GuestData[] = [
     group: 'Amigos',
     maxGuests: 1,
     rsvpCode: 'RAF-2T8Y1',
-    notes: 'Convite entregue pessoalmente.',
+    checkInCode: 'RAF-2T8Y1',
+    notes: '',
     status: 'confirmed',
     respondedAt: '2026-09-23 09:20',
-    checkInCode: 'CKIN-EV01-2T8Y1',
     checkInStatus: 'none',
     checkedInCount: 0,
     companionCount: 1,

@@ -593,11 +593,12 @@ export default function App() {
               status,
               companionCount,
               companionNames,
+              guestMessage: (answers?.guestMessage || answers?.q_message) ? String(answers?.guestMessage || answers?.q_message).trim() : g.guestMessage,
               respondedAt: updatedTimestamp,
               answers: { ...g.answers, ...answers },
               members: members || g.members,
-              // Preservar ou atualizar o código de check-in / QR Code
-              checkInCode: checkInCode || g.checkInCode,
+              // Preservar ou atualizar o código de check-in / QR Code oficial
+              checkInCode: checkInCode || g.checkInCode || g.rsvpCode,
               checkInStatus: g.checkInStatus || 'none',
               checkedInCount: g.checkedInCount || 0,
             }
@@ -618,10 +619,11 @@ export default function App() {
         status,
         companionCount,
         companionNames,
+        guestMessage: (answers?.guestMessage || answers?.q_message) ? String(answers?.guestMessage || answers?.q_message).trim() : targetG.guestMessage,
         respondedAt: updatedTimestamp,
         answers: { ...targetG.answers, ...answers },
         members: members || targetG.members,
-        checkInCode: checkInCode || targetG.checkInCode,
+        checkInCode: checkInCode || targetG.checkInCode || targetG.rsvpCode,
       };
       fetch(`/api/rsvp/${encodeURIComponent(targetG.eventId)}`, {
         method: 'POST',
@@ -669,6 +671,7 @@ export default function App() {
       if (targetEvent.allowResponseEdit !== false) {
         // Update existing guest response instead of duplicating
         const existing = guests[existingIndex];
+        const guestMsg = (answers?.guestMessage || answers?.q_message) ? String(answers?.guestMessage || answers?.q_message).trim() : existing.guestMessage;
         const updatedGuest: GuestData = {
           ...existing,
           name: newName || existing.name,
@@ -679,10 +682,11 @@ export default function App() {
           status,
           companionCount,
           companionNames,
+          guestMessage: guestMsg || undefined,
           respondedAt: updatedTimestamp,
           answers: { ...existing.answers, ...answers },
           members: members || existing.members,
-          checkInCode: checkInCode || existing.checkInCode,
+          checkInCode: checkInCode || existing.checkInCode || existing.rsvpCode,
           checkInStatus: existing.checkInStatus || 'none',
           checkedInCount: existing.checkedInCount || 0,
         };
@@ -709,7 +713,9 @@ export default function App() {
       }
     }
 
-    const generatedRsvpCode = `RSVP-${targetEvent.id.toUpperCase().replace(/\W/g, '')}-${Date.now().toString().slice(-4)}`;
+    // Padronização do código de reserva: um único código oficial (formato RAF-XXXXX)
+    const generatedRsvpCode = 'RAF-' + Math.random().toString(36).substring(2, 7).toUpperCase();
+    const guestMsg = (answers?.guestMessage || answers?.q_message) ? String(answers?.guestMessage || answers?.q_message).trim() : undefined;
     const newGuest: GuestData = {
       id: `g-pub-${Date.now()}`,
       eventId: targetEvent.id,
@@ -721,10 +727,11 @@ export default function App() {
       group: normalizeGuestGroup(answers?.q_group || answers?.group || (guestInfo as any)?.group || 'Família'),
       maxGuests: targetEvent.maxGuestsPerInvite || 2,
       rsvpCode: generatedRsvpCode,
-      checkInCode: checkInCode || undefined,
+      checkInCode: generatedRsvpCode,
       checkInStatus: 'none',
       checkedInCount: 0,
-      notes: 'Confirmado pelo link público do evento',
+      notes: '', // Item 2: Observações internas em branco por padrão (não preencher com textos genéricos)
+      guestMessage: guestMsg,
       status,
       respondedAt: updatedTimestamp,
       companionCount,

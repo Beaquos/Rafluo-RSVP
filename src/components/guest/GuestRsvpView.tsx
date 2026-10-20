@@ -289,9 +289,9 @@ export const GuestRsvpView: React.FC<GuestRsvpViewProps> = ({
 
   const [validationError, setValidationError] = useState<string | null>(null);
 
-  // QR Code e Credenciamento (Itens 2, 3 e 4)
+  // Código oficial de reserva unificado (Item 6 do Prompt)
   const [activeCheckInCode, setActiveCheckInCode] = useState<string>(() => {
-    return guest?.checkInCode || (guest?.status === 'confirmed' ? ensureCheckInCode(event.id, null) : '');
+    return guest?.rsvpCode || guest?.checkInCode || (guest?.status === 'confirmed' ? ensureCheckInCode(event.id, null) : '');
   });
   const [qrCodeDataUrl, setQrCodeDataUrl] = useState<string>('');
   const [isDownloadingImage, setIsDownloadingImage] = useState(false);
@@ -403,10 +403,10 @@ export const GuestRsvpView: React.FC<GuestRsvpViewProps> = ({
       const declinedNames = updatedMembers.filter((m) => m.status === 'declined').map((m) => m.name);
       const overallStatus: 'confirmed' | 'declined' = confirmedNames.length > 0 ? 'confirmed' : 'declined';
 
-      // QR Code check-in code para o titular/reserva
-      let finalCheckInCode = activeCheckInCode;
+      // Código oficial de reserva unificado para a confirmação (Item 6)
+      let finalCheckInCode = activeCheckInCode || guest?.rsvpCode || guest?.checkInCode;
       if (overallStatus === 'confirmed' && (!finalCheckInCode || finalCheckInCode.trim().length === 0)) {
-        finalCheckInCode = ensureCheckInCode(event.id, guest?.checkInCode);
+        finalCheckInCode = guest?.rsvpCode || ensureCheckInCode(event.id, guest?.checkInCode);
         setActiveCheckInCode(finalCheckInCode);
       }
 
@@ -479,10 +479,10 @@ export const GuestRsvpView: React.FC<GuestRsvpViewProps> = ({
         : [];
     const declinedNames = finalStatus === 'declined' ? [primaryName] : [];
 
-    // QR Code check-in code para o titular/reserva
-    let finalCheckInCode = activeCheckInCode;
+    // Código oficial de reserva unificado para a confirmação (Item 6)
+    let finalCheckInCode = activeCheckInCode || guest?.rsvpCode || guest?.checkInCode;
     if (finalStatus === 'confirmed' && (!finalCheckInCode || finalCheckInCode.trim().length === 0)) {
-      finalCheckInCode = ensureCheckInCode(event.id, guest?.checkInCode);
+      finalCheckInCode = guest?.rsvpCode || ensureCheckInCode(event.id, guest?.checkInCode);
       setActiveCheckInCode(finalCheckInCode);
     }
 
@@ -621,7 +621,7 @@ export const GuestRsvpView: React.FC<GuestRsvpViewProps> = ({
           <div className="absolute -top-16 -right-16 w-44 h-44 rounded-full bg-[#DFFF5F]/10 blur-3xl pointer-events-none" />
 
           <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#DFFF5F]/15 text-[#DFFF5F] text-[11px] sm:text-xs font-bold uppercase tracking-wider border border-[#DFFF5F]/20">
-            <Sparkles className="w-3.5 h-3.5" /> Convite Oficial • RSVP
+            <Sparkles className="w-3.5 h-3.5" /> Convite Oficial
           </div>
 
           <h1
@@ -1128,6 +1128,27 @@ export const GuestRsvpView: React.FC<GuestRsvpViewProps> = ({
               </div>
             )}
 
+            {/* Fluxo de resposta negativa: campo opcional para deixar uma mensagem (Item 2 do Prompt) */}
+            {(isGroupedInvite ? (Object.keys(memberDecisions).length > 0 && Object.values(memberDecisions).every((d) => d === 'declined')) : attending === 'nao') && (
+              <div className="space-y-3 pt-4 border-t border-[#24152F]/10 animate-in fade-in duration-150">
+                <div>
+                  <label className="block text-xs font-bold text-[#24152F]">
+                    Deseja deixar uma mensagem para o anfitrião? <span className="text-[#24152F]/50 font-normal">(Opcional)</span>
+                  </label>
+                  <span className="text-[11px] text-[#24152F]/65 block mt-0.5 leading-relaxed">
+                    Sua mensagem será enviada com carinho aos organizadores do evento.
+                  </span>
+                </div>
+                <textarea
+                  value={message}
+                  onChange={(e) => setMessage(e.target.value)}
+                  rows={3}
+                  placeholder="Escreva aqui uma mensagem ou felicitações..."
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-[#24152F]/20 bg-white text-base sm:text-xs text-[#24152F] placeholder-[#24152F]/40 focus:outline-none focus:ring-1 focus:ring-[#24152F]"
+                />
+              </div>
+            )}
+
             {/* Conditional Branch: If Attending (only if at least one guest confirms) */}
             {(isGroupedInvite ? Object.values(memberDecisions).some((d) => d === 'confirmed') : attending === 'sim') && (
               <div className="space-y-5 pt-4 border-t border-[#24152F]/10">
@@ -1195,39 +1216,40 @@ export const GuestRsvpView: React.FC<GuestRsvpViewProps> = ({
                     </div>
 
                     {hasCompanions === 'sim' && (
-                      <div className="p-4 rounded-xl bg-[#FAF6EE] border border-[#24152F]/10 space-y-3 mt-3">
-                        <div className="flex items-center justify-between">
-                          <label className="text-xs font-bold text-[#24152F]">
-                            Quantos acompanhantes? (Limite: {maxAllowedCompanions})
+                      <div className="p-4 rounded-xl bg-[#FAF6EE] border border-[#24152F]/10 space-y-3 mt-3 animate-in fade-in duration-150">
+                        {/* Seleção única de quantidade de acompanhantes (Item 7 do Prompt) */}
+                        <div className="space-y-2">
+                          <label className="text-xs font-bold text-[#24152F] block">
+                            Quantos acompanhantes?
                           </label>
-                          <input
-                            type="number"
-                            min={1}
-                            max={maxAllowedCompanions}
-                            value={companionCount}
-                            onChange={(e) =>
-                              setCompanionCount(
-                                Math.min(maxAllowedCompanions, Math.max(1, parseInt(e.target.value) || 1))
-                              )
-                            }
-                            className="w-16 px-2 py-1 rounded-lg border border-[#24152F]/20 bg-white font-bold text-center text-xs text-[#24152F]"
-                          />
+                          <div className="flex flex-wrap items-center gap-2">
+                            {Array.from({ length: maxAllowedCompanions }, (_, i) => i + 1).map((qty) => {
+                              const isSelected = companionCount === qty;
+                              return (
+                                <button
+                                  key={`comp-qty-${qty}`}
+                                  type="button"
+                                  onClick={() => setCompanionCount(qty)}
+                                  className={`w-11 h-10 rounded-xl text-xs font-bold border transition-all cursor-pointer flex items-center justify-center ${
+                                    isSelected
+                                      ? 'bg-[#24152F] text-[#F7F1E5] border-[#24152F] shadow-2xs'
+                                      : 'bg-white border-[#24152F]/20 text-[#24152F] hover:bg-[#FAF6EE]'
+                                  }`}
+                                >
+                                  {qty}
+                                </button>
+                              );
+                            })}
+                          </div>
                         </div>
 
-                        {/* Campos individuais para o nome e categoria de cada acompanhante (Item 5) */}
-                        <div className="space-y-3 pt-1">
+                        {/* Campos individuais para o nome de cada acompanhante (sem categoria redundante - Item 7) */}
+                        <div className="space-y-2.5 pt-1">
                           {Array.from({ length: companionCount }).map((_, idx) => (
-                            <div key={`comp-field-${idx}`} className="p-3 rounded-xl bg-white border border-[#24152F]/15 space-y-2">
-                              <div className="flex items-center justify-between">
-                                <label className="block text-[11px] font-bold text-[#24152F]">
-                                  Acompanhante {idx + 1} — Nome <span className="text-rose-500">*</span>
-                                </label>
-                                {event.hasReception && (
-                                  <span className="text-[10px] font-bold text-[#24152F]/70">
-                                    Categoria:
-                                  </span>
-                                )}
-                              </div>
+                            <div key={`comp-field-${idx}`} className="p-3 rounded-xl bg-white border border-[#24152F]/15 space-y-1.5">
+                              <label className="block text-[11px] font-bold text-[#24152F]">
+                                Acompanhante {idx + 1} — Nome completo <span className="text-rose-500">*</span>
+                              </label>
                               <input
                                 type="text"
                                 required
@@ -1241,48 +1263,8 @@ export const GuestRsvpView: React.FC<GuestRsvpViewProps> = ({
                                   });
                                 }}
                                 placeholder={`Nome completo do acompanhante ${idx + 1}`}
-                                className="w-full px-3 py-2 rounded-lg border border-[#24152F]/20 bg-[#FAF6EE]/50 text-xs text-[#24152F] focus:outline-none focus:ring-1 focus:ring-[#24152F]"
+                                className="w-full px-3 py-2 rounded-lg border border-[#24152F]/20 bg-[#FAF6EE]/50 text-base sm:text-xs text-[#24152F] focus:outline-none focus:ring-1 focus:ring-[#24152F]"
                               />
-
-                              {/* Categoria quando recepção/credenciamento estiver ativado (Item 5 do Prompt) */}
-                              {event.hasReception && (
-                                <div className="flex items-center gap-2 pt-1">
-                                  <button
-                                    type="button"
-                                    onClick={() => {
-                                      setCompanionCategoriesList((prev) => {
-                                        const next = [...prev];
-                                        next[idx] = 'Adulto';
-                                        return next;
-                                      });
-                                    }}
-                                    className={`flex-1 py-1.5 px-2.5 rounded-lg text-xs font-bold border transition-all cursor-pointer text-center ${
-                                      (companionCategoriesList[idx] || 'Adulto') === 'Adulto'
-                                        ? 'bg-[#24152F] text-[#F7F1E5] border-[#24152F] shadow-2xs'
-                                        : 'bg-[#FAF6EE] text-[#24152F] border-[#24152F]/20 hover:bg-[#FAF6EE]/80'
-                                    }`}
-                                  >
-                                    Adulto
-                                  </button>
-                                  <button
-                                    type="button"
-                                    onClick={() => {
-                                      setCompanionCategoriesList((prev) => {
-                                        const next = [...prev];
-                                        next[idx] = 'Criança';
-                                        return next;
-                                      });
-                                    }}
-                                    className={`flex-1 py-1.5 px-2.5 rounded-lg text-xs font-bold border transition-all cursor-pointer text-center ${
-                                      companionCategoriesList[idx] === 'Criança'
-                                        ? 'bg-[#24152F] text-[#F7F1E5] border-[#24152F] shadow-2xs'
-                                        : 'bg-[#FAF6EE] text-[#24152F] border-[#24152F]/20 hover:bg-[#FAF6EE]/80'
-                                    }`}
-                                  >
-                                    Criança
-                                  </button>
-                                </div>
-                              )}
                             </div>
                           ))}
                         </div>
@@ -1291,94 +1273,106 @@ export const GuestRsvpView: React.FC<GuestRsvpViewProps> = ({
                   </div>
                 )}
 
-                {/* 6. Crianças (Item 6: Quantidade, limite de idade e nomes individuais) */}
-                <div className="space-y-3 pt-2 border-t border-[#24152F]/10">
-                  <div className="flex items-center justify-between">
-                    <label className="block text-xs font-bold text-[#24152F] flex items-center gap-1.5">
-                      <Baby className="w-3.5 h-3.5 text-[#24152F]" />
-                      <span>Levará crianças?</span>
-                    </label>
-                    <span className="text-[10px] text-[#24152F]/60">
-                      Limite de idade: até {event.childAgeLimit || 10} anos
-                    </span>
-                  </div>
-
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                    <button
-                      type="button"
-                      onClick={() => setHasChildren('sim')}
-                      className={`p-3 rounded-xl border-2 text-xs font-bold cursor-pointer transition-colors text-center ${
-                        hasChildren === 'sim'
-                          ? 'bg-[#24152F] text-[#F7F1E5] border-[#24152F]'
-                          : 'bg-white border-[#24152F]/25 text-[#24152F] hover:bg-[#FAF6EE]'
-                      }`}
-                    >
-                      Sim, levarei criança(s)
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setHasChildren('nao')}
-                      className={`p-3 rounded-xl border-2 text-xs font-bold cursor-pointer transition-colors text-center ${
-                        hasChildren === 'nao'
-                          ? 'bg-[#24152F] text-[#F7F1E5] border-[#24152F]'
-                          : 'bg-white border-[#24152F]/25 text-[#24152F] hover:bg-[#FAF6EE]'
-                      }`}
-                    >
-                      Não
-                    </button>
-                  </div>
-
-                  {hasChildren === 'sim' && (
-                    <div className="p-4 rounded-xl bg-[#FAF6EE] border border-[#24152F]/10 space-y-3 mt-3">
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <label className="text-xs font-bold text-[#24152F] block">
-                            Quantidade de crianças
-                          </label>
-                          <span className="text-[10px] text-[#24152F]/60">
-                            Categoria Criança (até {event.childAgeLimit || 10} anos)
-                          </span>
-                        </div>
-                        <input
-                          type="number"
-                          min={1}
-                          max={5}
-                          value={childrenCount}
-                          onChange={(e) =>
-                            setChildrenCount(Math.min(5, Math.max(1, parseInt(e.target.value) || 1)))
-                          }
-                          className="w-16 px-2 py-1 rounded-lg border border-[#24152F]/20 bg-white font-bold text-center text-xs text-[#24152F]"
-                        />
-                      </div>
-
-                      {/* Campos individuais para o nome de cada criança (Item 6) */}
-                      <div className="space-y-2.5 pt-1">
-                        {Array.from({ length: childrenCount }).map((_, idx) => (
-                          <div key={`child-field-${idx}`}>
-                            <label className="block text-[11px] font-bold text-[#24152F] mb-1">
-                              Criança {idx + 1} — Nome <span className="text-rose-500">*</span>
-                            </label>
-                            <input
-                              type="text"
-                              required
-                              value={childrenNamesList[idx] || ''}
-                              onChange={(e) => {
-                                const val = e.target.value;
-                                setChildrenNamesList((prev) => {
-                                  const next = [...prev];
-                                  next[idx] = val;
-                                  return next;
-                                });
-                              }}
-                              placeholder={`Nome completo da criança ${idx + 1}`}
-                              className="w-full px-3 py-2 rounded-lg border border-[#24152F]/20 bg-white text-xs text-[#24152F] focus:outline-none focus:ring-1 focus:ring-[#24152F]"
-                            />
-                          </div>
-                        ))}
-                      </div>
+                {/* 6. Crianças: Exibição condicional com seleção única de quantidade (Itens 1 e 7 do Prompt) */}
+                {event.allowChildren !== false && (
+                  <div className="space-y-3 pt-2 border-t border-[#24152F]/10">
+                    <div className="flex items-center justify-between">
+                      <label className="block text-xs font-bold text-[#24152F] flex items-center gap-1.5">
+                        <Baby className="w-3.5 h-3.5 text-[#24152F]" />
+                        <span>Levará crianças?</span>
+                      </label>
+                      <span className="text-[10px] text-[#24152F]/60">
+                        Limite de idade: até {event.childAgeLimit || 10} anos
+                      </span>
                     </div>
-                  )}
-                </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                      <button
+                        type="button"
+                        onClick={() => setHasChildren('sim')}
+                        className={`p-3 rounded-xl border-2 text-xs font-bold cursor-pointer transition-colors text-center ${
+                          hasChildren === 'sim'
+                            ? 'bg-[#24152F] text-[#F7F1E5] border-[#24152F]'
+                            : 'bg-white border-[#24152F]/25 text-[#24152F] hover:bg-[#FAF6EE]'
+                        }`}
+                      >
+                        Sim, levarei criança(s)
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setHasChildren('nao')}
+                        className={`p-3 rounded-xl border-2 text-xs font-bold cursor-pointer transition-colors text-center ${
+                          hasChildren === 'nao'
+                            ? 'bg-[#24152F] text-[#F7F1E5] border-[#24152F]'
+                            : 'bg-white border-[#24152F]/25 text-[#24152F] hover:bg-[#FAF6EE]'
+                        }`}
+                      >
+                        Não
+                      </button>
+                    </div>
+
+                    {hasChildren === 'sim' && (
+                      <div className="p-4 rounded-xl bg-[#FAF6EE] border border-[#24152F]/10 space-y-3 mt-3 animate-in fade-in duration-150">
+                        {/* Seleção única de quantidade de crianças (Item 7) */}
+                        <div className="space-y-2">
+                          <div className="flex items-center justify-between">
+                            <label className="text-xs font-bold text-[#24152F] block">
+                              Quantidade de crianças
+                            </label>
+                            <span className="text-[10px] text-[#24152F]/60">
+                              Até {event.childAgeLimit || 10} anos
+                            </span>
+                          </div>
+                          <div className="flex flex-wrap items-center gap-2">
+                            {[1, 2, 3, 4, 5].map((qty) => {
+                              const isSelected = childrenCount === qty;
+                              return (
+                                <button
+                                  key={`child-qty-${qty}`}
+                                  type="button"
+                                  onClick={() => setChildrenCount(qty)}
+                                  className={`w-11 h-10 rounded-xl text-xs font-bold border transition-all cursor-pointer flex items-center justify-center ${
+                                    isSelected
+                                      ? 'bg-[#24152F] text-[#F7F1E5] border-[#24152F] shadow-2xs'
+                                      : 'bg-white border-[#24152F]/20 text-[#24152F] hover:bg-[#FAF6EE]'
+                                  }`}
+                                >
+                                  {qty}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
+
+                        {/* Campos individuais para o nome de cada criança (Item 7) */}
+                        <div className="space-y-2.5 pt-1">
+                          {Array.from({ length: childrenCount }).map((_, idx) => (
+                            <div key={`child-field-${idx}`}>
+                              <label className="block text-[11px] font-bold text-[#24152F] mb-1">
+                                Criança {idx + 1} — Nome <span className="text-rose-500">*</span>
+                              </label>
+                              <input
+                                type="text"
+                                required
+                                value={childrenNamesList[idx] || ''}
+                                onChange={(e) => {
+                                  const val = e.target.value;
+                                  setChildrenNamesList((prev) => {
+                                    const next = [...prev];
+                                    next[idx] = val;
+                                    return next;
+                                  });
+                                }}
+                                placeholder={`Nome completo da criança ${idx + 1}`}
+                                className="w-full px-3 py-2 rounded-lg border border-[#24152F]/20 bg-white text-base sm:text-xs text-[#24152F] focus:outline-none focus:ring-1 focus:ring-[#24152F]"
+                              />
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
 
                 {/* Custom Form Questions (only if explicitly configured in Dados do Evento -> Formulário) */}
                 {questions && questions.length > 0 && (

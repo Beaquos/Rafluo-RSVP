@@ -19,8 +19,8 @@ export const PWAInstallBanner: React.FC<PWAInstallBannerProps> = ({
   const [showIOSModal, setShowIOSModal] = useState(false);
   const [isDismissed, setIsDismissed] = useState(false);
 
-  // If already installed or dismissed, do not render banner/card
-  if (isInstalled || (isDismissed && variant !== 'button')) {
+  // Se já instalado, dispensado, ou instalação não suportada, não renderiza botão inoperante (Item 4)
+  if (isInstalled || (!canInstall && !isIOS) || (isDismissed && variant !== 'button')) {
     return null;
   }
 
@@ -29,9 +29,6 @@ export const PWAInstallBanner: React.FC<PWAInstallBannerProps> = ({
       installApp();
     } else if (isIOS) {
       setShowIOSModal(true);
-    } else {
-      // Fallback instruction
-      alert('Para instalar o app, use a opção "Adicionar à Tela Inicial" ou "Instalar Aplicativo" no menu do seu navegador.');
     }
   };
 

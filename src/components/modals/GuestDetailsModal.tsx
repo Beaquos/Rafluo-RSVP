@@ -12,6 +12,8 @@ import {
   KeyRound,
   FileQuestion,
   CalendarCheck,
+  MessageSquare,
+  FileText,
 } from 'lucide-react';
 import { GuestData, FormQuestionData, normalizeGuestGroup } from '../../data/mockData';
 import { formatDateTimeBR } from '../../utils/dateUtils';
@@ -232,6 +234,46 @@ export const GuestDetailsModal: React.FC<GuestDetailsModalProps> = ({
                   {guest.companionCount}
                 </span>
               </div>
+            </div>
+          </div>
+
+          {/* Section: Observações Internas e Mensagem do Convidado (Item 2 do Prompt) */}
+          <div className="space-y-3">
+            <h4 className="text-xs font-bold uppercase tracking-wider text-[#24152F]/60 flex items-center gap-1.5 pb-1 border-b border-[#24152F]/10">
+              <FileText className="w-3.5 h-3.5 text-[#24152F]" />
+              <span>Observações e Mensagens</span>
+            </h4>
+
+            <div className="space-y-2.5">
+              {/* Observações internas do operador */}
+              <div className="p-3.5 rounded-xl bg-[#FAF6EE] border border-[#24152F]/10 space-y-1">
+                <span className="text-[11px] font-bold text-[#24152F]/60 block">
+                  Observações Internas (Operador):
+                </span>
+                <p className="text-xs text-[#24152F]">
+                  {guest.notes && guest.notes.trim() ? (
+                    guest.notes
+                  ) : (
+                    <span className="italic text-[#24152F]/40">Nenhuma observação interna registrada.</span>
+                  )}
+                </p>
+              </div>
+
+              {/* Mensagem enviada pelo convidado (quando responder que não comparecerá ou deixar recado) */}
+              {guest.guestMessage && guest.guestMessage.trim() && (
+                <div className="p-3.5 rounded-xl bg-amber-50/70 border border-amber-200/80 space-y-1.5">
+                  <div className="flex items-center gap-1.5 text-amber-900 font-bold text-xs">
+                    <MessageSquare className="w-3.5 h-3.5 text-amber-700" />
+                    <span>Mensagem enviada pelo convidado (RSVP):</span>
+                  </div>
+                  <p className="text-xs text-[#24152F] bg-white/80 p-2.5 rounded-lg border border-amber-200/50 leading-relaxed italic">
+                    "{guest.guestMessage}"
+                  </p>
+                  <p className="text-[10px] text-amber-800/70">
+                    Mensagem fornecida pelo próprio convidado ao registrar sua confirmação de presença.
+                  </p>
+                </div>
+              )}
             </div>
           </div>
 

@@ -325,3 +325,17 @@ html.dark ::-webkit-scrollbar-thumb:hover {
   color: #180D20 !important;
   stroke: #180D20 !important;
 }
+
+/* 
+  MOBILE AUTO-ZOOM PREVENTION (Item 3 do Prompt - iOS Safari / WebKit):
+  Font-size mínimo de 16px em telas touch/mobile impede o zoom automático indesejado
+  ao tocar em campos de texto, mantendo a tela estável e preservando o zoom acessível.
+*/
+@media screen and (max-width: 768px) {
+  input:not([type="checkbox"]):not([type="radio"]),
+  select,
+  textarea {
+    font-size: 16px !important;
+  }
+}
+

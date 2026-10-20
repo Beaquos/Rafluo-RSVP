@@ -1228,6 +1228,31 @@ export const DashboardSkeleton: React.FC<DashboardSkeletonProps> = ({
                                     </div>
                                   </div>
 
+                                  {/* Badges de Grupo e Status no mobile (visíveis de forma estável) */}
+                                  <div className="md:hidden flex flex-wrap items-center gap-1.5 mt-1.5 pl-10.5">
+                                    <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-[#E8F0E4] border border-[#A3C79E] text-[#1E3B1E] leading-tight">
+                                      {normalizeGuestGroup(g.group)}
+                                    </span>
+                                    {g.status === 'confirmed' ? (
+                                      <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-[#E8F0E4] border border-[#A3C79E] text-[#1E3B1E] leading-tight">
+                                        Confirmado
+                                      </span>
+                                    ) : g.status === 'declined' ? (
+                                      <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-rose-50 border border-rose-300 text-rose-800 leading-tight">
+                                        Ausente
+                                      </span>
+                                    ) : (
+                                      <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-gray-100 border border-gray-300 text-[#24152F]/70 leading-tight">
+                                        Sem resposta
+                                      </span>
+                                    )}
+                                    {g.guestMessage && (
+                                      <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-amber-50 border border-amber-200 text-amber-900 text-[10px] font-semibold">
+                                        <MessageSquare className="w-2.5 h-2.5 text-amber-600" /> Msg
+                                      </span>
+                                    )}
+                                  </div>
+
                                   {/* 11. Linha Expandida empilhada abaixo do nome do convite (indentada) */}
                                   {isExpanded && (
                                     <div className="mt-3.5 pl-10 space-y-2.5 animate-in fade-in duration-150" onClick={(e) => e.stopPropagation()}>
@@ -1324,9 +1349,21 @@ export const DashboardSkeleton: React.FC<DashboardSkeletonProps> = ({
                                   {guestCountText}
                                 </td>
 
-                                {/* Observações: centralizada verticalmente */}
-                                <td className="py-4 px-3 align-middle text-[#24152F]/70 text-[11px] max-w-[180px] truncate hidden md:table-cell">
-                                  {g.notes ? g.notes : <span className="text-[#24152F]/30">—</span>}
+                                {/* Observações internas (Item 2 do Prompt) */}
+                                <td className="py-4 px-3 align-middle text-[#24152F]/70 text-[11px] max-w-[200px] hidden md:table-cell">
+                                  {g.notes ? (
+                                    <span className="truncate block" title={g.notes}>{g.notes}</span>
+                                  ) : g.guestMessage ? (
+                                    <span
+                                      className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-amber-50 border border-amber-200 text-amber-900 text-[10px] font-semibold truncate max-w-[190px]"
+                                      title={`Mensagem do convidado: "${g.guestMessage}"`}
+                                    >
+                                      <MessageSquare className="w-3 h-3 text-amber-600 flex-shrink-0" />
+                                      <span className="truncate">Msg: {g.guestMessage}</span>
+                                    </span>
+                                  ) : (
+                                    <span className="text-[#24152F]/30">—</span>
+                                  )}
                                 </td>
 
                                 {/* Menu de Três Pontinhos (Item 3: com Visualizar Ficha e sem Copiar Link) */}

@@ -75,7 +75,10 @@ export const EventModal: React.FC<EventModalProps> = ({
   const [isLoadingCep, setIsLoadingCep] = useState(false);
 
   useEffect(() => {
-    setFormData(event);
+    setFormData({
+      ...event,
+      allowChildren: event.allowChildren !== undefined ? event.allowChildren : true,
+    });
 
     // Item 9: Os campos de data e hora iniciam estritamente em branco. Não deixar data ou horário pré-carregados.
     setDateMask('');
@@ -580,32 +583,76 @@ export const EventModal: React.FC<EventModalProps> = ({
               </div>
             </div>
 
-            {/* Limite de Idade para Crianças */}
-            <div className="sm:col-span-2 p-3.5 rounded-xl border border-[#24152F]/15 bg-[#FAF6EE] flex items-center justify-between gap-3">
-              <div className="flex-1">
-                <label className="font-semibold text-xs text-[#24152F] block">
-                  Limite de Idade para Crianças
+            {/* Configuração de Crianças: Permitir Crianças? (Item 1 do Prompt) */}
+            <div className="sm:col-span-2 p-4 rounded-xl border border-[#24152F]/20 bg-[#FAF6EE] space-y-3">
+              <div>
+                <label className="font-bold text-xs sm:text-sm text-[#24152F] block">
+                  Permitir crianças?
                 </label>
-                <span className="text-[11px] text-[#24152F]/60 block mt-0.5 leading-relaxed">
-                  Idade máxima considerada na categoria Criança nas confirmações (ex: até 10 anos).
+                <span className="text-[11px] text-[#24152F]/70 block mt-0.5 leading-relaxed">
+                  Define se o evento aceita crianças. Quando desativado, o formulário público de confirmação não exibirá perguntas sobre crianças.
                 </span>
               </div>
-              <div className="flex items-center gap-1.5 flex-shrink-0">
-                <input
-                  type="number"
-                  min={1}
-                  max={18}
-                  value={formData.childAgeLimit || 10}
-                  onChange={(e) =>
-                    setFormData({
-                      ...formData,
-                      childAgeLimit: Math.max(1, parseInt(e.target.value) || 10),
-                    })
-                  }
-                  className="w-14 px-2 py-1.5 rounded-lg border border-[#24152F]/20 bg-white text-center font-bold text-xs text-[#24152F] focus:outline-none focus:ring-1 focus:ring-[#24152F]"
-                />
-                <span className="text-xs text-[#24152F]/70 font-semibold">anos</span>
+
+              <div className="grid grid-cols-2 gap-2.5">
+                <button
+                  type="button"
+                  id="btn-allow-children-no"
+                  onClick={() => setFormData({ ...formData, allowChildren: false })}
+                  className={`py-2 px-3 rounded-xl text-xs font-bold border transition-all cursor-pointer flex items-center justify-center gap-2 ${
+                    formData.allowChildren === false
+                      ? 'bg-rose-600 text-white border-rose-700 shadow-xs'
+                      : 'bg-white border-[#24152F]/20 text-[#24152F] hover:bg-rose-50/50'
+                  }`}
+                >
+                  <span className={`w-2 h-2 rounded-full ${formData.allowChildren === false ? 'bg-white' : 'bg-rose-400'}`} />
+                  <span>Não</span>
+                </button>
+
+                <button
+                  type="button"
+                  id="btn-allow-children-yes"
+                  onClick={() => setFormData({ ...formData, allowChildren: true })}
+                  className={`py-2 px-3 rounded-xl text-xs font-bold border transition-all cursor-pointer flex items-center justify-center gap-2 ${
+                    formData.allowChildren !== false
+                      ? 'bg-emerald-600 text-white border-emerald-700 shadow-xs'
+                      : 'bg-white border-[#24152F]/20 text-[#24152F] hover:bg-emerald-50/50'
+                  }`}
+                >
+                  <span className={`w-2 h-2 rounded-full ${formData.allowChildren !== false ? 'bg-white' : 'bg-emerald-500'}`} />
+                  <span>Sim</span>
+                </button>
               </div>
+
+              {/* Limite de Idade para Crianças: só aplicável quando crianças forem permitidas */}
+              {formData.allowChildren !== false && (
+                <div className="pt-2.5 border-t border-[#24152F]/10 flex items-center justify-between gap-3 animate-in fade-in duration-150">
+                  <div className="flex-1">
+                    <label className="font-semibold text-xs text-[#24152F] block">
+                      Limite de Idade para Crianças
+                    </label>
+                    <span className="text-[11px] text-[#24152F]/60 block mt-0.5 leading-relaxed">
+                      Idade máxima considerada na categoria Criança nas confirmações (ex: até 10 anos).
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-1.5 flex-shrink-0">
+                    <input
+                      type="number"
+                      min={1}
+                      max={18}
+                      value={formData.childAgeLimit || 10}
+                      onChange={(e) =>
+                        setFormData({
+                          ...formData,
+                          childAgeLimit: Math.max(1, parseInt(e.target.value) || 10),
+                        })
+                      }
+                      className="w-14 px-2 py-1.5 rounded-lg border border-[#24152F]/20 bg-white text-center font-bold text-base sm:text-xs text-[#24152F] focus:outline-none focus:ring-1 focus:ring-[#24152F]"
+                    />
+                    <span className="text-xs text-[#24152F]/70 font-semibold">anos</span>
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Configuração de Credenciamento (Item 6 do Prompt) */}

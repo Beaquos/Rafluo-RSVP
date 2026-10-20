@@ -49,6 +49,7 @@ import { ThemeToggle } from '../common/ThemeToggle';
 import { Footer } from '../admin/Footer';
 import { ReceptionScannerModal } from './ReceptionScannerModal';
 import { ReceptionGuestModal } from './ReceptionGuestModal';
+import { PWAInstallBanner } from '../pwa/PWAInstallBanner';
 
 export interface ClientPortalViewProps {
   event: EventData;
@@ -769,6 +770,9 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
 
       {/* Main Container */}
       <main className="max-w-7xl w-full mx-auto px-4 sm:px-8 pt-6 sm:pt-8 space-y-6 sm:space-y-8 flex-1 pb-12">
+        {/* PWA Install Banner (Item 4 do Prompt) */}
+        <PWAInstallBanner targetRole="client" className="mb-2" />
+
         {/* Event Welcome Banner */}
         <div className="bg-white dark:bg-[#1E1128] rounded-3xl p-6 sm:p-8 border border-[#24152F]/15 dark:border-[#3F2553] shadow-sm space-y-4">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -1528,7 +1532,7 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
                             Tel: {matchedGuest.phone || 'Não informado'} • {members.length} pessoa(s)
                           </p>
                           <span className="inline-block mt-1 text-[10px] font-mono text-[#24152F]/70 dark:text-[#D2C4DC]/70">
-                            {matchedGuest.checkInCode || 'Sem código'}
+                            {matchedGuest.rsvpCode || matchedGuest.checkInCode || 'Sem código'}
                           </span>
                         </div>
 
@@ -1674,9 +1678,9 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
                           </div>
                         </td>
 
-                        {/* Código QR */}
+                        {/* Código QR / Reserva Unificado */}
                         <td className="py-3.5 px-3 align-top font-mono text-[11px] text-[#24152F]/80 dark:text-[#D2C4DC]">
-                          {g.checkInCode || '—'}
+                          {g.rsvpCode || g.checkInCode || '—'}
                         </td>
 
                         {/* Status de Entrada */}

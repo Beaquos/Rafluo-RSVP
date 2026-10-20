@@ -131,9 +131,9 @@ export const ReceptionGuestModal: React.FC<ReceptionGuestModalProps> = ({
               <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-[#DFFF5F] text-[#180D20]">
                 Ficha de Recepção
               </span>
-              {guest.checkInCode && (
+              {(guest.rsvpCode || guest.checkInCode) && (
                 <span className="text-[10px] font-mono text-[#24152F]/60 dark:text-[#D2C4DC]/60">
-                  {guest.checkInCode}
+                  {guest.rsvpCode || guest.checkInCode}
                 </span>
               )}
             </div>

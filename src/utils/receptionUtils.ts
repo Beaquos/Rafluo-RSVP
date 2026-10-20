@@ -6,29 +6,24 @@ import { loadOfficialLogoImage } from './logoUtils';
  */
 
 /**
- * Gera um identificador seguro, opaco e não previsível para o QR Code de check-in.
- * Exemplo: CKIN-EV01-A9F7-K4M2
+ * Gera o identificador oficial e seguro para a confirmação/reserva (Item 6 do Prompt)
+ * Formato padronizado oficial: RAF-XXXXX
  */
-export const generateCheckInCode = (eventId: string): string => {
-  const chars = '23456789ABCDEFGHJKLMNPQRSTUVWXYZ'; // base32 legível sem 0, O, 1, I
-  const randomSegment = (len: number) => {
-    let res = '';
-    const array = new Uint8Array(len);
-    if (typeof crypto !== 'undefined' && crypto.getRandomValues) {
-      crypto.getRandomValues(array);
-      for (let i = 0; i < len; i++) {
-        res += chars[array[i] % chars.length];
-      }
-    } else {
-      for (let i = 0; i < len; i++) {
-        res += chars[Math.floor(Math.random() * chars.length)];
-      }
+export const generateCheckInCode = (_eventId?: string): string => {
+  const chars = '23456789ABCDEFGHJKLMNPQRSTUVWXYZ'; // base32 legível
+  let res = '';
+  if (typeof crypto !== 'undefined' && crypto.getRandomValues) {
+    const array = new Uint8Array(5);
+    crypto.getRandomValues(array);
+    for (let i = 0; i < 5; i++) {
+      res += chars[array[i] % chars.length];
     }
-    return res;
-  };
-
-  const cleanEvent = eventId.replace(/[^a-zA-Z0-9]/g, '').slice(0, 4).toUpperCase();
-  return `CKIN-${cleanEvent || 'EV'}-${randomSegment(4)}-${randomSegment(4)}`;
+  } else {
+    for (let i = 0; i < 5; i++) {
+      res += chars[Math.floor(Math.random() * chars.length)];
+    }
+  }
+  return `RAF-${res}`;
 };
 
 /**
