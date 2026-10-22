@@ -1,6 +1,6 @@
 {
-  "name": "Rafluo",
-  "description": "Rafluo — Gestão inteligente de confirmações de presença. Desenvolvido com carinho por Beaquos Estúdio Criativo.",
+  "name": "Simfluo",
+  "description": "Simfluo — Gestão inteligente de confirmações.",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }

@@ -15,8 +15,8 @@ export const LoginView: React.FC<LoginViewProps> = ({
   defaultUser,
   registeredUsers = [],
 }) => {
-  const [email, setEmail] = useState(defaultUser.email);
-  const [password, setPassword] = useState('••••••••');
+  const [email, setEmail] = useState(defaultUser?.email || 'beaquos@gmail.com');
+  const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -28,10 +28,15 @@ export const LoginView: React.FC<LoginViewProps> = ({
       return;
     }
 
+    if (!password.trim()) {
+      setError('Por favor, informe sua senha de acesso.');
+      return;
+    }
+
     // Find user in registered list or fallback to defaultUser
     const targetUser =
       registeredUsers.find((u) => u.email.toLowerCase() === cleanEmail) ||
-      (defaultUser.email.toLowerCase() === cleanEmail ? defaultUser : null);
+      (defaultUser?.email && defaultUser.email.toLowerCase() === cleanEmail ? defaultUser : null);
 
     if (!targetUser) {
       setError('E-mail não encontrado entre os administradores autorizados.');
@@ -79,9 +84,9 @@ export const LoginView: React.FC<LoginViewProps> = ({
         <div className="bg-white rounded-3xl border border-[#24152F]/15 shadow-xl p-6 sm:p-8 space-y-6">
           <div className="space-y-1">
             <h1 className="text-xl sm:text-2xl font-bold font-heading tracking-tight text-[#24152F]">
-              Acesso ao Rafluo
+              Acesso ao Simfluo
             </h1>
-            <p className="text-xs sm:text-sm text-[#24152F]/70 font-sans leading-relaxed">
+            <p className="text-xs sm:text-sm text-[#24152F]/60 font-sans leading-relaxed">
               Faça login para gerenciar seus eventos
             </p>
           </div>
@@ -121,18 +126,50 @@ export const LoginView: React.FC<LoginViewProps> = ({
                 <input
                   type="password"
                   value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="••••••••"
+                  onChange={(e) => {
+                    setPassword(e.target.value);
+                    setError(null);
+                  }}
+                  placeholder="Digite sua senha"
                   className="w-full pl-9 pr-3 py-2.5 text-xs sm:text-sm rounded-xl border border-[#24152F]/20 bg-white text-[#24152F] focus:outline-none focus:ring-2 focus:ring-[#24152F] font-sans"
                 />
                 <Lock className="w-4 h-4 text-[#24152F]/40 absolute left-3 top-3.5" />
               </div>
             </div>
 
+            {/* Quick account selector for development/testing */}
+            {registeredUsers.length > 0 && (
+              <div className="pt-1">
+                <p className="text-[11px] font-medium text-[#24152F]/60 mb-1.5 font-sans">
+                  Contas cadastradas para teste rápido:
+                </p>
+                <div className="flex flex-wrap gap-1.5">
+                  {registeredUsers.map((u) => (
+                    <button
+                      key={u.id}
+                      type="button"
+                      onClick={() => {
+                        setEmail(u.email);
+                        setPassword('simfluo123');
+                        setError(null);
+                      }}
+                      className={`text-[11px] px-2.5 py-1 rounded-lg border transition-all cursor-pointer font-sans ${
+                        email.toLowerCase() === u.email.toLowerCase()
+                          ? 'bg-[#24152F] text-[#DFFF5F] border-[#24152F] font-semibold'
+                          : 'bg-[#FAF6EE] text-[#24152F]/80 border-[#24152F]/15 hover:bg-[#24152F]/10'
+                      }`}
+                    >
+                      {u.name} ({u.role})
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
             <button
               type="submit"
               id="btn-login-submit"
-              className="w-full mt-2 py-3 px-4 rounded-xl bg-[#24152F] hover:bg-[#180D20] text-[#F7F1E5] font-bold font-heading text-xs sm:text-sm flex items-center justify-center gap-2 transition-all shadow-md active:scale-98 cursor-pointer group border border-[#3F2553]"
+              className="w-full mt-2 py-3 px-4 rounded-xl bg-[#24152F] hover:bg-[#180D20] text-[#F7F1E5] font-bold font-heading text-xs sm:text-sm flex items-center justify-center gap-2 transition-all shadow-md active:scale-98 cursor-pointer group border border-transparent"
             >
               <span>Entrar</span>
               <ArrowRight className="w-4 h-4 text-[#DFFF5F] group-hover:translate-x-0.5 transition-transform" />
@@ -144,8 +181,8 @@ export const LoginView: React.FC<LoginViewProps> = ({
             <div className="w-8 h-8 rounded-xl bg-[#24152F] text-[#DFFF5F] flex items-center justify-center font-bold text-xs flex-shrink-0">
               <ShieldCheck className="w-4 h-4" />
             </div>
-            <div className="text-[11px] text-[#24152F]/75 leading-relaxed">
-              Ambiente seguro para gestores e administradores do Rafluo
+            <div className="text-[11px] text-[#24152F]/70 leading-relaxed font-sans">
+              Sessão segura vinculada à guia atual • Encerrada automaticamente ao fechar o navegador
             </div>
           </div>
         </div>
@@ -153,9 +190,9 @@ export const LoginView: React.FC<LoginViewProps> = ({
 
       {/* Footer Origin */}
       <footer className="py-4 text-center">
-        <p className="text-xs text-[#24152F]/70 dark:text-[#D2C4DC] font-medium">
+        <p className="text-xs text-[#24152F]/60 dark:text-[#D2C4DC] font-medium">
           Desenvolvido com carinho por{' '}
-          <strong className="text-[#24152F] dark:text-[#D2C4DC] font-semibold">Beaquos Estúdio Criativo</strong>
+          <strong className="text-[#24152F] dark:text-[#F7F1E5] font-semibold">Beaquos Estúdio Criativo</strong>
         </p>
       </footer>
     </div>

@@ -8,7 +8,7 @@ export const Footer: React.FC = () => {
     >
       <p className="text-xs text-[#24152F]/70 dark:text-[#D2C4DC] font-medium tracking-wide">
         Desenvolvido com carinho por{' '}
-        <span className="font-semibold text-[#24152F] dark:text-[#D2C4DC]">Beaquos Estúdio Criativo</span>
+        <span className="font-semibold text-[#24152F] dark:text-[#F7F1E5]">Beaquos Estúdio Criativo</span>
       </p>
     </footer>
   );

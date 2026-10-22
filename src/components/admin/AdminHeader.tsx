@@ -140,7 +140,7 @@ export const AdminHeader: React.FC<AdminHeaderProps> = ({
             {!isMasterView && (
               /* Inside Specific Event Header - Mantém apenas o título do evento como identificação */
               <div className="flex items-center min-w-0">
-                {/* Event Selector Dropdown (Item 13: responsividade mobile corrigida) */}
+                {/* Event Selector Dropdown */}
                 <div className="relative min-w-0" ref={eventDropdownRef}>
                   <button
                     type="button"

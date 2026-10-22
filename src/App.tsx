@@ -44,6 +44,7 @@ import { HubSection, NavSection } from './types/navigation';
 import { AdminUser, AdminUserStatus, normalizeAdminRole, normalizeAdminProfiles } from './types/user';
 import { AccessProfile, INITIAL_ACCESS_PROFILES, normalizeAccessProfileName } from './types/accessProfile';
 import { copyToClipboard, getEventRsvpUrl, getGuestRsvpUrl } from './utils/linkUtils';
+import { checkTemporaryUserAccess } from './utils/dateUtils';
 import {
   parseCurrentUrl,
   getHubPath,
@@ -69,6 +70,9 @@ import {
   STORAGE_KEYS,
 } from './utils/storageUtils';
 
+// Browser tab-scoped session storage key (terminated automatically when the browser tab is closed)
+export const ADMIN_SESSION_KEY = 'simfluo_admin_session';
+
 // Initial Registered Administrator User
 const INITIAL_ADMIN_USER: AdminUser = {
   id: 'usr-01',
@@ -83,6 +87,73 @@ const INITIAL_ADMIN_USER: AdminUser = {
   status: 'active',
   createdAt: '2026-01-15',
 };
+
+/**
+ * Validates and retrieves the tab-isolated admin session from sessionStorage.
+ * Purges any legacy persistent tokens from localStorage to prevent auto-login across closed tabs.
+ */
+function getInitialAdminSession(adminUsersList: AdminUser[]): { user: AdminUser; isAuthenticated: boolean } {
+  if (typeof window === 'undefined') {
+    return { user: INITIAL_ADMIN_USER, isAuthenticated: false };
+  }
+
+  // 1. Purge legacy persistent localStorage tokens
+  try {
+    localStorage.removeItem('rafluo_admin_user');
+    localStorage.removeItem('simfluo_admin_user');
+    localStorage.removeItem('rafluo_current_user');
+    localStorage.removeItem('simfluo_current_user');
+    localStorage.removeItem('rafluo_auth_token');
+    localStorage.removeItem('simfluo_auth_token');
+  } catch {}
+
+  // 2. Read tab-scoped session from sessionStorage
+  try {
+    const raw = sessionStorage.getItem(ADMIN_SESSION_KEY);
+    if (!raw) {
+      return { user: adminUsersList[0] || INITIAL_ADMIN_USER, isAuthenticated: false };
+    }
+
+    const sessionData = JSON.parse(raw);
+    if (!sessionData || !sessionData.email) {
+      sessionStorage.removeItem(ADMIN_SESSION_KEY);
+      return { user: adminUsersList[0] || INITIAL_ADMIN_USER, isAuthenticated: false };
+    }
+
+    // Match with current registered users database
+    const matched = adminUsersList.find(
+      (u) => u.email.toLowerCase().trim() === String(sessionData.email).toLowerCase().trim()
+    );
+
+    if (matched) {
+      if (matched.status === 'disabled') {
+        sessionStorage.removeItem(ADMIN_SESSION_KEY);
+        return { user: matched, isAuthenticated: false };
+      }
+      if (matched.status === 'temporary') {
+        const access = checkTemporaryUserAccess(matched.accessStart, matched.accessEnd);
+        if (!access.active) {
+          sessionStorage.removeItem(ADMIN_SESSION_KEY);
+          return { user: matched, isAuthenticated: false };
+        }
+      }
+      return { user: matched, isAuthenticated: true };
+    }
+
+    if (sessionData.status === 'disabled') {
+      sessionStorage.removeItem(ADMIN_SESSION_KEY);
+      return { user: sessionData, isAuthenticated: false };
+    }
+
+    return { user: sessionData, isAuthenticated: true };
+  } catch (err) {
+    console.warn('Erro ao validar sessão da guia:', err);
+    try {
+      sessionStorage.removeItem(ADMIN_SESSION_KEY);
+    } catch {}
+    return { user: adminUsersList[0] || INITIAL_ADMIN_USER, isAuthenticated: false };
+  }
+}
 
 const INITIAL_ADMIN_USERS_LIST: AdminUser[] = [
   INITIAL_ADMIN_USER,
@@ -146,9 +217,7 @@ export default function App() {
   const [managers, setManagers] = useState<ManagerData[]>(getStoredManagers);
   const [clients, setClients] = useState<ClientData[]>(getStoredClients);
 
-  // Authentication State
-  const [isAuthenticated, setIsAuthenticated] = useState(true);
-  const [currentUser, setCurrentUser] = useState<AdminUser>(INITIAL_ADMIN_USER);
+  // Administrative users registered list (persisted in data storage)
   const [adminUsers, setAdminUsers] = useState<AdminUser[]>(() => {
     try {
       const stored = localStorage.getItem('rafluo_admin_users');
@@ -165,6 +234,43 @@ export default function App() {
     } catch {}
     return INITIAL_ADMIN_USERS_LIST;
   });
+
+  // Tab-scoped Session Authentication (session ends automatically on tab close; survives reload)
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => {
+    return getInitialAdminSession(adminUsers).isAuthenticated;
+  });
+  const [currentUser, setCurrentUser] = useState<AdminUser>(() => {
+    return getInitialAdminSession(adminUsers).user;
+  });
+
+  // Validate active session against adminUsers status in real-time
+  useEffect(() => {
+    if (!isAuthenticated || !currentUser) return;
+    const currentRecord = adminUsers.find(
+      (u) => u.email.toLowerCase().trim() === currentUser.email.toLowerCase().trim()
+    );
+    if (currentRecord) {
+      if (currentRecord.status === 'disabled') {
+        setIsAuthenticated(false);
+        try {
+          sessionStorage.removeItem(ADMIN_SESSION_KEY);
+        } catch {}
+        setToastMessage('Sessão encerrada: Usuário desativado no sistema.');
+        return;
+      }
+      if (currentRecord.status === 'temporary') {
+        const access = checkTemporaryUserAccess(currentRecord.accessStart, currentRecord.accessEnd);
+        if (!access.active) {
+          setIsAuthenticated(false);
+          try {
+            sessionStorage.removeItem(ADMIN_SESSION_KEY);
+          } catch {}
+          setToastMessage('Sessão encerrada: Período de acesso temporário expirado.');
+          return;
+        }
+      }
+    }
+  }, [adminUsers, currentUser, isAuthenticated]);
   const [accessProfiles, setAccessProfiles] = useState<AccessProfile[]>(() => {
     try {
       const stored = localStorage.getItem('rafluo_access_profiles');
@@ -766,6 +872,9 @@ export default function App() {
     setAdminUsers((prev) =>
       prev.map((u) => (u.id === updatedUser.id ? updatedUser : u))
     );
+    try {
+      sessionStorage.setItem(ADMIN_SESSION_KEY, JSON.stringify(updatedUser));
+    } catch {}
   };
 
   // Administrative users management
@@ -779,6 +888,9 @@ export default function App() {
     });
     if (user.id === currentUser.id) {
       setCurrentUser(user);
+      try {
+        sessionStorage.setItem(ADMIN_SESSION_KEY, JSON.stringify(user));
+      } catch {}
     }
   };
 
@@ -872,17 +984,25 @@ export default function App() {
     });
   };
 
-  // Logout
+  // Logout (encerrar sessão da guia)
   const handleLogout = () => {
     setIsAuthenticated(false);
+    setIsGuestPreviewMode(false);
+    setIsUserProfileModalOpen(false);
+    try {
+      sessionStorage.removeItem(ADMIN_SESSION_KEY);
+    } catch {}
     setToastMessage('Sessão encerrada com sucesso.');
   };
 
-  // Login
+  // Login (iniciar sessão temporária vinculada à guia)
   const handleLogin = (user: AdminUser) => {
     setCurrentUser(user);
     setIsAuthenticated(true);
-    setToastMessage(`Bem-vindo(a) ao Rafluo, ${user.name}!`);
+    try {
+      sessionStorage.setItem(ADMIN_SESSION_KEY, JSON.stringify(user));
+    } catch {}
+    setToastMessage(`Bem-vindo(a) ao Simfluo, ${user.name}!`);
   };
 
   // Export CSV for active event

@@ -8,7 +8,7 @@
   --font-inter: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   --font-montserrat: 'Montserrat', system-ui, -apple-system, sans-serif;
   
-  /* Rafluo Brand Palette */
+  /* Brand Palette */
   --color-rafluo-purple: #24152F;
   --color-rafluo-purple-deep: #180D20;
   --color-rafluo-purple-surface: #2E1B3C;
@@ -27,7 +27,7 @@
   --color-rafluo-neon-active: #CEF04A;
   --color-rafluo-neon-glow: rgba(223, 255, 95, 0.25);
 
-  /* Legacy references mapped gracefully to Rafluo palette */
+  /* Legacy references mapped gracefully */
   --color-beaquos-black: #24152F;
   --color-beaquos-linen: #F7F1E5;
   --color-beaquos-forest: #24152F;
@@ -70,18 +70,9 @@ html.dark body {
 }
 
 /* 
-  ESTRATÉGIA TIPOGRÁFICA RAFLUO:
+  ESTRATÉGIA TIPOGRÁFICA:
   - Fonte primária (títulos e destaques): Montserrat (Bold / SemiBold)
-    • Nomes de clientes/eventos em destaque (ex: "Marina Silva & Lucas Prado") — Montserrat SemiBold (16-20px)
-    • Títulos de tela (ex: "Acesso ao Rafluo", "Hub Geral", etc.) — Montserrat Bold (24-32px)
-    • Nome da marca ("Rafluo")
-    • Botões principais de ação (ex: "Acessar Evento", "Entrar", "Salvar") — Montserrat SemiBold/Bold
   - Fonte secundária (interface e dados): Inter (Regular / Medium)
-    • Labels de campos (ex: "E-mail do Responsável") — Inter Medium (13-14px)
-    • Textos de apoio e instruções (ex: "Informe o e-mail cadastrado...") — Inter Regular (12-13px, line-height 1.4-1.6)
-    • Dados dentro dos cards: datas, horários, locais, métricas, status — Inter Medium (14px)
-    • Badges e tags (ex: "RSVP Aberto", "CASAMENTO") — Inter SemiBold, uppercase, letter-spacing leve (11-12px)
-    • Textos de rodapé e navegação — Inter Regular/Medium
 */
 
 /* Fonte padrão do sistema: Inter para textos de interface e dados */
@@ -173,8 +164,6 @@ footer, nav, .text-nav {
 
 /* 
   DARK MODE GLOBAL CONTRAST RULES:
-  Garante que em modo escuro/noite todas as letras em fundos escuros fiquem claras,
-  com excelente legibilidade e sem afetar badges coloridos ou botões neon.
 */
 html.dark #admin-main-container,
 html.dark #admin-main-content {
@@ -267,7 +256,7 @@ html.dark textarea::placeholder {
   color: #8C759B;
 }
 
-/* Custom scrollbars matching Rafluo identity */
+/* Custom scrollbars */
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;
@@ -289,11 +278,7 @@ html.dark ::-webkit-scrollbar-thumb:hover {
   background: rgba(223, 255, 95, 0.35);
 }
 
-/* 
-  ACCESSIBILITY & HIGH CONTRAST (WCAG AA) FOR FORM BUTTONS:
-  Garante que nenhum botão de confirmação ou recusa tenha texto ou ícone
-  com a mesma cor do fundo, seja no tema claro ou escuro.
-*/
+/* ACCESSIBILITY & HIGH CONTRAST (WCAG AA) FOR FORM BUTTONS */
 #btn-rsvp-attending-yes[data-selected="true"] {
   background-color: #DFFF5F !important;
   color: #180D20 !important;
@@ -326,11 +311,7 @@ html.dark ::-webkit-scrollbar-thumb:hover {
   stroke: #180D20 !important;
 }
 
-/* 
-  MOBILE AUTO-ZOOM PREVENTION (Item 3 do Prompt - iOS Safari / WebKit):
-  Font-size mínimo de 16px em telas touch/mobile impede o zoom automático indesejado
-  ao tocar em campos de texto, mantendo a tela estável e preservando o zoom acessível.
-*/
+/* MOBILE AUTO-ZOOM PREVENTION */
 @media screen and (max-width: 768px) {
   input:not([type="checkbox"]):not([type="radio"]),
   select,
@@ -338,4 +319,3 @@ html.dark ::-webkit-scrollbar-thumb:hover {
     font-size: 16px !important;
   }
 }
-

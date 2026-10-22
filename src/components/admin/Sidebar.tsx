@@ -4,144 +4,88 @@ import {
   Calendar,
   FileText,
   Users,
+  Link as LinkIcon,
   UserCheck,
   BarChart3,
   Settings,
   ChevronRight,
   ExternalLink,
-  X,
   ArrowLeft,
   Sparkles,
-  Contact,
-  Link as LinkIcon,
-  ShieldCheck,
+  X,
+  Shield,
+  Briefcase,
 } from 'lucide-react';
-import { HubSection, NavSection, NavItem } from '../../types/navigation';
+import { HubSection, NavSection } from '../../types/navigation';
 import { formatDateBR } from '../../utils/dateUtils';
-import { RafluoLogo } from '../common/RafluoLogo';
 import { SidebarToggle } from '../common/SidebarToggle';
+import { RafluoLogo } from '../common/RafluoLogo';
 
 interface SidebarProps {
-  // Hub section vs Event section
-  isMasterView?: boolean;
+  isMasterView: boolean;
   currentHubSection?: HubSection;
   onSelectHubSection?: (section: HubSection) => void;
-
-  // Event specific
   currentSection?: NavSection;
   onSelectSection?: (section: NavSection) => void;
+  onCloseMobile?: () => void;
+  onOpenPreview?: () => void;
   eventName?: string;
   rsvpDeadline?: string;
   onExitToMaster?: () => void;
-  onOpenPreview?: () => void;
-  onCloseMobile?: () => void;
-
-  // Collapse / Expand feature
   isCollapsed?: boolean;
   onToggleCollapse?: () => void;
 }
 
-// Hub Navigation:
-// Dashboard | Eventos | Clientes | Relatórios | Usuários | Configurações
-const HUB_NAV_ITEMS: { id: HubSection; label: string; icon: React.ComponentType<{ className?: string }> }[] = [
-  {
-    id: 'dashboard',
-    label: 'Dashboard',
-    icon: LayoutDashboard,
-  },
-  {
-    id: 'events',
-    label: 'Eventos',
-    icon: Calendar,
-  },
-  {
-    id: 'clients',
-    label: 'Clientes',
-    icon: Contact,
-  },
-  {
-    id: 'reports',
-    label: 'Relatórios',
-    icon: BarChart3,
-  },
-  {
-    id: 'users',
-    label: 'Usuários',
-    icon: Users,
-  },
-  {
-    id: 'access-profiles',
-    label: 'Perfil de Acesso',
-    icon: ShieldCheck,
-  },
-  {
-    id: 'settings',
-    label: 'Configurações',
-    icon: Settings,
-  },
+interface HubNavItemConfig {
+  id: HubSection;
+  label: string;
+  icon: React.ComponentType<{ className?: string }>;
+}
+
+interface EventNavItemConfig {
+  id: NavSection;
+  label: string;
+  iconName: string;
+}
+
+const HUB_NAV_ITEMS: HubNavItemConfig[] = [
+  { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
+  { id: 'events', label: 'Eventos', icon: Calendar },
+  { id: 'clients', label: 'Clientes', icon: Briefcase },
+  { id: 'reports', label: 'Relatórios', icon: BarChart3 },
+  { id: 'users', label: 'Usuários', icon: Users },
+  { id: 'access-profiles', label: 'Perfil de Acesso', icon: Shield },
+  { id: 'settings', label: 'Configurações', icon: Settings },
 ];
 
-// Operational tabs when inside a specific event
-const EVENT_NAV_ITEMS: NavItem[] = [
-  {
-    id: 'overview',
-    label: 'Dashboard',
-    iconName: 'LayoutDashboard',
-  },
-  {
-    id: 'events',
-    label: 'Dados do Evento',
-    iconName: 'Calendar',
-  },
-  {
-    id: 'guests',
-    label: 'Convidados',
-    iconName: 'Users',
-  },
-  {
-    id: 'guest-link',
-    label: 'Página de Confirmação',
-    iconName: 'Link',
-  },
-  {
-    id: 'managers',
-    label: 'Responsáveis',
-    iconName: 'UserCheck',
-  },
-  {
-    id: 'analytics',
-    label: 'Relatórios',
-    iconName: 'BarChart3',
-  },
-  {
-    id: 'settings',
-    label: 'Configurações',
-    iconName: 'Settings',
-  },
+const EVENT_NAV_ITEMS: EventNavItemConfig[] = [
+  { id: 'overview', label: 'Dashboard', iconName: 'LayoutDashboard' },
+  { id: 'events', label: 'Dados do Evento', iconName: 'Calendar' },
+  { id: 'form-builder', label: 'Formulários', iconName: 'FileText' },
+  { id: 'guests', label: 'Convidados & Grupos', iconName: 'Users' },
+  { id: 'guest-link', label: 'Página de Confirmação', iconName: 'Link' },
+  { id: 'managers', label: 'Responsáveis', iconName: 'UserCheck' },
+  { id: 'analytics', label: 'Relatórios do Evento', iconName: 'BarChart3' },
+  { id: 'settings', label: 'Configurações', iconName: 'Settings' },
 ];
 
 export const Sidebar: React.FC<SidebarProps> = ({
-  isMasterView = true,
+  isMasterView,
   currentHubSection = 'dashboard',
   onSelectHubSection,
   currentSection = 'overview',
   onSelectSection,
-  eventName = 'Casamento Marina & Lucas',
-  rsvpDeadline = '10/10/26',
-  onExitToMaster,
-  onOpenPreview,
   onCloseMobile,
+  onOpenPreview,
+  eventName = 'Casamento Marina & Lucas',
+  rsvpDeadline = '2025-05-10',
+  onExitToMaster,
   isCollapsed = false,
   onToggleCollapse,
 }) => {
-  const renderEventIcon = (name: NavItem['iconName'], isActive: boolean) => {
-    const iconClass = `w-4 h-4 transition-transform duration-200 ${
-      isActive ? 'text-[#180D20]' : 'text-[#DFFF5F]'
-    }`;
-
-    switch (name) {
-      case 'LayoutDashboard':
-        return <LayoutDashboard className={iconClass} />;
+  const renderEventIcon = (iconName: string, _isActive: boolean) => {
+    const iconClass = 'w-4 h-4';
+    switch (iconName) {
       case 'Calendar':
         return <Calendar className={iconClass} />;
       case 'FileText':
@@ -174,12 +118,12 @@ export const Sidebar: React.FC<SidebarProps> = ({
           <div
             onClick={onExitToMaster}
             className="cursor-pointer group transition-opacity hover:opacity-90 flex items-center justify-center"
-            title="Rafluo — Gestão inteligente de confirmações"
+            title="Simfluo"
           >
             {isCollapsed ? (
               <RafluoLogo variant="dark" size="sm" symbolOnly={true} />
             ) : (
-              <RafluoLogo variant="dark" size="md" showDescriptor showOrigin={false} />
+              <RafluoLogo variant="dark" size="md" showDescriptor={false} showOrigin={false} />
             )}
           </div>
 
@@ -279,7 +223,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
         )}
 
         {isMasterView ? (
-          /* Hub Main Navigation: Exactly Dashboard, Eventos, Relatórios, Usuários */
+          /* Hub Main Navigation */
           <div className="space-y-1.5">
             {HUB_NAV_ITEMS.map((item) => {
               const Icon = item.icon;
@@ -465,7 +409,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
           </button>
         )}
 
-        {/* 3. Botão circular de recolher/expandir sidebar centralizado na parte inferior */}
+        {/* Botão circular de recolher/expandir sidebar */}
         {onToggleCollapse && (
           <div className="pt-2 border-t border-[#3F2553]/40 w-full flex justify-center items-center">
             <SidebarToggle

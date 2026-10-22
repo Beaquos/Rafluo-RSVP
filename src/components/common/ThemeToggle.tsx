@@ -2,37 +2,21 @@ import React, { useState, useRef, useEffect } from 'react';
 import { Sun, Moon, Laptop, Check } from 'lucide-react';
 import { useTheme, ThemeMode } from '../../context/ThemeContext';
 
-interface ThemeToggleProps {
-  className?: string;
-}
-
-export const ThemeToggle: React.FC<ThemeToggleProps> = ({ className = '' }) => {
-  const { mode, theme, setMode } = useTheme();
+export const ThemeToggle: React.FC = () => {
+  const { theme, mode, setMode } = useTheme();
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
-  // Close dropdown on outside click or ESC
+  // Close dropdown on outside click
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
         setIsOpen(false);
       }
     };
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
-        setIsOpen(false);
-      }
-    };
-
-    if (isOpen) {
-      document.addEventListener('mousedown', handleClickOutside);
-      document.addEventListener('keydown', handleKeyDown);
-    }
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-      document.removeEventListener('keydown', handleKeyDown);
-    };
-  }, [isOpen]);
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   const selectMode = (newMode: ThemeMode) => {
     setMode(newMode);
@@ -40,13 +24,13 @@ export const ThemeToggle: React.FC<ThemeToggleProps> = ({ className = '' }) => {
   };
 
   const getButtonTitle = () => {
-    if (mode === 'auto') return `Tema Automático (dispositivo: ${theme === 'dark' ? 'escuro' : 'claro'})`;
-    return mode === 'dark' ? 'Tema Escuro ativo' : 'Tema Claro ativo';
+    if (mode === 'auto') return `Tema: Automático (atualmente ${theme === 'dark' ? 'escuro' : 'claro'})`;
+    if (mode === 'dark') return 'Tema: Escuro';
+    return 'Tema: Claro';
   };
 
   return (
-    <div className={`relative ${className}`} ref={dropdownRef}>
-      {/* Botão de alternar tema padronizado */}
+    <div className="relative inline-block text-left" ref={dropdownRef}>
       <button
         type="button"
         id="btn-theme-toggle"
@@ -122,7 +106,7 @@ export const ThemeToggle: React.FC<ThemeToggleProps> = ({ className = '' }) => {
             {mode === 'dark' && <Check className="w-3.5 h-3.5 text-[#24152F] dark:text-[#DFFF5F]" />}
           </button>
 
-          {/* Automático (dispositivo) */}
+          {/* Automático (segue sistema) */}
           <button
             type="button"
             role="menuitem"
@@ -139,7 +123,7 @@ export const ThemeToggle: React.FC<ThemeToggleProps> = ({ className = '' }) => {
               <div>
                 <span>Automático</span>
                 <span className="block text-[10px] font-normal text-[#24152F]/50 dark:text-[#D2C4DC]/60">
-                  Do dispositivo ({theme === 'dark' ? 'noite' : 'dia'})
+                  Segue o sistema operacional
                 </span>
               </div>
             </div>

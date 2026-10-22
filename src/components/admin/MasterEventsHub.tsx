@@ -117,7 +117,7 @@ export const MasterEventsHub: React.FC<MasterEventsHubProps> = ({
         <button
           id="btn-master-create-event"
           onClick={onNewEvent}
-          className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-[#24152F] hover:bg-[#180D20] text-[#F7F1E5] font-semibold text-xs sm:text-sm shadow-xs transition-all active:scale-95 cursor-pointer group w-full sm:w-fit border border-[#3F2553]"
+          className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-[#24152F] hover:bg-[#180D20] text-[#F7F1E5] font-semibold text-xs sm:text-sm shadow-xs transition-all active:scale-95 cursor-pointer group w-full sm:w-fit"
         >
           <div className="w-5 h-5 rounded-md bg-[#DFFF5F] text-[#180D20] flex items-center justify-center flex-shrink-0 group-hover:scale-105 transition-transform">
             <Plus className="w-3.5 h-3.5" />
@@ -129,103 +129,103 @@ export const MasterEventsHub: React.FC<MasterEventsHubProps> = ({
       {/* Global Master KPI Metrics with highlighted icon badges */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-4">
         {/* Total de Eventos */}
-        <div className="bg-white p-3.5 sm:p-5 rounded-2xl border border-[#24152F]/15 shadow-xs flex flex-col justify-between hover:border-[#24152F]/40 transition-all">
-          <div className="flex items-center justify-between text-[#24152F] text-xs font-bold">
+        <div className="bg-white dark:bg-[#180D20] p-3.5 sm:p-5 rounded-2xl border border-[#24152F]/15 dark:border-[#3F2553] shadow-xs flex flex-col justify-between hover:border-[#24152F]/40 transition-all">
+          <div className="flex items-center justify-between text-[#24152F] dark:text-[#F7F1E5] text-xs font-bold">
             <span className="truncate pr-1">Total Eventos</span>
-            <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-[#24152F] text-[#DFFF5F] flex items-center justify-center shadow-xs flex-shrink-0">
+            <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-[#24152F] dark:bg-[#2E1B3C] text-[#DFFF5F] flex items-center justify-center shadow-xs flex-shrink-0">
               <Calendar className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[#DFFF5F]" />
             </div>
           </div>
           <div className="mt-2.5 sm:mt-3">
-            <p className="text-xl sm:text-2xl lg:text-3xl font-bold text-[#24152F] tracking-tight">{totalEvents}</p>
-            <p className="text-[10px] sm:text-[11px] text-[#24152F]/60 mt-0.5 font-medium">Cadastrados no sistema</p>
+            <p className="text-xl sm:text-2xl lg:text-3xl font-bold text-[#24152F] dark:text-[#F7F1E5] tracking-tight">{totalEvents}</p>
+            <p className="text-[10px] sm:text-[11px] text-[#24152F]/60 dark:text-[#D2C4DC]/70 mt-0.5 font-medium">Cadastrados no sistema</p>
           </div>
         </div>
 
         {/* RSVP Ativo */}
-        <div className="bg-white p-3.5 sm:p-5 rounded-2xl border border-[#24152F]/15 shadow-xs flex flex-col justify-between hover:border-[#24152F]/40 transition-all">
-          <div className="flex items-center justify-between text-[#24152F] text-xs font-bold">
+        <div className="bg-white dark:bg-[#180D20] p-3.5 sm:p-5 rounded-2xl border border-[#24152F]/15 dark:border-[#3F2553] shadow-xs flex flex-col justify-between hover:border-[#24152F]/40 transition-all">
+          <div className="flex items-center justify-between text-[#24152F] dark:text-[#F7F1E5] text-xs font-bold">
             <span className="truncate pr-1">RSVP Ativo</span>
-            <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-[#DFFF5F] text-[#180D20] flex items-center justify-center shadow-xs ring-1 ring-[#DFFF5F]/50 flex-shrink-0">
-              <Sparkles className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[#180D20]" />
+            <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-emerald-500/10 dark:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 flex items-center justify-center shadow-xs flex-shrink-0">
+              <Sparkles className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-emerald-600 dark:text-emerald-400" />
             </div>
           </div>
           <div className="mt-2.5 sm:mt-3">
-            <p className="text-xl sm:text-2xl lg:text-3xl font-bold text-[#24152F] tracking-tight">{activeEventsCount}</p>
-            <p className="text-[10px] sm:text-[11px] text-[#24152F]/60 mt-0.5 font-medium">Recebendo respostas</p>
+            <p className="text-xl sm:text-2xl lg:text-3xl font-bold text-[#24152F] dark:text-[#F7F1E5] tracking-tight">{activeEventsCount}</p>
+            <p className="text-[10px] sm:text-[11px] text-[#24152F]/60 dark:text-[#D2C4DC]/70 mt-0.5 font-medium">Recebendo respostas</p>
           </div>
         </div>
 
         {/* Total de Convidados */}
-        <div className="bg-white p-3.5 sm:p-5 rounded-2xl border border-[#24152F]/15 shadow-xs flex flex-col justify-between hover:border-[#24152F]/40 transition-all">
-          <div className="flex items-center justify-between text-[#24152F] text-xs font-bold">
+        <div className="bg-white dark:bg-[#180D20] p-3.5 sm:p-5 rounded-2xl border border-[#24152F]/15 dark:border-[#3F2553] shadow-xs flex flex-col justify-between hover:border-[#24152F]/40 transition-all">
+          <div className="flex items-center justify-between text-[#24152F] dark:text-[#F7F1E5] text-xs font-bold">
             <span className="truncate pr-1">Total Convidados</span>
-            <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-[#24152F] text-[#DFFF5F] flex items-center justify-center shadow-xs flex-shrink-0">
+            <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-[#24152F] dark:bg-[#2E1B3C] text-[#DFFF5F] flex items-center justify-center shadow-xs flex-shrink-0">
               <Users className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[#DFFF5F]" />
             </div>
           </div>
           <div className="mt-2.5 sm:mt-3">
-            <p className="text-xl sm:text-2xl lg:text-3xl font-bold text-[#24152F] tracking-tight">{totalGuestsManaged}</p>
-            <p className="text-[10px] sm:text-[11px] text-[#24152F]/60 mt-0.5 font-medium">Cadastrados na base</p>
+            <p className="text-xl sm:text-2xl lg:text-3xl font-bold text-[#24152F] dark:text-[#F7F1E5] tracking-tight">{totalGuestsManaged}</p>
+            <p className="text-[10px] sm:text-[11px] text-[#24152F]/60 dark:text-[#D2C4DC]/70 mt-0.5 font-medium">Cadastrados na base</p>
           </div>
         </div>
 
         {/* Confirmações Gerais */}
-        <div className="bg-white p-3.5 sm:p-5 rounded-2xl border border-[#24152F]/15 shadow-xs flex flex-col justify-between hover:border-[#24152F]/40 transition-all">
-          <div className="flex items-center justify-between text-[#24152F] text-xs font-bold">
+        <div className="bg-white dark:bg-[#180D20] p-3.5 sm:p-5 rounded-2xl border border-[#24152F]/15 dark:border-[#3F2553] shadow-xs flex flex-col justify-between hover:border-[#24152F]/40 transition-all">
+          <div className="flex items-center justify-between text-[#24152F] dark:text-[#F7F1E5] text-xs font-bold">
             <span className="truncate pr-1">Confirmados</span>
-            <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-[#DFFF5F] text-[#180D20] flex items-center justify-center shadow-xs flex-shrink-0">
-              <CheckCircle2 className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[#180D20]" />
+            <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-emerald-500/10 dark:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 flex items-center justify-center shadow-xs flex-shrink-0">
+              <CheckCircle2 className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-emerald-600 dark:text-emerald-400" />
             </div>
           </div>
           <div className="mt-2.5 sm:mt-3">
-            <p className="text-xl sm:text-2xl lg:text-3xl font-bold text-[#24152F] tracking-tight">{totalConfirmed}</p>
-            <p className="text-[10px] sm:text-[11px] text-[#24152F]/60 mt-0.5 font-medium">Presenças confirmadas</p>
+            <p className="text-xl sm:text-2xl lg:text-3xl font-bold text-[#24152F] dark:text-[#F7F1E5] tracking-tight">{totalConfirmed}</p>
+            <p className="text-[10px] sm:text-[11px] text-[#24152F]/60 dark:text-[#D2C4DC]/70 mt-0.5 font-medium">Presenças confirmadas</p>
           </div>
         </div>
       </div>
 
       {/* Filter and Search Bar */}
-      <div className="bg-white p-3.5 sm:p-4 rounded-xl border border-[#24152F]/10 shadow-xs flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3.5">
+      <div className="bg-white dark:bg-[#180D20] p-3.5 sm:p-4 rounded-xl border border-[#24152F]/10 dark:border-[#3F2553] shadow-xs flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3.5">
         <div className="relative flex-1 max-w-md">
-          <Search className="w-4 h-4 text-[#24152F]/40 absolute left-3 top-1/2 -translate-y-1/2" />
+          <Search className="w-4 h-4 text-[#24152F]/40 dark:text-[#D2C4DC]/50 absolute left-3 top-1/2 -translate-y-1/2" />
           <input
             id="input-search-master-events"
             type="text"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             placeholder="Buscar por cliente, evento, tipo ou local..."
-            className="w-full pl-9 pr-4 py-2 rounded-lg border border-[#24152F]/20 bg-[#F7F1E5]/40 text-xs text-[#24152F] placeholder-[#24152F]/40 focus:outline-none focus:ring-1 focus:ring-[#24152F]"
+            className="w-full pl-9 pr-4 py-2 rounded-lg border border-[#24152F]/15 dark:border-[#3F2553] bg-[#FAF6EE]/50 dark:bg-[#120919] text-xs text-[#24152F] dark:text-[#F7F1E5] placeholder-[#24152F]/40 dark:placeholder-[#D2C4DC]/40 focus:outline-none focus:ring-2 focus:ring-[#24152F] dark:focus:ring-[#DFFF5F]"
           />
         </div>
 
         <div className="flex items-center gap-1.5 overflow-x-auto pb-1 md:pb-0">
-          <span className="text-[11px] font-semibold text-[#24152F]/50 mr-1 hidden sm:inline">Status:</span>
+          <span className="text-[11px] font-semibold text-[#24152F]/60 dark:text-[#D2C4DC]/60 mr-1 hidden sm:inline">Status:</span>
           {(['all', 'active', 'draft', 'closed'] as const).map((filterKey) => {
             const config = {
               all: {
                 label: 'Todos',
                 dotClass: 'bg-zinc-400',
-                activeClass: 'bg-[#24152F] text-[#F7F1E5] border-[#24152F]',
-                activeDot: 'bg-zinc-300',
+                activeClass: 'bg-[#24152F] text-white border-[#24152F] dark:bg-[#DFFF5F] dark:text-[#180D20] dark:border-[#DFFF5F]',
+                activeDot: 'bg-zinc-300 dark:bg-[#180D20]',
               },
               active: {
                 label: 'Ativos',
                 dotClass: 'bg-emerald-500',
-                activeClass: 'bg-[#DFFF5F] text-[#180D20] border-[#DFFF5F]',
-                activeDot: 'bg-[#180D20]',
+                activeClass: 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/30',
+                activeDot: 'bg-emerald-500',
               },
               draft: {
                 label: 'Rascunhos',
                 dotClass: 'bg-amber-500',
-                activeClass: 'bg-amber-100 text-amber-900 border-amber-300',
-                activeDot: 'bg-amber-600',
+                activeClass: 'bg-amber-500/15 text-amber-700 dark:text-amber-300 border-amber-500/30',
+                activeDot: 'bg-amber-500',
               },
               closed: {
                 label: 'Encerrados',
-                dotClass: 'bg-zinc-400',
-                activeClass: 'bg-zinc-100 text-zinc-700 border-zinc-300',
-                activeDot: 'bg-zinc-500',
+                dotClass: 'bg-slate-400',
+                activeClass: 'bg-slate-500/15 text-slate-700 dark:text-slate-300 border-slate-500/30',
+                activeDot: 'bg-slate-500',
               },
             }[filterKey];
 
@@ -237,7 +237,7 @@ export const MasterEventsHub: React.FC<MasterEventsHubProps> = ({
                 className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-colors cursor-pointer border ${
                   isSelected
                     ? `${config.activeClass} shadow-xs font-bold`
-                    : 'bg-white border-[#24152F]/15 text-[#24152F]/70 hover:bg-[#F7F1E5]/70 hover:text-[#24152F]'
+                    : 'bg-white dark:bg-[#1E1128] border-[#24152F]/15 dark:border-[#3F2553] text-[#24152F]/70 dark:text-[#D2C4DC] hover:bg-[#FAF6EE] dark:hover:bg-[#2A1738]'
                 }`}
               >
                 <span className={`w-1.5 h-1.5 rounded-full ${isSelected ? config.activeDot : config.dotClass}`} />
@@ -297,10 +297,10 @@ export const MasterEventsHub: React.FC<MasterEventsHubProps> = ({
                 <div
                   key={ev.id}
                   id={`card-event-${ev.id}`}
-                  className="bg-white dark:bg-[#1E1128] rounded-2xl border border-[#24152F]/10 dark:border-[#3F2553] hover:border-[#24152F]/40 dark:hover:border-[#DFFF5F]/50 shadow-xs hover:shadow-md transition-all p-4 sm:p-5 flex flex-col justify-between group relative"
+                  className="bg-white dark:bg-[#180D20] rounded-2xl border border-[#24152F]/10 dark:border-[#3F2553] hover:border-[#24152F]/30 dark:hover:border-[#DFFF5F]/50 shadow-xs hover:shadow-md transition-all p-4 sm:p-5 flex flex-col justify-between group relative"
                 >
                   <div className="space-y-3">
-                    {/* Top Row: Tag do Tipo de Evento (esquerda) e Badge de Status com ponto verde pulsante (direita) */}
+                    {/* Top Row: Tag do Tipo de Evento (esquerda) e Badge de Status (direita) */}
                     <div className="flex items-center justify-between gap-2">
                       <span
                         className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${getTypeBadgeColor(
@@ -312,18 +312,18 @@ export const MasterEventsHub: React.FC<MasterEventsHubProps> = ({
 
                       <div className="flex-shrink-0">
                         {ev.status === 'active' ? (
-                          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-[#DFFF5F] text-[#180D20] flex items-center gap-1.5 shadow-2xs">
-                            <span className="w-1.5 h-1.5 rounded-full bg-[#180D20] animate-pulse" />
+                          <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30 flex items-center gap-1.5 shadow-2xs">
+                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
                             RSVP Aberto
                           </span>
                         ) : ev.status === 'draft' ? (
-                          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-900 border border-amber-200 dark:bg-amber-950/60 dark:text-amber-300 dark:border-amber-800 flex items-center gap-1.5">
-                            <span className="w-1.5 h-1.5 rounded-full bg-amber-600" />
+                          <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-700 dark:text-amber-300 border border-amber-500/30 flex items-center gap-1.5">
+                            <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
                             Rascunho
                           </span>
                         ) : (
-                          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-[#24152F]/10 dark:bg-white/10 text-[#24152F]/60 dark:text-[#D2C4DC]/60 flex items-center gap-1.5">
-                            <span className="w-1.5 h-1.5 rounded-full bg-[#24152F]/40" />
+                          <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-slate-500/15 text-slate-700 dark:text-slate-300 border border-slate-500/30 flex items-center gap-1.5">
+                            <span className="w-1.5 h-1.5 rounded-full bg-slate-400" />
                             Encerrado
                           </span>
                         )}
@@ -332,22 +332,22 @@ export const MasterEventsHub: React.FC<MasterEventsHubProps> = ({
 
                     {/* Título do Evento e Descrição */}
                     <div>
-                      <h4 className="text-base sm:text-lg font-bold text-[#24152F] dark:text-[#F7F1E5] group-hover:text-[#3F2553] dark:group-hover:text-[#DFFF5F] transition-colors leading-snug">
+                      <h4 className="text-base sm:text-lg font-bold text-[#24152F] dark:text-[#F7F1E5] group-hover:text-[#24152F] dark:group-hover:text-[#DFFF5F] transition-colors leading-snug">
                         {ev.name}
                       </h4>
                       {ev.description && (
-                        <p className="text-xs text-[#24152F]/65 dark:text-[#D2C4DC]/70 line-clamp-2 mt-1 leading-relaxed">
+                        <p className="text-xs text-[#24152F]/70 dark:text-[#D2C4DC]/80 line-clamp-2 mt-1 leading-relaxed">
                           {ev.description}
                         </p>
                       )}
                     </div>
 
-                    {/* Detalhes do Evento: Apenas Ícones com Fundo Padronizado + Valores */}
-                    <div className="space-y-2 text-xs text-[#24152F]/80 dark:text-[#D2C4DC] pt-2 border-t border-[#24152F]/10 dark:border-[#3F2553]/60">
+                    {/* Detalhes do Evento */}
+                    <div className="space-y-2 text-xs text-[#24152F]/80 dark:text-[#D2C4DC] pt-2 border-t border-[#24152F]/10 dark:border-[#3F2553]">
                       {/* Cliente */}
                       {ev.clientName && (
                         <div className="flex items-center gap-2.5">
-                          <div className="w-6 h-6 rounded-lg bg-[#FAF6EE] dark:bg-[#2A1738] border border-[#24152F]/10 dark:border-[#3F2553] flex items-center justify-center flex-shrink-0 shadow-2xs">
+                          <div className="w-6 h-6 rounded-lg bg-[#FAF6EE] dark:bg-[#1E1128] border border-[#24152F]/10 dark:border-[#3F2553] flex items-center justify-center flex-shrink-0 shadow-2xs">
                             <User className="w-3.5 h-3.5 text-[#24152F] dark:text-[#DFFF5F]" />
                           </div>
                           <span className="font-semibold text-[#24152F] dark:text-[#F7F1E5] truncate" title={ev.clientName}>
@@ -358,7 +358,7 @@ export const MasterEventsHub: React.FC<MasterEventsHubProps> = ({
 
                       {/* Data */}
                       <div className="flex items-center gap-2.5">
-                        <div className="w-6 h-6 rounded-lg bg-[#FAF6EE] dark:bg-[#2A1738] border border-[#24152F]/10 dark:border-[#3F2553] flex items-center justify-center flex-shrink-0 shadow-2xs">
+                        <div className="w-6 h-6 rounded-lg bg-[#FAF6EE] dark:bg-[#1E1128] border border-[#24152F]/10 dark:border-[#3F2553] flex items-center justify-center flex-shrink-0 shadow-2xs">
                           <Calendar className="w-3.5 h-3.5 text-[#24152F] dark:text-[#DFFF5F]" />
                         </div>
                         <span className="font-medium text-[#24152F] dark:text-[#F7F1E5]">
@@ -368,7 +368,7 @@ export const MasterEventsHub: React.FC<MasterEventsHubProps> = ({
 
                       {/* Horário */}
                       <div className="flex items-center gap-2.5">
-                        <div className="w-6 h-6 rounded-lg bg-[#FAF6EE] dark:bg-[#2A1738] border border-[#24152F]/10 dark:border-[#3F2553] flex items-center justify-center flex-shrink-0 shadow-2xs">
+                        <div className="w-6 h-6 rounded-lg bg-[#FAF6EE] dark:bg-[#1E1128] border border-[#24152F]/10 dark:border-[#3F2553] flex items-center justify-center flex-shrink-0 shadow-2xs">
                           <Clock className="w-3.5 h-3.5 text-[#24152F] dark:text-[#DFFF5F]" />
                         </div>
                         <span className="font-medium text-[#24152F] dark:text-[#F7F1E5]">
@@ -378,7 +378,7 @@ export const MasterEventsHub: React.FC<MasterEventsHubProps> = ({
 
                       {/* Local */}
                       <div className="flex items-center gap-2.5">
-                        <div className="w-6 h-6 rounded-lg bg-[#FAF6EE] dark:bg-[#2A1738] border border-[#24152F]/10 dark:border-[#3F2553] flex items-center justify-center flex-shrink-0 shadow-2xs">
+                        <div className="w-6 h-6 rounded-lg bg-[#FAF6EE] dark:bg-[#1E1128] border border-[#24152F]/10 dark:border-[#3F2553] flex items-center justify-center flex-shrink-0 shadow-2xs">
                           <MapPin className="w-3.5 h-3.5 text-[#24152F] dark:text-[#DFFF5F]" />
                         </div>
                         <span className="font-medium text-[#24152F] dark:text-[#F7F1E5] truncate" title={ev.location}>
@@ -387,21 +387,21 @@ export const MasterEventsHub: React.FC<MasterEventsHubProps> = ({
                       </div>
                     </div>
 
-                    {/* Prazo de Confirmação: Inner Box de largura total com cantos arredondados e borda sutil */}
-                    <div className="rounded-xl border border-[#24152F]/10 dark:border-[#3F2553] bg-[#FAF6EE] dark:bg-[#2A1738]/50 p-2.5 sm:p-3 flex items-center justify-between gap-2 mt-2">
+                    {/* Prazo de Confirmação */}
+                    <div className="rounded-xl border border-[#24152F]/10 dark:border-[#3F2553] bg-[#FAF6EE]/60 dark:bg-[#1E1128]/50 p-2.5 sm:p-3 flex items-center justify-between gap-2 mt-2">
                       <div className="flex items-center gap-2.5 min-w-0">
-                        <div className="w-6 h-6 rounded-lg bg-[#FAF6EE] dark:bg-[#2A1738] border border-[#24152F]/10 dark:border-[#3F2553] flex items-center justify-center flex-shrink-0 shadow-2xs">
+                        <div className="w-6 h-6 rounded-lg bg-[#FAF6EE] dark:bg-[#1E1128] border border-[#24152F]/10 dark:border-[#3F2553] flex items-center justify-center flex-shrink-0 shadow-2xs">
                           <Clock className="w-3.5 h-3.5 text-[#24152F] dark:text-[#DFFF5F]" />
                         </div>
                         <div className="text-xs">
-                          <span className="text-[#24152F]/70 dark:text-[#D2C4DC]/80 font-medium">Confirmação até: </span>
+                          <span className="text-[#24152F]/60 dark:text-[#D2C4DC]/70 font-medium">Confirmação até: </span>
                           <strong className="font-bold text-[#24152F] dark:text-[#F7F1E5]">{formatDateBR(ev.rsvpDeadline)}</strong>
                         </div>
                       </div>
                     </div>
                   </div>
 
-                  {/* Bottom Action Buttons: Botões padronizados em altura, tamanho e proporção */}
+                  {/* Bottom Action Buttons */}
                   <div className="pt-3 mt-3 border-t border-[#24152F]/10 dark:border-[#3F2553] flex items-center gap-2">
                     {/* Botão Ações com Ícone e Dropdown Centralizado */}
                     <div className="relative flex-1" ref={isActionMenuOpen ? actionMenuRef : undefined}>
@@ -412,8 +412,8 @@ export const MasterEventsHub: React.FC<MasterEventsHubProps> = ({
                           e.stopPropagation();
                           setOpenActionMenuId(isActionMenuOpen ? null : ev.id);
                         }}
-                        className={`w-full h-10 sm:h-11 px-3 sm:px-3.5 rounded-xl border border-[#24152F]/15 dark:border-[#3F2553] hover:border-[#24152F] bg-white dark:bg-[#1E1128] hover:bg-[#FAF6EE] dark:hover:bg-[#2A1738] text-[#24152F] dark:text-[#F7F1E5] text-xs font-semibold transition-all cursor-pointer shadow-xs flex items-center justify-between active:scale-98 ${
-                          isActionMenuOpen ? 'ring-2 ring-[#24152F]/20 dark:ring-[#DFFF5F]/30 bg-[#FAF6EE] dark:bg-[#2A1738]' : ''
+                        className={`w-full h-10 sm:h-11 px-3 sm:px-3.5 rounded-xl border border-[#24152F]/15 dark:border-[#3F2553] bg-white dark:bg-[#1E1128] hover:bg-[#FAF6EE] dark:hover:bg-[#2E1B3C] text-[#24152F] dark:text-[#F7F1E5] text-xs font-semibold transition-all cursor-pointer shadow-xs flex items-center justify-between active:scale-98 ${
+                          isActionMenuOpen ? 'ring-2 ring-[#24152F] dark:ring-[#DFFF5F]' : ''
                         }`}
                         title="Opções do evento"
                       >
@@ -424,13 +424,13 @@ export const MasterEventsHub: React.FC<MasterEventsHubProps> = ({
                           <span className="truncate">Ações</span>
                         </div>
                         <ChevronDown
-                          className={`w-3.5 h-3.5 text-[#24152F]/60 dark:text-[#D2C4DC]/60 flex-shrink-0 transition-transform duration-200 ${
+                          className={`w-3.5 h-3.5 text-[#24152F]/50 dark:text-[#D2C4DC]/50 flex-shrink-0 transition-transform duration-200 ${
                             isActionMenuOpen ? 'rotate-180 text-[#24152F] dark:text-[#DFFF5F]' : ''
                           }`}
                         />
                       </button>
 
-                      {/* Dropdown com as opções centralizadas: Editar dados, Link do responsável, Link do convidado */}
+                      {/* Dropdown com as opções centralizadas */}
                       {isActionMenuOpen && (
                         <div className="absolute left-0 bottom-full mb-1.5 w-52 rounded-xl bg-white dark:bg-[#1E1128] border border-[#24152F]/15 dark:border-[#3F2553] shadow-xl py-1.5 z-40 animate-in fade-in zoom-in-95 duration-100">
                           <button
@@ -441,9 +441,9 @@ export const MasterEventsHub: React.FC<MasterEventsHubProps> = ({
                               setOpenActionMenuId(null);
                               onEditEvent(ev);
                             }}
-                            className="w-full text-left px-3.5 py-2 text-xs font-medium text-[#24152F] dark:text-[#F7F1E5] hover:bg-[#FAF6EE] dark:hover:bg-[#2A1738] flex items-center gap-2.5 cursor-pointer transition-colors"
+                            className="w-full text-left px-3.5 py-2 text-xs font-medium text-[#24152F] dark:text-[#F7F1E5] hover:bg-[#FAF6EE] dark:hover:bg-[#2E1B3C] flex items-center gap-2.5 cursor-pointer transition-colors"
                           >
-                            <Edit3 className="w-3.5 h-3.5 text-[#24152F]/70 dark:text-[#DFFF5F]" />
+                            <Edit3 className="w-3.5 h-3.5 text-[#24152F]/60 dark:text-[#DFFF5F]" />
                             <span>Editar dados</span>
                           </button>
 
@@ -451,9 +451,9 @@ export const MasterEventsHub: React.FC<MasterEventsHubProps> = ({
                             type="button"
                             id={`btn-action-responsible-${ev.id}`}
                             onClick={handleCopyResponsible}
-                            className="w-full text-left px-3.5 py-2 text-xs font-medium text-[#24152F] dark:text-[#F7F1E5] hover:bg-[#FAF6EE] dark:hover:bg-[#2A1738] flex items-center gap-2.5 cursor-pointer transition-colors"
+                            className="w-full text-left px-3.5 py-2 text-xs font-medium text-[#24152F] dark:text-[#F7F1E5] hover:bg-[#FAF6EE] dark:hover:bg-[#2E1B3C] flex items-center gap-2.5 cursor-pointer transition-colors"
                           >
-                            <UserCheck className="w-3.5 h-3.5 text-[#24152F]/70 dark:text-[#DFFF5F]" />
+                            <UserCheck className="w-3.5 h-3.5 text-[#24152F]/60 dark:text-[#DFFF5F]" />
                             <span>Link do responsável</span>
                           </button>
 
@@ -461,9 +461,9 @@ export const MasterEventsHub: React.FC<MasterEventsHubProps> = ({
                             type="button"
                             id={`btn-action-guest-${ev.id}`}
                             onClick={handleCopyGuestLink}
-                            className="w-full text-left px-3.5 py-2 text-xs font-medium text-[#24152F] dark:text-[#F7F1E5] hover:bg-[#FAF6EE] dark:hover:bg-[#2A1738] flex items-center gap-2.5 cursor-pointer transition-colors"
+                            className="w-full text-left px-3.5 py-2 text-xs font-medium text-[#24152F] dark:text-[#F7F1E5] hover:bg-[#FAF6EE] dark:hover:bg-[#2E1B3C] flex items-center gap-2.5 cursor-pointer transition-colors"
                           >
-                            <Link className="w-3.5 h-3.5 text-[#24152F]/70 dark:text-[#DFFF5F]" />
+                            <Link className="w-3.5 h-3.5 text-[#24152F]/60 dark:text-[#DFFF5F]" />
                             <span>Link do convidado</span>
                           </button>
 
@@ -497,12 +497,12 @@ export const MasterEventsHub: React.FC<MasterEventsHubProps> = ({
                       )}
                     </div>
 
-                    {/* Botão "Acessar evento" com exatamente a mesma altura e proporção */}
+                    {/* Botão "Acessar evento" */}
                     <button
                       type="button"
                       id={`btn-access-event-${ev.id}`}
                       onClick={() => onSelectEvent(ev)}
-                      className="flex-1 h-10 sm:h-11 px-3 sm:px-3.5 rounded-xl bg-[#24152F] hover:bg-[#180D20] text-[#F7F1E5] text-xs font-semibold font-heading transition-all cursor-pointer shadow-xs border border-[#3F2553] flex items-center justify-between group active:scale-98"
+                      className="flex-1 h-10 sm:h-11 px-3 sm:px-3.5 rounded-xl bg-[#24152F] hover:bg-[#180D20] text-[#F7F1E5] text-xs font-semibold font-heading transition-all cursor-pointer shadow-xs border border-transparent flex items-center justify-between group active:scale-98"
                       title="Acessar evento"
                     >
                       <span className="truncate font-semibold font-heading text-xs text-[#F7F1E5]">Acessar evento</span>

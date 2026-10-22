@@ -39,9 +39,9 @@ export default defineConfig(() => {
         ],
         manifest: {
           id: '/',
-          name: 'Rafluo',
-          short_name: 'Rafluo',
-          description: 'Rafluo — Gestão inteligente de confirmações de presença.',
+          name: 'Simfluo',
+          short_name: 'Simfluo',
+          description: 'Simfluo — Gestão inteligente de confirmações.',
           lang: 'pt-BR',
           display: 'standalone',
           orientation: 'portrait',

@@ -68,7 +68,7 @@ export const ListHeader: React.FC<ListHeaderProps> = ({
           )}
         </div>
 
-        {/* Botão Primário: fundo escuro, texto branco, h-12 / 52px aproximado, quadradinho lime com "+" */}
+        {/* Botão Primário */}
         <button
           type="button"
           onClick={actionButton.onClick}

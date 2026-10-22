@@ -577,14 +577,14 @@ export const GuestRsvpView: React.FC<GuestRsvpViewProps> = ({
     <div className="min-h-screen bg-[#FAF6EE] text-[#24152F] font-sans pb-16 selection:bg-[#DFFF5F] selection:text-[#180D20]">
       {/* Top Simulation Bar (Admin preview banner only when NOT in public guest link mode) */}
       {!isPublicMode && onBackToAdmin && (
-        <div className="bg-[#24152F] text-[#F7F1E5] px-3 sm:px-4 py-2 sm:py-2.5 flex items-center justify-between gap-2 text-xs sticky top-0 z-50 border-b border-[#3F2553]/60 shadow-md">
+        <div className="bg-[#24152F] text-[#F7F1E5] px-3 sm:px-4 py-2 sm:py-2.5 flex items-center justify-between gap-2 text-xs sticky top-0 z-50 border-b border-[#3F2553] shadow-md">
           <div className="flex items-center space-x-2 min-w-0">
             <span className="w-2 h-2 rounded-full bg-[#DFFF5F] animate-pulse flex-shrink-0" />
             <span className="font-semibold text-[#DFFF5F] truncate">
               {isPublicEventInvite ? 'Simulação: Link Público do Convite' : 'Visualização do Convidado'}
             </span>
             {guest?.rsvpCode && !isPublicEventInvite && (
-              <span className="hidden sm:inline text-[#D2C4DC]/70">| Código: {guest.rsvpCode}</span>
+              <span className="hidden sm:inline text-[#D2C4DC]/80">| Código: {guest.rsvpCode}</span>
             )}
           </div>
           <button
@@ -600,14 +600,14 @@ export const GuestRsvpView: React.FC<GuestRsvpViewProps> = ({
       )}
 
       <div className="max-w-xl mx-auto px-3.5 sm:px-4 pt-4 sm:pt-8 space-y-5 sm:space-y-6">
-        {/* Rafluo Header Badge */}
+        {/* Simfluo Header Badge */}
         <div className="flex items-center justify-center pt-2">
           <RafluoLogo variant="light" size="sm" showDescriptor={false} showOrigin={false} />
         </div>
 
         {/* 1. Imagem de Destaque / Banner do Convite */}
         {event.showCoverImage === true && Boolean(event.coverImage) && (
-          <div className="w-full h-44 sm:h-64 rounded-3xl overflow-hidden border border-[#24152F]/15 shadow-md relative bg-[#24152F]/5">
+          <div className="w-full h-44 sm:h-64 rounded-3xl overflow-hidden border border-[#24152F]/10 shadow-md relative bg-[#24152F]/5">
             <img
               src={event.coverImage}
               alt={event.name}
@@ -616,11 +616,9 @@ export const GuestRsvpView: React.FC<GuestRsvpViewProps> = ({
           </div>
         )}
 
-        {/* Event Hero Card in Deep Purple with Neon Accents */}
+        {/* Event Hero Card in Deep Purple with Neon Yellow Accent */}
         <div className="rounded-3xl bg-[#24152F] text-[#F7F1E5] p-5 sm:p-8 text-center space-y-4 relative overflow-hidden shadow-xl border border-[#3F2553]">
-          <div className="absolute -top-16 -right-16 w-44 h-44 rounded-full bg-[#DFFF5F]/10 blur-3xl pointer-events-none" />
-
-          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#DFFF5F]/15 text-[#DFFF5F] text-[11px] sm:text-xs font-bold uppercase tracking-wider border border-[#DFFF5F]/20">
+          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#DFFF5F]/15 border border-[#DFFF5F]/30 text-[#DFFF5F] text-[11px] sm:text-xs font-bold uppercase tracking-wider">
             <Sparkles className="w-3.5 h-3.5" /> Convite Oficial
           </div>
 
@@ -632,7 +630,7 @@ export const GuestRsvpView: React.FC<GuestRsvpViewProps> = ({
           </h1>
 
           {event.description && (
-            <p className="text-xs sm:text-sm text-[#D2C4DC] max-w-md mx-auto leading-relaxed">
+            <p className="text-xs sm:text-sm text-[#D2C4DC] max-w-md mx-auto leading-relaxed" style={{ color: '#D2C4DC' }}>
               {event.description}
             </p>
           )}
@@ -1456,7 +1454,7 @@ export const GuestRsvpView: React.FC<GuestRsvpViewProps> = ({
               type="submit"
               id="btn-submit-guest-rsvp"
               disabled={!attending}
-              className={`w-full py-3.5 rounded-xl font-extrabold text-xs sm:text-sm flex items-center justify-center gap-2 shadow-md transition-all active:scale-98 border-2 ${
+              className={`w-full py-3.5 rounded-xl font-bold text-xs sm:text-sm flex items-center justify-center gap-2 shadow-xs transition-all active:scale-98 border ${
                 attending
                   ? 'bg-[#DFFF5F] hover:bg-[#CEF04A] text-[#180D20] border-[#b5db1e] cursor-pointer'
                   : 'bg-stone-200 text-stone-600 border-stone-300 cursor-not-allowed opacity-60'
@@ -1475,9 +1473,9 @@ export const GuestRsvpView: React.FC<GuestRsvpViewProps> = ({
         {/* Footer Identity */}
         <div className="pt-6 pb-2 text-center space-y-1">
           <p className="text-xs font-bold text-[#24152F]">
-            Rafluo <span className="font-normal text-[#24152F]/70">• Gestão inteligente de confirmações.</span>
+            Simfluo <span className="font-normal text-[#24152F]/70">• Gestão inteligente de confirmações.</span>
           </p>
-          <p className="text-[11px] text-[#24152F]/60">
+          <p className="text-[11px] text-[#24152F]/50">
             Desenvolvido com carinho por{' '}
             <span className="font-semibold text-[#24152F]">Beaquos Estúdio Criativo</span>
           </p>

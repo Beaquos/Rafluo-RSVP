@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { getStoredCompanyLogo, subscribeToCrossTabSync } from '../../utils/storageUtils';
 
-interface RafluoLogoProps {
+export interface RafluoLogoProps {
   variant?: 'dark' | 'light'; // 'dark' = used on dark purple background; 'light' = used on beige/white background
   size?: 'sm' | 'md' | 'lg';
   showDescriptor?: boolean; // "Gestão inteligente de confirmações."
@@ -53,7 +53,7 @@ export const RafluoLogo: React.FC<RafluoLogoProps> = ({
     },
   }[size];
 
-  // Symbol element: Geometric, modern, fluid monogram representing intelligence & RSVP flow (or custom company logo)
+  // Symbol element: Geometric, modern, fluid monogram
   const renderSymbol = () => {
     if (companyLogo && companyLogo.trim().length > 0) {
       return (
@@ -86,7 +86,7 @@ export const RafluoLogo: React.FC<RafluoLogoProps> = ({
           xmlns="http://www.w3.org/2000/svg"
           className="w-5 h-5"
         >
-          {/* Sleek dynamic fluid 'R' stem & curve */}
+          {/* Sleek dynamic fluid monogram stem & curve */}
           <path
             d="M9 7C9 5.89543 9.89543 5 11 5H18C21.3137 5 24 7.68629 24 11C24 13.973 21.8398 16.441 19 16.9V17L23.5 25C23.9 25.7 23.4 26.5 22.5 26.5H19.5C18.9 26.5 18.4 26.1 18.1 25.6L14 17.5H12V25.5C12 26.0523 11.5523 26.5 11 26.5C10.4477 26.5 10 26.0523 10 25.5V8"
             stroke={isDark ? '#F7F1E5' : '#F7F1E5'}
@@ -110,7 +110,7 @@ export const RafluoLogo: React.FC<RafluoLogoProps> = ({
 
   if (symbolOnly) {
     return (
-      <div className={`inline-flex items-center ${className}`} title="Rafluo">
+      <div className={`inline-flex items-center ${className}`} title="Simfluo">
         {renderSymbol()}
       </div>
     );
@@ -128,7 +128,7 @@ export const RafluoLogo: React.FC<RafluoLogoProps> = ({
               }`}
               style={{ fontFamily: "'Montserrat', sans-serif" }}
             >
-              Rafluo
+              Simfluo
             </span>
             <span className="w-1.5 h-1.5 rounded-full bg-[#DFFF5F] ml-0.5 mb-0.5 inline-block" />
           </div>
@@ -162,3 +162,6 @@ export const RafluoLogo: React.FC<RafluoLogoProps> = ({
     </div>
   );
 };
+
+export const SimfluoLogo = RafluoLogo;
+export default RafluoLogo;
