@@ -25,6 +25,7 @@ import {
   PermissionTree,
   Switch,
   RowActionDropdown,
+  ActionItem,
 } from '../common/list-components';
 
 interface HubAccessProfilesViewProps {
@@ -98,7 +99,18 @@ export const HubAccessProfilesView: React.FC<HubAccessProfilesViewProps> = ({
     setIsFormModalOpen(true);
   };
 
+  const isProtectedAdmin = (profile: { id?: string; name: string }) => {
+    return (
+      profile.id === 'prof-admin' ||
+      normalizeAccessProfileName(profile.name).toLowerCase() === 'administrador'
+    );
+  };
+
   const handleOpenEdit = (profile: AccessProfile) => {
+    if (isProtectedAdmin(profile)) {
+      onShowToast('O perfil Administrador padrão é estático e protegido contra edição.');
+      return;
+    }
     setEditingProfile(profile);
     setFormData({
       name: normalizeAccessProfileName(profile.name),
@@ -143,6 +155,10 @@ export const HubAccessProfilesView: React.FC<HubAccessProfilesViewProps> = ({
 
   const handleSave = (e: React.FormEvent) => {
     e.preventDefault();
+    if (editingProfile && isProtectedAdmin(editingProfile)) {
+      onShowToast('O perfil Administrador padrão é protegido contra alterações.');
+      return;
+    }
     if (!validate()) return;
 
     const profileToSave: AccessProfile = {
@@ -310,6 +326,46 @@ export const HubAccessProfilesView: React.FC<HubAccessProfilesViewProps> = ({
             filteredProfiles.map((profile) => {
               const displayName = normalizeAccessProfileName(profile.name);
 
+              const isAdminProfile = isProtectedAdmin(profile);
+              const profileActions: ActionItem[] = [
+                {
+                  id: 'view',
+                  label: 'Visualizar',
+                  icon: Eye,
+                  onClick: () => handleOpenDetails(profile),
+                },
+              ];
+
+              if (!isAdminProfile) {
+                profileActions.push(
+                  {
+                    id: 'edit',
+                    label: 'Editar',
+                    icon: Pen,
+                    onClick: () => handleOpenEdit(profile),
+                  },
+                  {
+                    id: 'delete',
+                    label: 'Excluir',
+                    icon: Trash2,
+                    variant: 'danger',
+                    onClick: () => {
+                      setConfirmModal({
+                        isOpen: true,
+                        title: 'Excluir Perfil de Acesso',
+                        description: profile.isSystemDefault
+                          ? `O perfil "${displayName}" é um perfil padrão do sistema. Tem certeza que deseja removê-lo? Usuários associados perderão as permissões vinculadas a este perfil.`
+                          : `Deseja realmente remover o perfil "${displayName}"? Usuários associados perderão as permissões vinculadas a este perfil.`,
+                        onConfirm: () => {
+                          onDeleteProfile(profile.id);
+                          onShowToast(`Perfil "${displayName}" excluído.`);
+                        },
+                      });
+                    },
+                  }
+                );
+              }
+
               return (
                 <div
                   key={profile.id}
@@ -329,6 +385,12 @@ export const HubAccessProfilesView: React.FC<HubAccessProfilesViewProps> = ({
                         {profile.isSystemDefault && (
                           <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-[#DFFF5F] text-[#180D20]">
                             Padrão do Sistema
+                          </span>
+                        )}
+                        {isAdminProfile && (
+                          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-50 text-amber-900 border border-amber-300 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800 flex items-center gap-1">
+                            <Lock className="w-2.5 h-2.5" />
+                            Protegido
                           </span>
                         )}
                         <span className="text-[10px] sm:text-[11px] font-medium bg-[#24152F]/5 dark:bg-white/5 text-[#24152F] dark:text-[#F7F1E5] px-2 py-0.5 rounded-md border border-[#24152F]/10 dark:border-white/10">
@@ -365,39 +427,7 @@ export const HubAccessProfilesView: React.FC<HubAccessProfilesViewProps> = ({
                     {/* Menu de Ações com Três Pontos (⋮) — Visualizar, Editar, Excluir */}
                     <RowActionDropdown
                       id={`action-dropdown-${profile.id}`}
-                      actions={[
-                        {
-                          id: 'view',
-                          label: 'Visualizar',
-                          icon: Eye,
-                          onClick: () => handleOpenDetails(profile),
-                        },
-                        {
-                          id: 'edit',
-                          label: 'Editar',
-                          icon: Pen,
-                          onClick: () => handleOpenEdit(profile),
-                        },
-                        {
-                          id: 'delete',
-                          label: 'Excluir',
-                          icon: Trash2,
-                          variant: 'danger',
-                          onClick: () => {
-                            setConfirmModal({
-                              isOpen: true,
-                              title: 'Excluir Perfil de Acesso',
-                              description: profile.isSystemDefault
-                                ? `O perfil "${displayName}" é um perfil padrão do sistema. Tem certeza que deseja removê-lo? Usuários associados perderão as permissões vinculadas a este perfil.`
-                                : `Deseja realmente remover o perfil "${displayName}"? Usuários associados perderão as permissões vinculadas a este perfil.`,
-                              onConfirm: () => {
-                                onDeleteProfile(profile.id);
-                                onShowToast(`Perfil "${displayName}" excluído.`);
-                              },
-                            });
-                          },
-                        },
-                      ]}
+                      actions={profileActions}
                     />
                   </div>
                 </div>

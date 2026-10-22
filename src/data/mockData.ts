@@ -53,6 +53,7 @@ export interface ClientData {
   email: string;
   phone: string;
   invitationType: 'Aniversário Infantil' | 'Aniversário Adulto' | 'Chá de Bebê' | 'Chá de Fraldas' | 'Chá de Bebê ou Fraldas' | 'Outros';
+  status?: 'active' | 'inactive';
   createdAt: string;
   notes?: string;
 }
@@ -337,6 +338,7 @@ export const INITIAL_CLIENTS: ClientData[] = [
     email: 'marina.silva@email.com',
     phone: '(11) 98765-4321',
     invitationType: 'Aniversário Adulto',
+    status: 'active',
     createdAt: '2026-08-10',
     notes: 'Cliente de aniversário adulto com festa ao ar livre.',
   },
@@ -346,6 +348,7 @@ export const INITIAL_CLIENTS: ClientData[] = [
     email: 'sophia.martins@email.com',
     phone: '(11) 91234-5678',
     invitationType: 'Aniversário Infantil',
+    status: 'active',
     createdAt: '2026-08-22',
     notes: 'Aniversário infantil para 60 convidados com buffet temático.',
   },
@@ -355,6 +358,7 @@ export const INITIAL_CLIENTS: ClientData[] = [
     email: 'helena.costa@email.com',
     phone: '(21) 99887-6655',
     invitationType: 'Chá de Bebê',
+    status: 'active',
     createdAt: '2026-09-01',
     notes: 'Chá de fraldas e recepção intimista.',
   },
@@ -364,6 +368,7 @@ export const INITIAL_CLIENTS: ClientData[] = [
     email: 'contato@beaquos.com',
     phone: '(11) 3456-7890',
     invitationType: 'Outros',
+    status: 'active',
     createdAt: '2026-09-12',
     notes: 'Confraternização corporativa e eventos especiais.',
   },

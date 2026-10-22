@@ -97,7 +97,7 @@ export const RowActionDropdown: React.FC<RowActionDropdownProps> = ({
   useEffect(() => {
     if (!isOpen) return;
 
-    const handleOutsideClick = (e: MouseEvent) => {
+    const handleOutsideClick = (e: Event) => {
       const target = e.target as Node;
       if (
         buttonRef.current &&
@@ -123,12 +123,14 @@ export const RowActionDropdown: React.FC<RowActionDropdownProps> = ({
     };
 
     document.addEventListener('mousedown', handleOutsideClick);
+    document.addEventListener('touchstart', handleOutsideClick, { passive: true });
     document.addEventListener('keydown', handleKeyDown);
     window.addEventListener('resize', handleScrollOrResize);
     window.addEventListener('scroll', handleScrollOrResize, true);
 
     return () => {
       document.removeEventListener('mousedown', handleOutsideClick);
+      document.removeEventListener('touchstart', handleOutsideClick);
       document.removeEventListener('keydown', handleKeyDown);
       window.removeEventListener('resize', handleScrollOrResize);
       window.removeEventListener('scroll', handleScrollOrResize, true);
@@ -161,6 +163,8 @@ export const RowActionDropdown: React.FC<RowActionDropdownProps> = ({
               position: 'fixed',
               top: `${coords.top}px`,
               left: `${coords.left}px`,
+              maxHeight: 'calc(100vh - 16px)',
+              overflowY: 'auto',
               zIndex: 9999,
             }}
             className={`w-48 rounded-xl bg-white dark:bg-[#1E1128] border border-[#E9E3D8] dark:border-[#3F2553] shadow-2xl py-1 duration-100 ${

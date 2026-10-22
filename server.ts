@@ -115,6 +115,30 @@ async function startServer() {
     res.json({ success: true, companyData: db.companyData });
   });
 
+  // Access Profiles protection endpoints (Requisito 5)
+  app.put('/api/access-profiles/:id', (req: Request, res: Response) => {
+    const profileId = (req.params.id || '').toLowerCase();
+    const name = (req.body?.name || '').toLowerCase();
+    if (profileId === 'prof-admin' || name === 'administrador') {
+      return res.status(403).json({
+        success: false,
+        error: 'O perfil Administrador é padrão do sistema e está protegido contra alterações.',
+      });
+    }
+    res.json({ success: true });
+  });
+
+  app.delete('/api/access-profiles/:id', (req: Request, res: Response) => {
+    const profileId = (req.params.id || '').toLowerCase();
+    if (profileId === 'prof-admin' || profileId === 'administrador') {
+      return res.status(403).json({
+        success: false,
+        error: 'O perfil Administrador padrão é protegido e não pode ser excluído.',
+      });
+    }
+    res.json({ success: true });
+  });
+
   // 2. Events endpoints
   app.get('/api/events', (_req: Request, res: Response) => {
     res.json(db.events);

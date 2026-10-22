@@ -12,15 +12,18 @@ import {
   Check,
   CheckCircle2,
   Pen,
+  Eye,
   Search,
   SlidersHorizontal,
 } from 'lucide-react';
 import { AdminUser, AdminUserStatus, AdminUserRole, normalizeAdminRole, normalizeAdminProfiles } from '../../types/user';
+import { RowActionDropdown, ConfirmModal } from '../common/list-components';
 
 interface HubUsersViewProps {
   adminUsers: AdminUser[];
   currentUser: AdminUser;
   onSaveUser: (user: AdminUser) => void;
+  onDeleteUser?: (userId: string) => void;
   onToggleStatus: (userId: string, newStatus?: AdminUserStatus) => void;
   onShowToast: (message: string) => void;
 }
@@ -53,6 +56,7 @@ export const HubUsersView: React.FC<HubUsersViewProps> = ({
   adminUsers,
   currentUser,
   onSaveUser,
+  onDeleteUser,
   onToggleStatus,
   onShowToast,
 }) => {
@@ -111,8 +115,21 @@ export const HubUsersView: React.FC<HubUsersViewProps> = ({
 
   // Modal State
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [modalMode, setModalMode] = useState<'create' | 'edit'>('create');
+  const [modalMode, setModalMode] = useState<'create' | 'edit' | 'view'>('create');
   const [selectedUser, setSelectedUser] = useState<AdminUser | null>(null);
+
+  // Modal de confirmação de exclusão
+  const [confirmModal, setConfirmModal] = useState<{
+    isOpen: boolean;
+    title: string;
+    description: string;
+    onConfirm: () => void;
+  }>({
+    isOpen: false,
+    title: '',
+    description: '',
+    onConfirm: () => {},
+  });
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -193,6 +210,29 @@ export const HubUsersView: React.FC<HubUsersViewProps> = ({
     setIsModalOpen(true);
   };
 
+  const handleOpenView = (user: AdminUser) => {
+    setSelectedUser(user);
+    setModalMode('view');
+    const profiles = normalizeAdminProfiles(
+      user.accessProfiles && user.accessProfiles.length > 0
+        ? user.accessProfiles
+        : [user.role]
+    );
+    setFormData({
+      name: user.name,
+      lastName: user.lastName,
+      email: user.email,
+      phone: user.phone || '',
+      role: normalizeAdminRole(user.role),
+      accessProfiles: profiles,
+      status: user.status,
+      accessEnd: user.accessEnd || '',
+      photoUrl: user.photoUrl || null,
+    });
+    setErrors({});
+    setIsModalOpen(true);
+  };
+
   const handleCloseModal = () => {
     setIsModalOpen(false);
     setSelectedUser(null);
@@ -200,6 +240,7 @@ export const HubUsersView: React.FC<HubUsersViewProps> = ({
   };
 
   const toggleProfile = (profileId: AdminUserRole) => {
+    if (modalMode === 'view') return;
     setFormData((prev) => {
       const isCurrentlySelected = prev.accessProfiles.includes(profileId);
 
@@ -298,6 +339,10 @@ export const HubUsersView: React.FC<HubUsersViewProps> = ({
 
   const handleSave = (e: React.FormEvent) => {
     e.preventDefault();
+    if (modalMode === 'view') {
+      handleCloseModal();
+      return;
+    }
     if (!validate()) return;
 
     const userToSave: AdminUser = {
@@ -510,15 +555,47 @@ export const HubUsersView: React.FC<HubUsersViewProps> = ({
                     )}
                   </div>
 
-                  <button
-                    type="button"
-                    onClick={() => handleOpenEdit(user)}
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-[#24152F]/15 hover:border-[#24152F] hover:bg-[#FAF6EE] text-[#24152F] dark:text-[#F7F1E5] dark:border-[#3F2553] dark:hover:bg-[#2A1738] text-xs font-semibold transition-all cursor-pointer shadow-2xs"
-                    title="Editar dados e status do usuário"
-                  >
-                    <Pen className="w-3.5 h-3.5 text-[#24152F] dark:text-[#F7F1E5]" />
-                    <span>Editar</span>
-                  </button>
+                  <RowActionDropdown
+                    id={`action-dropdown-user-${user.id}`}
+                    actions={[
+                      {
+                        id: 'view',
+                        label: 'Visualizar',
+                        icon: Eye,
+                        onClick: () => handleOpenView(user),
+                      },
+                      {
+                        id: 'edit',
+                        label: 'Editar',
+                        icon: Pen,
+                        onClick: () => handleOpenEdit(user),
+                      },
+                      {
+                        id: 'delete',
+                        label: 'Excluir',
+                        icon: Trash2,
+                        variant: 'danger',
+                        disabled: isSelf,
+                        onClick: () => {
+                          if (isSelf) {
+                            onShowToast('Você não pode excluir sua própria conta.');
+                            return;
+                          }
+                          setConfirmModal({
+                            isOpen: true,
+                            title: 'Excluir Usuário',
+                            description: `Deseja realmente remover o usuário "${user.name} ${user.lastName}"? Esta ação revogará todos os acessos administrativos deste usuário.`,
+                            onConfirm: () => {
+                              if (onDeleteUser) {
+                                onDeleteUser(user.id);
+                              }
+                              onShowToast(`Usuário "${user.name} ${user.lastName}" excluído.`);
+                            },
+                          });
+                        },
+                      },
+                    ]}
+                  />
                 </div>
               </div>
             );
@@ -539,10 +616,16 @@ export const HubUsersView: React.FC<HubUsersViewProps> = ({
                 </div>
                 <div>
                   <h3 className="text-base font-bold">
-                    {modalMode === 'create' ? 'Novo Usuário' : 'Editar Usuário'}
+                    {modalMode === 'create'
+                      ? 'Novo Usuário'
+                      : modalMode === 'edit'
+                      ? 'Editar Usuário'
+                      : 'Detalhes do Usuário'}
                   </h3>
                   <p className="text-xs text-[#D2C4DC]">
-                    Preencha os dados cadastrais e perfis de acesso
+                    {modalMode === 'view'
+                      ? 'Consulta aos dados cadastrais e perfis de acesso'
+                      : 'Preencha os dados cadastrais e perfis de acesso'}
                   </p>
                 </div>
               </div>
@@ -574,295 +657,309 @@ export const HubUsersView: React.FC<HubUsersViewProps> = ({
                     </div>
                   )}
 
-                  <button
-                    type="button"
-                    onClick={() => fileInputRef.current?.click()}
-                    className="absolute -bottom-1 -right-1 p-1.5 rounded-full bg-[#1A1033] text-[#DFFF5F] border-2 border-white shadow-xs hover:bg-[#120919] cursor-pointer"
-                    title="Carregar foto"
-                  >
-                    <Camera className="w-3.5 h-3.5" />
-                  </button>
-                  <input
-                    ref={fileInputRef}
-                    type="file"
-                    accept="image/*"
-                    className="hidden"
-                    onChange={handlePhotoUpload}
-                  />
-                </div>
-
-                <div className="flex-1 text-center sm:text-left">
-                  <h4 className="text-xs font-bold text-[#1A1033] dark:text-[#F7F1E5]">
-                    Foto de Perfil
-                  </h4>
-                  <p className="text-[11px] text-[#6B6B76] dark:text-[#E2D7EA]/60 mt-0.5">
-                    Envie uma foto em PNG ou JPG (máx. 5MB)
-                  </p>
-                  <div className="flex items-center justify-center sm:justify-start gap-2 mt-2">
-                    <button
-                      type="button"
-                      onClick={() => fileInputRef.current?.click()}
-                      className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold bg-white dark:bg-[#1E1128] border border-[#24152F]/15 dark:border-[#3F2553] hover:bg-[#FAF6EE] text-[#1A1033] dark:text-[#F7F1E5] transition-colors cursor-pointer"
-                    >
-                      <Upload className="w-3 h-3 text-[#6B6B76]" />
-                      <span>{formData.photoUrl ? 'Substituir' : 'Upload'}</span>
-                    </button>
-                    {formData.photoUrl && (
+                    {modalMode !== 'view' && (
                       <button
                         type="button"
-                        onClick={handleRemovePhoto}
-                        className="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-semibold text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/30 transition-colors cursor-pointer"
+                        onClick={() => fileInputRef.current?.click()}
+                        className="absolute -bottom-1 -right-1 p-1.5 rounded-full bg-[#1A1033] text-[#DFFF5F] border-2 border-white shadow-xs hover:bg-[#120919] cursor-pointer"
+                        title="Carregar foto"
                       >
-                        <Trash2 className="w-3 h-3" />
-                        <span>Remover</span>
+                        <Camera className="w-3.5 h-3.5" />
                       </button>
                     )}
-                  </div>
-                </div>
-              </div>
-
-              {/* Nome & Sobrenome */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
-                <div>
-                  <label className="block text-xs font-bold text-[#1A1033] dark:text-[#F7F1E5] mb-1">
-                    Nome *
-                  </label>
-                  <input
-                    type="text"
-                    value={formData.name}
-                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                    placeholder="Ex: Carlos"
-                    className={`w-full px-3.5 py-2 text-xs sm:text-sm rounded-xl border bg-white dark:bg-[#120919] text-[#1A1033] dark:text-[#F7F1E5] focus:outline-none focus:ring-2 focus:ring-[#1A1033] ${
-                      errors.name ? 'border-rose-500' : 'border-[#E9E3D8] dark:border-[#3F2553]'
-                    }`}
-                  />
-                  {errors.name && <p className="text-[10px] text-rose-600 mt-1">{errors.name}</p>}
-                </div>
-
-                <div>
-                  <label className="block text-xs font-bold text-[#1A1033] dark:text-[#F7F1E5] mb-1">
-                    Sobrenome *
-                  </label>
-                  <input
-                    type="text"
-                    value={formData.lastName}
-                    onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
-                    placeholder="Ex: Pereira"
-                    className={`w-full px-3.5 py-2 text-xs sm:text-sm rounded-xl border bg-white dark:bg-[#120919] text-[#1A1033] dark:text-[#F7F1E5] focus:outline-none focus:ring-2 focus:ring-[#1A1033] ${
-                      errors.lastName ? 'border-rose-500' : 'border-[#E9E3D8] dark:border-[#3F2553]'
-                    }`}
-                  />
-                  {errors.lastName && (
-                    <p className="text-[10px] text-rose-600 mt-1">{errors.lastName}</p>
-                  )}
-                </div>
-              </div>
-
-              {/* E-mail */}
-              <div>
-                <label className="block text-xs font-bold text-[#1A1033] dark:text-[#F7F1E5] mb-1">
-                  E-mail *
-                </label>
-                <div className="relative">
-                  <input
-                    type="email"
-                    value={formData.email}
-                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                    placeholder="usuario@rafluo.com"
-                    className={`w-full pl-9 pr-3.5 py-2 text-xs sm:text-sm rounded-xl border bg-white dark:bg-[#120919] text-[#1A1033] dark:text-[#F7F1E5] focus:outline-none focus:ring-2 focus:ring-[#1A1033] ${
-                      errors.email ? 'border-rose-500' : 'border-[#E9E3D8] dark:border-[#3F2553]'
-                    }`}
-                  />
-                  <Mail className="w-4 h-4 text-[#6B6B76] absolute left-3 top-2.5" />
-                </div>
-                {errors.email && <p className="text-[10px] text-rose-600 mt-1">{errors.email}</p>}
-              </div>
-
-              {/* Telefone */}
-              <div>
-                <label className="block text-xs font-bold text-[#1A1033] dark:text-[#F7F1E5] mb-1">
-                  Telefone (WhatsApp)
-                </label>
-                <div className="relative">
-                  <input
-                    type="text"
-                    value={formData.phone}
-                    onChange={(e) =>
-                      setFormData({ ...formData, phone: formatPhoneBR(e.target.value) })
-                    }
-                    placeholder="(11) 98765-4321"
-                    className={`w-full pl-9 pr-3.5 py-2 text-xs sm:text-sm rounded-xl border bg-white dark:bg-[#120919] text-[#1A1033] dark:text-[#F7F1E5] focus:outline-none focus:ring-2 focus:ring-[#1A1033] ${
-                      errors.phone ? 'border-rose-500' : 'border-[#E9E3D8] dark:border-[#3F2553]'
-                    }`}
-                  />
-                  <Phone className="w-4 h-4 text-[#6B6B76] absolute left-3 top-2.5" />
-                </div>
-                {errors.phone && <p className="text-[10px] text-rose-600 mt-1">{errors.phone}</p>}
-              </div>
-
-              {/* Perfis de Acesso */}
-              <div className="space-y-2 pt-1">
-                <div>
-                  <label className="block text-xs font-bold text-[#1A1033] dark:text-[#F7F1E5]">
-                    Perfis de Acesso *
-                  </label>
-                  <p className="text-[11px] text-[#6B6B76] dark:text-[#E2D7EA]/65 leading-tight mt-0.5">
-                    Selecione os perfis do usuário.
-                  </p>
-                </div>
-
-                <div className="space-y-2 pt-1">
-                  {ACCESS_PROFILES.map((profile) => {
-                    const isSelected = formData.accessProfiles.includes(profile.id);
-                    const isAdministradorActive = formData.accessProfiles.includes('Administrador');
-                    const isDisabled = profile.id !== 'Administrador' && isAdministradorActive;
-
-                    return (
-                      <div
-                        key={profile.id}
-                        onClick={() => {
-                          if (!isDisabled) {
-                            toggleProfile(profile.id);
-                          }
-                        }}
-                        className={`p-3 rounded-xl border transition-all flex items-start gap-3 select-none ${
-                          isDisabled
-                            ? 'opacity-40 cursor-not-allowed bg-stone-100 dark:bg-[#180d22] border-[#E9E3D8] dark:border-[#3F2553]'
-                            : isSelected
-                            ? 'bg-[#FAF6EE] dark:bg-[#2A1738] border-[#1A1033] dark:border-[#DFFF5F] shadow-xs ring-1 ring-[#1A1033] cursor-pointer'
-                            : 'bg-white dark:bg-[#120919] border-[#E9E3D8] dark:border-[#3F2553] hover:border-[#1A1033]/40 cursor-pointer'
-                        }`}
-                      >
-                        <div
-                          className={`w-5 h-5 rounded-md border flex items-center justify-center flex-shrink-0 mt-0.5 transition-colors ${
-                            isDisabled
-                              ? 'bg-stone-200 dark:bg-stone-800 border-stone-300 text-transparent'
-                              : isSelected
-                              ? 'bg-[#1A1033] dark:bg-[#DFFF5F] border-[#1A1033] dark:border-[#DFFF5F] text-[#DFFF5F] dark:text-[#180D20]'
-                              : 'bg-white dark:bg-[#1E1128] border-[#E9E3D8] text-transparent'
-                          }`}
-                        >
-                          <Check className="w-3.5 h-3.5 stroke-[3]" />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2">
-                            <span className="text-xs font-bold text-[#1A1033] dark:text-[#F7F1E5]">
-                              {profile.name}
-                            </span>
-                            {profile.isDefault && (
-                              <span className="text-[10px] font-bold px-1.5 py-0.2 rounded-md bg-[#DFFF5F] text-[#180D20]">
-                                Padrão
-                              </span>
-                            )}
-                          </div>
-                          <p className="text-[11px] text-[#6B6B76] dark:text-[#E2D7EA]/60 leading-tight mt-0.5">
-                            {profile.description}
-                          </p>
-                          {isDisabled && (
-                            <p className="text-[10px] text-amber-700 dark:text-amber-400 font-medium mt-1">
-                              Indisponível enquanto o perfil Administrador estiver selecionado.
-                            </p>
-                          )}
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-                {errors.accessProfiles && (
-                  <p className="text-[10px] text-rose-600 mt-1">{errors.accessProfiles}</p>
-                )}
-              </div>
-
-              {/* Status de Acesso */}
-              <div className="pt-1">
-                <label className="block text-xs font-bold text-[#1A1033] dark:text-[#F7F1E5] mb-1.5">
-                  Status de Acesso
-                </label>
-                <div className="grid grid-cols-3 gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setFormData({ ...formData, status: 'active' })}
-                    className={`py-2 px-3 rounded-xl border text-xs font-semibold transition-all text-center cursor-pointer ${
-                      formData.status === 'active'
-                        ? 'bg-emerald-50 border-emerald-400 text-emerald-800 dark:bg-emerald-950/50 dark:text-emerald-300 font-bold shadow-xs'
-                        : 'bg-white dark:bg-[#120919] border-[#E9E3D8] dark:border-[#3F2553] text-[#6B6B76] dark:text-[#E2D7EA]/70'
-                    }`}
-                  >
-                    Ativo
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setFormData({ ...formData, status: 'temporary' })}
-                    className={`py-2 px-3 rounded-xl border text-xs font-semibold transition-all text-center cursor-pointer ${
-                      formData.status === 'temporary'
-                        ? 'bg-amber-50 border-amber-400 text-amber-800 dark:bg-amber-950/50 dark:text-amber-300 font-bold shadow-xs'
-                        : 'bg-white dark:bg-[#120919] border-[#E9E3D8] dark:border-[#3F2553] text-[#6B6B76] dark:text-[#E2D7EA]/70'
-                    }`}
-                  >
-                    Temporário
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setFormData({ ...formData, status: 'disabled' })}
-                    className={`py-2 px-3 rounded-xl border text-xs font-semibold transition-all text-center cursor-pointer ${
-                      formData.status === 'disabled'
-                        ? 'bg-rose-50 border-rose-400 text-rose-800 dark:bg-rose-950/50 dark:text-rose-300 font-bold shadow-xs'
-                        : 'bg-white dark:bg-[#120919] border-[#E9E3D8] dark:border-[#3F2553] text-[#6B6B76] dark:text-[#E2D7EA]/70'
-                    }`}
-                  >
-                    Desativado
-                  </button>
-                </div>
-              </div>
-
-              {/* Data de Fim para Temporário */}
-              {formData.status === 'temporary' && (
-                <div className="p-3.5 rounded-2xl bg-amber-50/70 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 space-y-2 animate-in fade-in">
-                  <div className="flex items-center gap-2 text-xs font-bold text-amber-900 dark:text-amber-300">
-                    <Clock className="w-4 h-4 text-amber-700" />
-                    <span>Janela de Acesso Temporário</span>
-                  </div>
-                  <div>
-                    <label className="block text-[11px] font-semibold text-amber-900 dark:text-amber-300 mb-1">
-                      Data de Fim do Acesso *
-                    </label>
                     <input
-                      type="date"
-                      value={formData.accessEnd}
-                      onChange={(e) => setFormData({ ...formData, accessEnd: e.target.value })}
-                      className={`w-full px-3 py-2 text-xs rounded-xl border bg-white dark:bg-[#120919] text-[#1A1033] dark:text-[#F7F1E5] focus:outline-none focus:ring-2 focus:ring-amber-500 ${
-                        errors.accessEnd ? 'border-rose-500' : 'border-amber-300 dark:border-amber-700'
-                      }`}
+                      ref={fileInputRef}
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={handlePhotoUpload}
                     />
-                    {errors.accessEnd && (
-                      <p className="text-[10px] text-rose-600 mt-1">{errors.accessEnd}</p>
+                  </div>
+
+                  <div className="flex-1 text-center sm:text-left">
+                    <h4 className="text-xs font-bold text-[#1A1033] dark:text-[#F7F1E5]">
+                      Foto de Perfil
+                    </h4>
+                    <p className="text-[11px] text-[#6B6B76] dark:text-[#E2D7EA]/60 mt-0.5">
+                      Envie uma foto em PNG ou JPG (máx. 5MB)
+                    </p>
+                    {modalMode !== 'view' && (
+                      <div className="flex items-center justify-center sm:justify-start gap-2 mt-2">
+                        <button
+                          type="button"
+                          onClick={() => fileInputRef.current?.click()}
+                          className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold bg-white dark:bg-[#1E1128] border border-[#24152F]/15 dark:border-[#3F2553] hover:bg-[#FAF6EE] text-[#1A1033] dark:text-[#F7F1E5] transition-colors cursor-pointer"
+                        >
+                          <Upload className="w-3 h-3 text-[#6B6B76]" />
+                          <span>{formData.photoUrl ? 'Substituir' : 'Upload'}</span>
+                        </button>
+                        {formData.photoUrl && (
+                          <button
+                            type="button"
+                            onClick={handleRemovePhoto}
+                            className="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-semibold text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/30 transition-colors cursor-pointer"
+                          >
+                            <Trash2 className="w-3 h-3" />
+                            <span>Remover</span>
+                          </button>
+                        )}
+                      </div>
                     )}
                   </div>
                 </div>
-              )}
-            </form>
 
-            {/* Modal Footer */}
-            <div className="p-4 sm:p-5 border-t border-[#E9E3D8] dark:border-[#3F2553] bg-[#FAF6EE]/40 dark:bg-[#1E1128] flex items-center justify-end gap-2.5 flex-shrink-0">
-              <button
-                type="button"
-                onClick={handleCloseModal}
-                className="px-4 py-2.5 text-xs font-semibold rounded-xl text-[#6B6B76] dark:text-[#E2D7EA]/70 hover:bg-[#FAF6EE] dark:hover:bg-[#2A1738] transition-colors cursor-pointer"
-              >
-                Cancelar
-              </button>
-              <button
-                type="button"
-                onClick={handleSave}
-                className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-[#1A1033] hover:bg-[#120919] text-white text-xs sm:text-sm font-semibold shadow-xs transition-all active:scale-95 cursor-pointer"
-              >
-                <CheckCircle2 className="w-4 h-4 text-[#DFFF5F]" />
-                <span>{modalMode === 'edit' ? 'Salvar Alterações' : 'Salvar Usuário'}</span>
-              </button>
+                {/* Nome & Sobrenome */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                  <div>
+                    <label className="block text-xs font-bold text-[#1A1033] dark:text-[#F7F1E5] mb-1">
+                      Nome *
+                    </label>
+                    <input
+                      type="text"
+                      disabled={modalMode === 'view'}
+                      value={formData.name}
+                      onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                      placeholder="Ex: Carlos"
+                      className={`w-full px-3.5 py-2 text-xs sm:text-sm rounded-xl border bg-white dark:bg-[#120919] text-[#1A1033] dark:text-[#F7F1E5] focus:outline-none focus:ring-2 focus:ring-[#1A1033] ${
+                        errors.name ? 'border-rose-500' : 'border-[#E9E3D8] dark:border-[#3F2553]'
+                      } ${modalMode === 'view' ? 'opacity-80 bg-zinc-50 dark:bg-zinc-900 cursor-not-allowed' : ''}`}
+                    />
+                    {errors.name && <p className="text-[10px] text-rose-600 mt-1">{errors.name}</p>}
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-[#1A1033] dark:text-[#F7F1E5] mb-1">
+                      Sobrenome *
+                    </label>
+                    <input
+                      type="text"
+                      disabled={modalMode === 'view'}
+                      value={formData.lastName}
+                      onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
+                      placeholder="Ex: Pereira"
+                      className={`w-full px-3.5 py-2 text-xs sm:text-sm rounded-xl border bg-white dark:bg-[#120919] text-[#1A1033] dark:text-[#F7F1E5] focus:outline-none focus:ring-2 focus:ring-[#1A1033] ${
+                        errors.lastName ? 'border-rose-500' : 'border-[#E9E3D8] dark:border-[#3F2553]'
+                      } ${modalMode === 'view' ? 'opacity-80 bg-zinc-50 dark:bg-zinc-900 cursor-not-allowed' : ''}`}
+                    />
+                    {errors.lastName && (
+                      <p className="text-[10px] text-rose-600 mt-1">{errors.lastName}</p>
+                    )}
+                  </div>
+                </div>
+
+                {/* E-mail */}
+                <div>
+                  <label className="block text-xs font-bold text-[#1A1033] dark:text-[#F7F1E5] mb-1">
+                    E-mail *
+                  </label>
+                  <div className="relative">
+                    <input
+                      type="email"
+                      disabled={modalMode === 'view'}
+                      value={formData.email}
+                      onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                      placeholder="usuario@rafluo.com"
+                      className={`w-full pl-9 pr-3.5 py-2 text-xs sm:text-sm rounded-xl border bg-white dark:bg-[#120919] text-[#1A1033] dark:text-[#F7F1E5] focus:outline-none focus:ring-2 focus:ring-[#1A1033] ${
+                        errors.email ? 'border-rose-500' : 'border-[#E9E3D8] dark:border-[#3F2553]'
+                      } ${modalMode === 'view' ? 'opacity-80 bg-zinc-50 dark:bg-zinc-900 cursor-not-allowed' : ''}`}
+                    />
+                    <Mail className="w-4 h-4 text-[#6B6B76] absolute left-3 top-2.5" />
+                  </div>
+                  {errors.email && <p className="text-[10px] text-rose-600 mt-1">{errors.email}</p>}
+                </div>
+
+                {/* Telefone */}
+                <div>
+                  <label className="block text-xs font-bold text-[#1A1033] dark:text-[#F7F1E5] mb-1">
+                    Telefone (WhatsApp)
+                  </label>
+                  <div className="relative">
+                    <input
+                      type="text"
+                      disabled={modalMode === 'view'}
+                      value={formData.phone}
+                      onChange={(e) =>
+                        setFormData({ ...formData, phone: formatPhoneBR(e.target.value) })
+                      }
+                      placeholder="(11) 98765-4321"
+                      className={`w-full pl-9 pr-3.5 py-2 text-xs sm:text-sm rounded-xl border bg-white dark:bg-[#120919] text-[#1A1033] dark:text-[#F7F1E5] focus:outline-none focus:ring-2 focus:ring-[#1A1033] ${
+                        errors.phone ? 'border-rose-500' : 'border-[#E9E3D8] dark:border-[#3F2553]'
+                      } ${modalMode === 'view' ? 'opacity-80 bg-zinc-50 dark:bg-zinc-900 cursor-not-allowed' : ''}`}
+                    />
+                    <Phone className="w-4 h-4 text-[#6B6B76] absolute left-3 top-2.5" />
+                  </div>
+                  {errors.phone && <p className="text-[10px] text-rose-600 mt-1">{errors.phone}</p>}
+                </div>
+
+                {/* Perfis de Acesso */}
+                <div className="space-y-2 pt-1">
+                  <div>
+                    <label className="block text-xs font-bold text-[#1A1033] dark:text-[#F7F1E5]">
+                      Perfis de Acesso *
+                    </label>
+                    <p className="text-[11px] text-[#6B6B76] dark:text-[#E2D7EA]/65 leading-tight mt-0.5">
+                      Selecione os perfis do usuário.
+                    </p>
+                  </div>
+
+                  <div className="space-y-2 pt-1">
+                    {ACCESS_PROFILES.map((profile) => {
+                      const isSelected = formData.accessProfiles.includes(profile.id);
+                      const isAdministradorActive = formData.accessProfiles.includes('Administrador');
+                      const isDisabled = (profile.id !== 'Administrador' && isAdministradorActive) || modalMode === 'view';
+
+                      return (
+                        <div
+                          key={profile.id}
+                          onClick={() => {
+                            if (!isDisabled) {
+                              toggleProfile(profile.id);
+                            }
+                          }}
+                          className={`p-3 rounded-xl border transition-all flex items-start gap-3 select-none ${
+                            isDisabled
+                              ? 'opacity-60 cursor-not-allowed bg-stone-100 dark:bg-[#180d22] border-[#E9E3D8] dark:border-[#3F2553]'
+                              : isSelected
+                              ? 'bg-[#FAF6EE] dark:bg-[#2A1738] border-[#1A1033] dark:border-[#DFFF5F] shadow-xs ring-1 ring-[#1A1033] cursor-pointer'
+                              : 'bg-white dark:bg-[#120919] border-[#E9E3D8] dark:border-[#3F2553] hover:border-[#1A1033]/40 cursor-pointer'
+                          }`}
+                        >
+                          <div
+                            className={`w-5 h-5 rounded-md border flex items-center justify-center flex-shrink-0 mt-0.5 transition-colors ${
+                              isDisabled && !isSelected
+                                ? 'bg-stone-200 dark:bg-stone-800 border-stone-300 text-transparent'
+                                : isSelected
+                                ? 'bg-[#1A1033] dark:bg-[#DFFF5F] border-[#1A1033] dark:border-[#DFFF5F] text-[#DFFF5F] dark:text-[#180D20]'
+                                : 'bg-white dark:bg-[#1E1128] border-[#E9E3D8] text-transparent'
+                            }`}
+                          >
+                            <Check className="w-3.5 h-3.5 stroke-[3]" />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2">
+                              <span className="text-xs font-bold text-[#1A1033] dark:text-[#F7F1E5]">
+                                {profile.name}
+                              </span>
+                              {profile.isDefault && (
+                                <span className="text-[10px] font-bold px-1.5 py-0.2 rounded-md bg-[#DFFF5F] text-[#180D20]">
+                                  Padrão
+                                </span>
+                              )}
+                            </div>
+                            <p className="text-[11px] text-[#6B6B76] dark:text-[#E2D7EA]/60 leading-tight mt-0.5">
+                              {profile.description}
+                            </p>
+                            {isDisabled && profile.id !== 'Administrador' && isAdministradorActive && (
+                              <p className="text-[10px] text-amber-700 dark:text-amber-400 font-medium mt-1">
+                                Indisponível enquanto o perfil Administrador estiver selecionado.
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                  {errors.accessProfiles && (
+                    <p className="text-[10px] text-rose-600 mt-1">{errors.accessProfiles}</p>
+                  )}
+                </div>
+
+                {/* Status de Acesso */}
+                <div className="pt-1">
+                  <label className="block text-xs font-bold text-[#1A1033] dark:text-[#F7F1E5] mb-1.5">
+                    Status de Acesso
+                  </label>
+                  <div className="grid grid-cols-3 gap-2">
+                    <button
+                      type="button"
+                      disabled={modalMode === 'view'}
+                      onClick={() => setFormData({ ...formData, status: 'active' })}
+                      className={`py-2 px-3 rounded-xl border text-xs font-semibold transition-all text-center cursor-pointer ${
+                        formData.status === 'active'
+                          ? 'bg-emerald-50 border-emerald-400 text-emerald-800 dark:bg-emerald-950/50 dark:text-emerald-300 font-bold shadow-xs'
+                          : 'bg-white dark:bg-[#120919] border-[#E9E3D8] dark:border-[#3F2553] text-[#6B6B76] dark:text-[#E2D7EA]/70'
+                      } ${modalMode === 'view' ? 'cursor-not-allowed opacity-80' : ''}`}
+                    >
+                      Ativo
+                    </button>
+                    <button
+                      type="button"
+                      disabled={modalMode === 'view'}
+                      onClick={() => setFormData({ ...formData, status: 'temporary' })}
+                      className={`py-2 px-3 rounded-xl border text-xs font-semibold transition-all text-center cursor-pointer ${
+                        formData.status === 'temporary'
+                          ? 'bg-amber-50 border-amber-400 text-amber-800 dark:bg-amber-950/50 dark:text-amber-300 font-bold shadow-xs'
+                          : 'bg-white dark:bg-[#120919] border-[#E9E3D8] dark:border-[#3F2553] text-[#6B6B76] dark:text-[#E2D7EA]/70'
+                      } ${modalMode === 'view' ? 'cursor-not-allowed opacity-80' : ''}`}
+                    >
+                      Temporário
+                    </button>
+                    <button
+                      type="button"
+                      disabled={modalMode === 'view'}
+                      onClick={() => setFormData({ ...formData, status: 'disabled' })}
+                      className={`py-2 px-3 rounded-xl border text-xs font-semibold transition-all text-center cursor-pointer ${
+                        formData.status === 'disabled'
+                          ? 'bg-rose-50 border-rose-400 text-rose-800 dark:bg-rose-950/50 dark:text-rose-300 font-bold shadow-xs'
+                          : 'bg-white dark:bg-[#120919] border-[#E9E3D8] dark:border-[#3F2553] text-[#6B6B76] dark:text-[#E2D7EA]/70'
+                      } ${modalMode === 'view' ? 'cursor-not-allowed opacity-80' : ''}`}
+                    >
+                      Desativado
+                    </button>
+                  </div>
+                </div>
+
+                {/* Data de Fim para Temporário */}
+                {formData.status === 'temporary' && (
+                  <div className="p-3.5 rounded-2xl bg-amber-50/70 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 space-y-2 animate-in fade-in">
+                    <div className="flex items-center gap-2 text-xs font-bold text-amber-900 dark:text-amber-300">
+                      <Clock className="w-4 h-4 text-amber-700" />
+                      <span>Janela de Acesso Temporário</span>
+                    </div>
+                    <div>
+                      <label className="block text-[11px] font-semibold text-amber-900 dark:text-amber-300 mb-1">
+                        Data de Fim do Acesso *
+                      </label>
+                      <input
+                        type="date"
+                        disabled={modalMode === 'view'}
+                        value={formData.accessEnd}
+                        onChange={(e) => setFormData({ ...formData, accessEnd: e.target.value })}
+                        className={`w-full px-3 py-2 text-xs rounded-xl border bg-white dark:bg-[#120919] text-[#1A1033] dark:text-[#F7F1E5] focus:outline-none focus:ring-2 focus:ring-amber-500 ${
+                          errors.accessEnd ? 'border-rose-500' : 'border-amber-300 dark:border-amber-700'
+                        } ${modalMode === 'view' ? 'cursor-not-allowed opacity-80' : ''}`}
+                      />
+                      {errors.accessEnd && (
+                        <p className="text-[10px] text-rose-600 mt-1">{errors.accessEnd}</p>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </form>
+
+              {/* Modal Footer */}
+              <div className="p-4 sm:p-5 border-t border-[#E9E3D8] dark:border-[#3F2553] bg-[#FAF6EE]/40 dark:bg-[#1E1128] flex items-center justify-end gap-2.5 flex-shrink-0">
+                <button
+                  type="button"
+                  onClick={handleCloseModal}
+                  className="px-4 py-2.5 text-xs font-semibold rounded-xl text-[#6B6B76] dark:text-[#E2D7EA]/70 hover:bg-[#FAF6EE] dark:hover:bg-[#2A1738] transition-colors cursor-pointer"
+                >
+                  {modalMode === 'view' ? 'Fechar' : 'Cancelar'}
+                </button>
+                {modalMode !== 'view' && (
+                  <button
+                    type="button"
+                    onClick={handleSave}
+                    className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-[#1A1033] hover:bg-[#120919] text-white text-xs sm:text-sm font-semibold shadow-xs transition-all active:scale-95 cursor-pointer"
+                  >
+                    <CheckCircle2 className="w-4 h-4 text-[#DFFF5F]" />
+                    <span>{modalMode === 'edit' ? 'Salvar Alterações' : 'Salvar Usuário'}</span>
+                  </button>
+                )}
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        )}
 
       {/* Modal Filtrar Usuários (Padronizado idêntico ao menu Clientes) */}
       {isFilterModalOpen && (
@@ -979,6 +1076,20 @@ export const HubUsersView: React.FC<HubUsersViewProps> = ({
           </div>
         </div>
       )}
+
+      {/* Modal de Confirmação de Exclusão */}
+      <ConfirmModal
+        isOpen={confirmModal.isOpen}
+        title={confirmModal.title}
+        description={confirmModal.description}
+        confirmLabel="Excluir"
+        variant="danger"
+        onConfirm={() => {
+          confirmModal.onConfirm();
+          setConfirmModal((prev) => ({ ...prev, isOpen: false }));
+        }}
+        onClose={() => setConfirmModal((prev) => ({ ...prev, isOpen: false }))}
+      />
     </div>
   );
 };

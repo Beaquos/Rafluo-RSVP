@@ -1552,12 +1552,12 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
           )}
         </div>
 
-        {/* 3. Tabela / Lista de Credenciamento em Tempo Real (Item 8 e 9 do Prompt) */}
+        {/* 3. Tabela / Lista de Credenciamento */}
         <div className="bg-white dark:bg-[#1E1128] rounded-3xl border border-[#24152F]/15 dark:border-[#3F2553] shadow-sm p-4 sm:p-6 space-y-4">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-[#24152F]/10 dark:border-[#3F2553]/60">
             <div>
               <h3 className="text-base sm:text-lg font-bold text-[#24152F] dark:text-[#F7F1E5]">
-                Lista de Credenciamento em Tempo Real
+                Lista de Credenciamento
               </h3>
               <p className="text-xs text-[#24152F]/60 dark:text-[#D2C4DC]/60 mt-0.5">
                 Acompanhe quem já entrou e registre a entrada nominal individual de cada pessoa
@@ -1618,7 +1618,7 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
             <table className="w-full text-left text-xs md:whitespace-nowrap md:min-w-[700px]">
               <thead className="bg-[#FAF6EE] dark:bg-[#2A1738] text-[#24152F]/80 dark:text-[#D2C4DC] font-bold border-b border-[#24152F]/10 dark:border-[#3F2553]">
                 <tr>
-                  <th className="py-3 px-4">Titular & Reserva</th>
+                  <th className="hidden md:table-cell py-3 px-4">Titular & Reserva</th>
                   <th className="py-3 px-3">Participantes Nominais</th>
                   <th className="py-3 px-3">Código QR</th>
                   <th className="py-3 px-3">Status Entrada</th>
@@ -1642,8 +1642,8 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
 
                     return (
                       <tr key={g.id} className="hover:bg-[#FAF6EE]/30 dark:hover:bg-[#2A1738]/30 transition-colors">
-                        {/* Titular */}
-                        <td className="py-3.5 px-4 font-bold align-top">
+                        {/* Titular (oculto no mobile conforme Requisito 7) */}
+                        <td className="hidden md:table-cell py-3.5 px-4 font-bold align-top">
                           <p className="text-xs sm:text-sm font-bold text-[#24152F] dark:text-[#F7F1E5]">
                             {g.displayName || g.name}
                           </p>

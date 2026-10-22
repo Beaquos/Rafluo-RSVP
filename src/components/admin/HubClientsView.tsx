@@ -5,23 +5,21 @@ import {
   Search,
   Mail,
   Phone,
-  Calendar,
-  Edit2,
   Eye,
+  Pen,
+  Trash2,
   X,
   User,
-  Tag,
-  CheckCircle2,
-  FileText,
   SlidersHorizontal,
 } from 'lucide-react';
 import { ClientData } from '../../data/mockData';
-import { formatDateBR } from '../../utils/dateUtils';
 import { getTypeBadgeColor } from '../../utils/badgeUtils';
+import { RowActionDropdown, ConfirmModal } from '../common/list-components';
 
 interface HubClientsViewProps {
   clients: ClientData[];
   onSaveClient: (client: ClientData) => void;
+  onDeleteClient?: (clientId: string) => void;
   onShowToast: (message: string) => void;
 }
 
@@ -33,31 +31,54 @@ const INVITATION_TYPES = [
   'Outros',
 ] as const;
 
+const CLIENT_STATUS_OPTIONS: { id: 'active' | 'inactive'; label: string }[] = [
+  { id: 'active', label: 'Ativo' },
+  { id: 'inactive', label: 'Desativado' },
+];
+
 export const HubClientsView: React.FC<HubClientsViewProps> = ({
   clients,
   onSaveClient,
+  onDeleteClient,
   onShowToast,
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterSelectedTypes, setFilterSelectedTypes] = useState<string[]>([]);
   const [draftSelectedTypes, setDraftSelectedTypes] = useState<string[]>([]);
+  const [filterSelectedStatuses, setFilterSelectedStatuses] = useState<('active' | 'inactive')[]>([]);
+  const [draftSelectedStatuses, setDraftSelectedStatuses] = useState<('active' | 'inactive')[]>([]);
   const [isFilterModalOpen, setIsFilterModalOpen] = useState(false);
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [modalMode, setModalMode] = useState<'create' | 'edit' | 'view'>('create');
   const [selectedClient, setSelectedClient] = useState<ClientData | null>(null);
 
+  // Modal de confirmação de exclusão
+  const [confirmModal, setConfirmModal] = useState<{
+    isOpen: boolean;
+    title: string;
+    description: string;
+    onConfirm: () => void;
+  }>({
+    isOpen: false,
+    title: '',
+    description: '',
+    onConfirm: () => {},
+  });
+
   const [formData, setFormData] = useState<{
     name: string;
     email: string;
     phone: string;
     invitationType: ClientData['invitationType'];
+    status: 'active' | 'inactive';
     notes: string;
   }>({
     name: '',
     email: '',
     phone: '',
     invitationType: 'Aniversário Adulto',
+    status: 'active',
     notes: '',
   });
 
@@ -82,6 +103,7 @@ export const HubClientsView: React.FC<HubClientsViewProps> = ({
       email: '',
       phone: '',
       invitationType: 'Aniversário Adulto',
+      status: 'active',
       notes: '',
     });
     setErrors({});
@@ -96,6 +118,7 @@ export const HubClientsView: React.FC<HubClientsViewProps> = ({
       email: client.email,
       phone: client.phone,
       invitationType: client.invitationType,
+      status: client.status === 'inactive' ? 'inactive' : 'active',
       notes: client.notes || '',
     });
     setErrors({});
@@ -110,6 +133,7 @@ export const HubClientsView: React.FC<HubClientsViewProps> = ({
       email: client.email,
       phone: client.phone,
       invitationType: client.invitationType,
+      status: client.status === 'inactive' ? 'inactive' : 'active',
       notes: client.notes || '',
     });
     setErrors({});
@@ -153,6 +177,7 @@ export const HubClientsView: React.FC<HubClientsViewProps> = ({
       email: formData.email.trim(),
       phone: formData.phone.trim(),
       invitationType: formData.invitationType,
+      status: formData.status,
       createdAt: selectedClient ? selectedClient.createdAt : new Date().toISOString().split('T')[0],
       notes: formData.notes.trim() || undefined,
     };
@@ -166,7 +191,7 @@ export const HubClientsView: React.FC<HubClientsViewProps> = ({
     );
   };
 
-  // Filter clients
+  // Filter clients by search, type, and status
   const filteredClients = clients.filter((c) => {
     const matchesSearch =
       c.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -176,19 +201,25 @@ export const HubClientsView: React.FC<HubClientsViewProps> = ({
     const matchesType =
       filterSelectedTypes.length === 0 || filterSelectedTypes.includes(c.invitationType);
 
-    return matchesSearch && matchesType;
+    const clientStatus = c.status === 'inactive' ? 'inactive' : 'active';
+    const matchesStatus =
+      filterSelectedStatuses.length === 0 || filterSelectedStatuses.includes(clientStatus);
+
+    return matchesSearch && matchesType && matchesStatus;
   });
+
+  const activeFiltersCount = filterSelectedTypes.length + filterSelectedStatuses.length;
 
   return (
     <div id="hub-clients-view" className="space-y-6 pb-12">
-      {/* 1. Page Title H1 + Contextual description (Item 1) */}
+      {/* 1. Page Title H1 + Contextual description */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div className="space-y-1">
           <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-[#24152F] dark:text-[#F7F1E5]">
             Clientes
           </h1>
           <p className="text-xs sm:text-sm text-[#24152F]/70 dark:text-[#E2D7EA]/80 font-normal">
-            Gerencie a base de clientes e seus tipos de convite.
+            Gerencie a base de clientes, status e tipos de convite.
           </p>
         </div>
 
@@ -223,19 +254,20 @@ export const HubClientsView: React.FC<HubClientsViewProps> = ({
             id="btn-open-client-filter-modal"
             onClick={() => {
               setDraftSelectedTypes([...filterSelectedTypes]);
+              setDraftSelectedStatuses([...filterSelectedStatuses]);
               setIsFilterModalOpen(true);
             }}
             className={`relative flex items-center justify-center p-2.5 h-10 w-10 rounded-xl border text-xs font-semibold transition-colors cursor-pointer flex-shrink-0 shadow-2xs ${
-              filterSelectedTypes.length > 0
+              activeFiltersCount > 0
                 ? 'bg-[#24152F] text-[#F7F1E5] border-[#24152F]'
                 : 'bg-white dark:bg-[#1E1128] border-[#24152F]/20 dark:border-[#3F2553] text-[#24152F] dark:text-[#F7F1E5] hover:bg-[#FAF6EE] dark:hover:bg-[#2A1738]'
             }`}
             title="Filtrar clientes"
           >
-            <SlidersHorizontal className={`w-4 h-4 ${filterSelectedTypes.length > 0 ? 'text-[#DFFF5F]' : 'text-[#24152F] dark:text-[#F7F1E5]'}`} />
-            {filterSelectedTypes.length > 0 && (
+            <SlidersHorizontal className={`w-4 h-4 ${activeFiltersCount > 0 ? 'text-[#DFFF5F]' : 'text-[#24152F] dark:text-[#F7F1E5]'}`} />
+            {activeFiltersCount > 0 && (
               <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-[#DFFF5F] text-[#180D20] text-[10px] font-black flex items-center justify-center">
-                {filterSelectedTypes.length}
+                {activeFiltersCount}
               </span>
             )}
           </button>
@@ -244,10 +276,14 @@ export const HubClientsView: React.FC<HubClientsViewProps> = ({
         {/* Resumo de clientes exibidos */}
         <div className="text-xs text-[#24152F]/65 dark:text-[#D2C4DC]/70 font-medium flex items-center gap-2 justify-end">
           <span>Exibindo <strong>{filteredClients.length}</strong> de {clients.length}</span>
-          {filterSelectedTypes.length > 0 && (
+          {(activeFiltersCount > 0 || searchTerm) && (
             <button
               type="button"
-              onClick={() => setFilterSelectedTypes([])}
+              onClick={() => {
+                setFilterSelectedTypes([]);
+                setFilterSelectedStatuses([]);
+                setSearchTerm('');
+              }}
               className="text-[11px] text-rose-700 dark:text-rose-400 underline font-semibold hover:text-rose-800 cursor-pointer ml-1"
             >
               Limpar filtros
@@ -262,6 +298,9 @@ export const HubClientsView: React.FC<HubClientsViewProps> = ({
           <h3 className="text-base font-bold text-[#24152F] dark:text-[#F7F1E5]">
             Clientes Cadastrados
           </h3>
+          <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-[#24152F]/5 dark:bg-white/10 text-[#24152F] dark:text-[#F7F1E5]">
+            {filteredClients.length} {filteredClients.length === 1 ? 'cliente' : 'clientes'}
+          </span>
         </div>
 
         {filteredClients.length === 0 ? (
@@ -274,68 +313,102 @@ export const HubClientsView: React.FC<HubClientsViewProps> = ({
           </div>
         ) : (
           <div className="divide-y divide-[#24152F]/5 dark:divide-[#3F2553]/50">
-            {filteredClients.map((client) => (
-              <div
-                key={client.id}
-                className="p-4 sm:p-5 flex flex-col md:flex-row md:items-center justify-between gap-4 hover:bg-[#FAF6EE]/40 dark:hover:bg-[#2E1B3C]/30 transition-colors"
-              >
-                {/* Client Basic Details */}
-                <div className="flex items-center gap-3.5 min-w-0">
-                  <div className="w-10 h-10 rounded-full bg-[#24152F] dark:bg-[#2E1B3C] text-[#DFFF5F] font-bold text-sm flex items-center justify-center flex-shrink-0 shadow-2xs">
-                    {client.name.charAt(0).toUpperCase()}
-                  </div>
-
-                  <div className="min-w-0">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <h4 className="text-sm sm:text-base font-bold text-[#24152F] dark:text-[#F7F1E5] truncate">
-                        {client.name}
-                      </h4>
-                      <span
-                        className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${getTypeBadgeColor(
-                          client.invitationType
-                        )}`}
-                      >
-                        {client.invitationType}
-                      </span>
+            {filteredClients.map((client) => {
+              const isInactive = client.status === 'inactive';
+              return (
+                <div
+                  key={client.id}
+                  className="p-4 sm:p-5 flex flex-col md:flex-row md:items-center justify-between gap-4 hover:bg-[#FAF6EE]/40 dark:hover:bg-[#2E1B3C]/30 transition-colors"
+                >
+                  {/* Client Basic Details */}
+                  <div className="flex items-center gap-3.5 min-w-0">
+                    <div className="w-10 h-10 rounded-full bg-[#24152F] dark:bg-[#2E1B3C] text-[#DFFF5F] font-bold text-sm flex items-center justify-center flex-shrink-0 shadow-2xs">
+                      {client.name.charAt(0).toUpperCase()}
                     </div>
 
-                    <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-1 text-xs text-[#24152F]/70 dark:text-[#D2C4DC]/80">
-                      <div className="flex items-center gap-1.5 truncate">
-                        <Mail className="w-3.5 h-3.5 text-[#24152F]/40 dark:text-[#D2C4DC]/50 flex-shrink-0" />
-                        <span className="truncate">{client.email}</span>
+                    <div className="min-w-0">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <h4 className="text-sm sm:text-base font-bold text-[#24152F] dark:text-[#F7F1E5] truncate">
+                          {client.name}
+                        </h4>
+                        <span
+                          className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${getTypeBadgeColor(
+                            client.invitationType
+                          )}`}
+                        >
+                          {client.invitationType}
+                        </span>
                       </div>
-                      <div className="flex items-center gap-1.5 truncate">
-                        <Phone className="w-3.5 h-3.5 text-[#24152F]/40 dark:text-[#D2C4DC]/50 flex-shrink-0" />
-                        <span>{client.phone}</span>
+
+                      <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-1 text-xs text-[#24152F]/70 dark:text-[#D2C4DC]/80">
+                        <div className="flex items-center gap-1.5 truncate">
+                          <Mail className="w-3.5 h-3.5 text-[#24152F]/40 dark:text-[#D2C4DC]/50 flex-shrink-0" />
+                          <span className="truncate">{client.email}</span>
+                        </div>
+                        <div className="flex items-center gap-1.5 truncate">
+                          <Phone className="w-3.5 h-3.5 text-[#24152F]/40 dark:text-[#D2C4DC]/50 flex-shrink-0" />
+                          <span>{client.phone}</span>
+                        </div>
                       </div>
                     </div>
                   </div>
-                </div>
 
-                {/* Actions: View and Edit */}
-                <div className="flex items-center justify-end gap-2 flex-shrink-0 pt-2 md:pt-0 border-t md:border-t-0 border-[#24152F]/10 dark:border-[#3F2553]/50">
-                  <button
-                    type="button"
-                    onClick={() => handleOpenView(client)}
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-[#24152F]/15 dark:border-[#3F2553] hover:border-[#24152F] hover:bg-[#FAF6EE] dark:hover:bg-[#2E1B3C] text-[#24152F] dark:text-[#F7F1E5] text-xs font-semibold transition-all cursor-pointer shadow-2xs"
-                    title="Visualizar detalhes do cliente"
-                  >
-                    <Eye className="w-3.5 h-3.5 text-[#24152F] dark:text-[#DFFF5F]" />
-                    <span>Visualizar</span>
-                  </button>
+                  {/* Status Badge + Menu de Três Pontos (⋮) — Visualizar, Editar, Excluir */}
+                  <div className="flex items-center justify-between md:justify-end gap-3 flex-shrink-0 pt-2 md:pt-0 border-t md:border-t-0 border-[#24152F]/10 dark:border-[#3F2553]/50">
+                    <div className="flex-shrink-0">
+                      {!isInactive ? (
+                        <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-50 text-emerald-800 border border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800 leading-tight">
+                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-600"></span>
+                          Ativo
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-rose-50 text-rose-800 border border-rose-200 dark:bg-rose-950/40 dark:text-rose-300 dark:border-rose-800 leading-tight">
+                          <span className="w-1.5 h-1.5 rounded-full bg-rose-600"></span>
+                          Desativado
+                        </span>
+                      )}
+                    </div>
 
-                  <button
-                    type="button"
-                    onClick={() => handleOpenEdit(client)}
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#24152F] dark:bg-[#2E1B3C] text-[#F7F1E5] hover:bg-[#180D20] text-xs font-semibold transition-all cursor-pointer shadow-2xs border border-[#3F2553]"
-                    title="Editar cliente"
-                  >
-                    <Edit2 className="w-3.5 h-3.5 text-[#DFFF5F]" />
-                    <span>Editar</span>
-                  </button>
+                    <RowActionDropdown
+                      id={`action-dropdown-client-${client.id}`}
+                      actions={[
+                        {
+                          id: 'view',
+                          label: 'Visualizar',
+                          icon: Eye,
+                          onClick: () => handleOpenView(client),
+                        },
+                        {
+                          id: 'edit',
+                          label: 'Editar',
+                          icon: Pen,
+                          onClick: () => handleOpenEdit(client),
+                        },
+                        {
+                          id: 'delete',
+                          label: 'Excluir',
+                          icon: Trash2,
+                          variant: 'danger',
+                          onClick: () => {
+                            setConfirmModal({
+                              isOpen: true,
+                              title: 'Excluir Cliente',
+                              description: `Deseja realmente remover o cadastro de "${client.name}"? Esta ação excluirá os dados deste cliente da base.`,
+                              onConfirm: () => {
+                                if (onDeleteClient) {
+                                  onDeleteClient(client.id);
+                                }
+                                onShowToast(`Cliente "${client.name}" excluído.`);
+                              },
+                            });
+                          },
+                        },
+                      ]}
+                    />
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>
@@ -433,33 +506,56 @@ export const HubClientsView: React.FC<HubClientsViewProps> = ({
                 {errors.phone && <p className="text-[10px] text-rose-600 mt-1">{errors.phone}</p>}
               </div>
 
-              {/* Tipo de Convite */}
-              <div>
-                <label className="block text-xs font-bold text-[#24152F] dark:text-[#F7F1E5] mb-1">
-                  Tipo de Convite *
-                </label>
-                <select
-                  disabled={modalMode === 'view'}
-                  value={formData.invitationType}
-                  onChange={(e) =>
-                    setFormData({
-                      ...formData,
-                      invitationType: e.target.value as ClientData['invitationType'],
-                    })
-                  }
-                  className={`w-full px-3.5 py-2.5 text-xs sm:text-sm rounded-xl border bg-white dark:bg-[#120919] text-[#24152F] dark:text-[#F7F1E5] focus:outline-none focus:ring-2 focus:ring-[#24152F] border-[#24152F]/20 dark:border-[#3F2553] ${
-                    modalMode === 'view' ? 'opacity-80 bg-zinc-50 dark:bg-zinc-900 cursor-not-allowed' : ''
-                  }`}
-                >
-                  {INVITATION_TYPES.map((type) => (
-                    <option key={type} value={type}>
-                      {type}
-                    </option>
-                  ))}
-                </select>
-                <p className="text-[11px] text-[#24152F]/55 dark:text-[#D2C4DC]/60 mt-1">
-                  Opções padronizadas do sistema Rafluo.
-                </p>
+              {/* Tipo de Convite e Status lado a lado */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                {/* Tipo de Convite */}
+                <div>
+                  <label className="block text-xs font-bold text-[#24152F] dark:text-[#F7F1E5] mb-1">
+                    Tipo de Convite *
+                  </label>
+                  <select
+                    disabled={modalMode === 'view'}
+                    value={formData.invitationType}
+                    onChange={(e) =>
+                      setFormData({
+                        ...formData,
+                        invitationType: e.target.value as ClientData['invitationType'],
+                      })
+                    }
+                    className={`w-full px-3.5 py-2.5 text-xs sm:text-sm rounded-xl border bg-white dark:bg-[#120919] text-[#24152F] dark:text-[#F7F1E5] focus:outline-none focus:ring-2 focus:ring-[#24152F] border-[#24152F]/20 dark:border-[#3F2553] ${
+                      modalMode === 'view' ? 'opacity-80 bg-zinc-50 dark:bg-zinc-900 cursor-not-allowed' : ''
+                    }`}
+                  >
+                    {INVITATION_TYPES.map((type) => (
+                      <option key={type} value={type}>
+                        {type}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Status Ativo / Desativado (Requisito 4) */}
+                <div>
+                  <label className="block text-xs font-bold text-[#24152F] dark:text-[#F7F1E5] mb-1">
+                    Status do Cliente *
+                  </label>
+                  <select
+                    disabled={modalMode === 'view'}
+                    value={formData.status}
+                    onChange={(e) =>
+                      setFormData({
+                        ...formData,
+                        status: e.target.value as 'active' | 'inactive',
+                      })
+                    }
+                    className={`w-full px-3.5 py-2.5 text-xs sm:text-sm rounded-xl border bg-white dark:bg-[#120919] text-[#24152F] dark:text-[#F7F1E5] focus:outline-none focus:ring-2 focus:ring-[#24152F] border-[#24152F]/20 dark:border-[#3F2553] ${
+                      modalMode === 'view' ? 'opacity-80 bg-zinc-50 dark:bg-zinc-900 cursor-not-allowed' : ''
+                    }`}
+                  >
+                    <option value="active">Ativo</option>
+                    <option value="inactive">Desativado</option>
+                  </select>
+                </div>
               </div>
 
               {/* Observações */}
@@ -502,7 +598,8 @@ export const HubClientsView: React.FC<HubClientsViewProps> = ({
           </div>
         </div>
       )}
-      {/* Modal Filtrar Clientes (Item 2 do User Request) */}
+
+      {/* Modal Filtrar Clientes (Tipo de Convite e Status) */}
       {isFilterModalOpen && (
         <div
           role="dialog"
@@ -514,7 +611,7 @@ export const HubClientsView: React.FC<HubClientsViewProps> = ({
             <div className="flex items-center justify-between pb-3 border-b border-[#24152F]/10 dark:border-[#3F2553]">
               <div className="flex items-center gap-2">
                 <SlidersHorizontal className="w-4 h-4 text-[#24152F] dark:text-[#DFFF5F]" />
-                <h3 className="text-base font-bold text-[#24152F] dark:text-[#F7F1E5]">Filtrar</h3>
+                <h3 className="text-base font-bold text-[#24152F] dark:text-[#F7F1E5]">Filtrar Clientes</h3>
               </div>
               <button
                 type="button"
@@ -527,6 +624,39 @@ export const HubClientsView: React.FC<HubClientsViewProps> = ({
             </div>
 
             <div className="space-y-4 text-xs">
+              {/* Status do Cliente — Chips selecionáveis */}
+              <div className="space-y-2">
+                <label className="block font-bold text-[#24152F] dark:text-[#F7F1E5]">
+                  Status do Cadastro
+                </label>
+                <div className="flex flex-wrap gap-2 pt-0.5">
+                  {CLIENT_STATUS_OPTIONS.map((statusOpt) => {
+                    const isSelected = draftSelectedStatuses.includes(statusOpt.id);
+                    return (
+                      <button
+                        key={statusOpt.id}
+                        type="button"
+                        onClick={() => {
+                          setDraftSelectedStatuses((prev) =>
+                            isSelected
+                              ? prev.filter((s) => s !== statusOpt.id)
+                              : [...prev, statusOpt.id]
+                          );
+                        }}
+                        className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition-all cursor-pointer ${
+                          isSelected
+                            ? 'bg-[#E8F0E4] border-[#A3C79E] text-[#1E3B1E] shadow-2xs font-bold'
+                            : 'bg-[#FAF6EE] dark:bg-[#2A1738] border-[#24152F]/15 dark:border-[#3F2553] text-[#24152F]/70 dark:text-[#D2C4DC] hover:bg-[#FAF6EE]/80'
+                        }`}
+                      >
+                        {isSelected && '✓ '}
+                        {statusOpt.label}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
               {/* Tipo de Convite — Chips selecionáveis */}
               <div className="space-y-2">
                 <label className="block font-bold text-[#24152F] dark:text-[#F7F1E5]">
@@ -565,6 +695,7 @@ export const HubClientsView: React.FC<HubClientsViewProps> = ({
                 type="button"
                 onClick={() => {
                   setDraftSelectedTypes([]);
+                  setDraftSelectedStatuses([]);
                 }}
                 className="px-4 py-2 rounded-xl text-xs font-semibold text-[#24152F]/70 dark:text-[#D2C4DC]/70 hover:text-rose-700 hover:bg-rose-50 dark:hover:bg-rose-950/40 border border-transparent transition-colors cursor-pointer"
               >
@@ -574,6 +705,7 @@ export const HubClientsView: React.FC<HubClientsViewProps> = ({
                 type="button"
                 onClick={() => {
                   setFilterSelectedTypes(draftSelectedTypes);
+                  setFilterSelectedStatuses(draftSelectedStatuses);
                   setIsFilterModalOpen(false);
                 }}
                 className="px-5 py-2.5 rounded-xl bg-[#24152F] text-[#F7F1E5] dark:bg-[#DFFF5F] dark:text-[#180D20] text-xs font-bold hover:bg-[#180D20] transition-colors cursor-pointer shadow-xs border border-[#3F2553]"
@@ -584,6 +716,20 @@ export const HubClientsView: React.FC<HubClientsViewProps> = ({
           </div>
         </div>
       )}
+
+      {/* Modal de Confirmação de Exclusão */}
+      <ConfirmModal
+        isOpen={confirmModal.isOpen}
+        title={confirmModal.title}
+        description={confirmModal.description}
+        confirmLabel="Excluir"
+        variant="danger"
+        onConfirm={() => {
+          confirmModal.onConfirm();
+          setConfirmModal((prev) => ({ ...prev, isOpen: false }));
+        }}
+        onClose={() => setConfirmModal((prev) => ({ ...prev, isOpen: false }))}
+      />
     </div>
   );
 };

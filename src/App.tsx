@@ -797,6 +797,13 @@ export default function App() {
 
   // Access Profiles Management
   const handleSaveAccessProfile = (profile: AccessProfile) => {
+    if (
+      profile.id === 'prof-admin' ||
+      normalizeAccessProfileName(profile.name).toLowerCase() === 'administrador'
+    ) {
+      setToastMessage('O perfil Administrador padrão é estático e protegido contra alterações.');
+      return;
+    }
     setAccessProfiles((prev) => {
       const exists = prev.some((p) => p.id === profile.id);
       const next = exists
@@ -810,6 +817,14 @@ export default function App() {
   };
 
   const handleDeleteAccessProfile = (profileId: string) => {
+    const target = accessProfiles.find((p) => p.id === profileId);
+    if (
+      profileId === 'prof-admin' ||
+      (target && normalizeAccessProfileName(target.name).toLowerCase() === 'administrador')
+    ) {
+      setToastMessage('O perfil Administrador padrão é protegido e não pode ser excluído.');
+      return;
+    }
     setAccessProfiles((prev) => {
       const next = prev.filter((p) => p.id !== profileId);
       try {
@@ -819,16 +834,41 @@ export default function App() {
     });
   };
 
-  // Save / Update client
+  // Save / Update / Delete client
   const handleSaveClient = (client: ClientData) => {
     setClients((prev) => {
       const idx = prev.findIndex((c) => c.id === client.id);
+      let next: ClientData[];
       if (idx >= 0) {
-        const next = [...prev];
+        next = [...prev];
         next[idx] = client;
-        return next;
+      } else {
+        next = [client, ...prev];
       }
-      return [client, ...prev];
+      saveStoredClients(next);
+      return next;
+    });
+  };
+
+  const handleDeleteClient = (clientId: string) => {
+    setClients((prev) => {
+      const next = prev.filter((c) => c.id !== clientId);
+      saveStoredClients(next);
+      return next;
+    });
+  };
+
+  const handleDeleteAdminUser = (userId: string) => {
+    if (userId === currentUser.id) {
+      setToastMessage('Você não pode excluir sua própria conta de usuário.');
+      return;
+    }
+    setAdminUsers((prev) => {
+      const next = prev.filter((u) => u.id !== userId);
+      try {
+        localStorage.setItem('rafluo_admin_users', JSON.stringify(next));
+      } catch {}
+      return next;
     });
   };
 
@@ -1074,6 +1114,7 @@ export default function App() {
               <HubClientsView
                 clients={clients}
                 onSaveClient={handleSaveClient}
+                onDeleteClient={handleDeleteClient}
                 onShowToast={(msg) => setToastMessage(msg)}
               />
             )}
@@ -1095,6 +1136,7 @@ export default function App() {
                 adminUsers={adminUsers}
                 currentUser={currentUser}
                 onSaveUser={handleSaveAdminUser}
+                onDeleteUser={handleDeleteAdminUser}
                 onToggleStatus={handleToggleAdminUserStatus}
                 onShowToast={(msg) => setToastMessage(msg)}
               />
