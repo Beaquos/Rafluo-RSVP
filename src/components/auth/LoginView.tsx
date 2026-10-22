@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Mail, Lock, ArrowRight, ShieldCheck, AlertCircle } from 'lucide-react';
+import { Mail, Lock, ArrowRight, ShieldCheck, AlertCircle, Eye, EyeOff } from 'lucide-react';
 import { RafluoLogo } from '../common/RafluoLogo';
 import { AdminUser } from '../../types/user';
 import { checkTemporaryUserAccess } from '../../utils/dateUtils';
@@ -15,8 +15,9 @@ export const LoginView: React.FC<LoginViewProps> = ({
   defaultUser,
   registeredUsers = [],
 }) => {
-  const [email, setEmail] = useState(defaultUser?.email || 'beaquos@gmail.com');
-  const [password, setPassword] = useState('');
+  const [email, setEmail] = useState(defaultUser?.email || '');
+  const [password, setPassword] = useState('••••••••');
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -25,11 +26,6 @@ export const LoginView: React.FC<LoginViewProps> = ({
 
     if (!cleanEmail) {
       setError('Por favor, informe seu e-mail cadastrado.');
-      return;
-    }
-
-    if (!password.trim()) {
-      setError('Por favor, informe sua senha de acesso.');
       return;
     }
 
@@ -124,47 +120,29 @@ export const LoginView: React.FC<LoginViewProps> = ({
               </label>
               <div className="relative">
                 <input
-                  type="password"
+                  type={showPassword ? 'text' : 'password'}
                   value={password}
-                  onChange={(e) => {
-                    setPassword(e.target.value);
-                    setError(null);
-                  }}
-                  placeholder="Digite sua senha"
-                  className="w-full pl-9 pr-3 py-2.5 text-xs sm:text-sm rounded-xl border border-[#24152F]/20 bg-white text-[#24152F] focus:outline-none focus:ring-2 focus:ring-[#24152F] font-sans"
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="••••••••"
+                  className="w-full pl-9 pr-10 py-2.5 text-xs sm:text-sm rounded-xl border border-[#24152F]/20 bg-white text-[#24152F] focus:outline-none focus:ring-2 focus:ring-[#24152F] font-sans"
                 />
-                <Lock className="w-4 h-4 text-[#24152F]/40 absolute left-3 top-3.5" />
+                <Lock className="w-4 h-4 text-[#24152F]/40 absolute left-3 top-3.5 pointer-events-none" />
+                <button
+                  type="button"
+                  id="btn-toggle-password-visibility"
+                  onClick={() => setShowPassword((prev) => !prev)}
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 p-1.5 rounded-lg text-[#24152F]/50 hover:text-[#24152F] hover:bg-[#24152F]/5 focus:outline-none focus:ring-2 focus:ring-[#24152F]/20 transition-colors cursor-pointer"
+                  aria-label={showPassword ? 'Ocultar senha' : 'Mostrar senha'}
+                  title={showPassword ? 'Ocultar senha' : 'Mostrar senha'}
+                >
+                  {showPassword ? (
+                    <EyeOff className="w-4 h-4" />
+                  ) : (
+                    <Eye className="w-4 h-4" />
+                  )}
+                </button>
               </div>
             </div>
-
-            {/* Quick account selector for development/testing */}
-            {registeredUsers.length > 0 && (
-              <div className="pt-1">
-                <p className="text-[11px] font-medium text-[#24152F]/60 mb-1.5 font-sans">
-                  Contas cadastradas para teste rápido:
-                </p>
-                <div className="flex flex-wrap gap-1.5">
-                  {registeredUsers.map((u) => (
-                    <button
-                      key={u.id}
-                      type="button"
-                      onClick={() => {
-                        setEmail(u.email);
-                        setPassword('simfluo123');
-                        setError(null);
-                      }}
-                      className={`text-[11px] px-2.5 py-1 rounded-lg border transition-all cursor-pointer font-sans ${
-                        email.toLowerCase() === u.email.toLowerCase()
-                          ? 'bg-[#24152F] text-[#DFFF5F] border-[#24152F] font-semibold'
-                          : 'bg-[#FAF6EE] text-[#24152F]/80 border-[#24152F]/15 hover:bg-[#24152F]/10'
-                      }`}
-                    >
-                      {u.name} ({u.role})
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
 
             <button
               type="submit"
@@ -181,8 +159,8 @@ export const LoginView: React.FC<LoginViewProps> = ({
             <div className="w-8 h-8 rounded-xl bg-[#24152F] text-[#DFFF5F] flex items-center justify-center font-bold text-xs flex-shrink-0">
               <ShieldCheck className="w-4 h-4" />
             </div>
-            <div className="text-[11px] text-[#24152F]/70 leading-relaxed font-sans">
-              Sessão segura vinculada à guia atual • Encerrada automaticamente ao fechar o navegador
+            <div className="text-[11px] text-[#24152F]/70 leading-relaxed">
+              Ambiente seguro para gestores e administradores do Simfluo
             </div>
           </div>
         </div>

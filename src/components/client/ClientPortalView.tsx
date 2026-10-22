@@ -700,33 +700,6 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
                 </p>
               </div>
 
-              {eventManagers.length > 0 && (
-                <div className="pt-0.5">
-                  <p className="text-[11px] font-medium text-[#24152F]/60 dark:text-[#D2C4DC]/60 mb-1 font-inter">
-                    Responsáveis cadastrados para teste:
-                  </p>
-                  <div className="flex flex-wrap gap-1.5">
-                    {eventManagers.map((m) => (
-                      <button
-                        key={m.id}
-                        type="button"
-                        onClick={() => {
-                          setEmailInput(m.email);
-                          setAuthError(null);
-                        }}
-                        className={`text-[11px] px-2.5 py-1 rounded-lg border font-inter transition-all cursor-pointer ${
-                          emailInput.toLowerCase().trim() === m.email.toLowerCase().trim()
-                            ? 'bg-[#24152F] dark:bg-white text-[#DFFF5F] dark:text-[#180D20] border-[#24152F] dark:border-white font-semibold'
-                            : 'bg-[#FAF6EE] dark:bg-[#2A1738] text-[#24152F] dark:text-[#F7F1E5] border-[#24152F]/15 dark:border-[#3F2553] hover:bg-[#24152F]/10'
-                        }`}
-                      >
-                        {m.name} ({m.email})
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
-
               {authError && (
                 <div className="p-3 rounded-xl bg-rose-50 dark:bg-rose-950/50 border border-rose-200 dark:border-rose-900 text-xs font-inter text-rose-700 dark:text-rose-300 flex items-start gap-2">
                   <XCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
@@ -742,12 +715,6 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
                 <span>Acessar Painel</span>
                 <ArrowRight className="w-4 h-4 text-[#DFFF5F]" />
               </button>
-
-              <div className="text-center pt-1">
-                <p className="text-[11px] text-[#24152F]/50 dark:text-[#D2C4DC]/50 font-inter">
-                  Sessão temporária vinculada à guia • Encerrada automaticamente ao fechar a guia
-                </p>
-              </div>
             </form>
           </div>
 
