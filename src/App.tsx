@@ -869,9 +869,13 @@ export default function App() {
   // User Profile update
   const handleSaveUserProfile = (updatedUser: AdminUser) => {
     setCurrentUser(updatedUser);
-    setAdminUsers((prev) =>
-      prev.map((u) => (u.id === updatedUser.id ? updatedUser : u))
-    );
+    setAdminUsers((prev) => {
+      const next = prev.map((u) => (u.id === updatedUser.id ? updatedUser : u));
+      try {
+        localStorage.setItem('rafluo_admin_users', JSON.stringify(next));
+      } catch {}
+      return next;
+    });
     try {
       sessionStorage.setItem(ADMIN_SESSION_KEY, JSON.stringify(updatedUser));
     } catch {}
@@ -881,10 +885,13 @@ export default function App() {
   const handleSaveAdminUser = (user: AdminUser) => {
     setAdminUsers((prev) => {
       const exists = prev.some((u) => u.id === user.id);
-      if (exists) {
-        return prev.map((u) => (u.id === user.id ? user : u));
-      }
-      return [...prev, user];
+      const next = exists
+        ? prev.map((u) => (u.id === user.id ? user : u))
+        : [...prev, user];
+      try {
+        localStorage.setItem('rafluo_admin_users', JSON.stringify(next));
+      } catch {}
+      return next;
     });
     if (user.id === currentUser.id) {
       setCurrentUser(user);
@@ -896,14 +903,18 @@ export default function App() {
 
   const handleToggleAdminUserStatus = (userId: string, newStatus?: AdminUserStatus) => {
     if (userId === currentUser.id) return;
-    setAdminUsers((prev) =>
-      prev.map((u) => {
+    setAdminUsers((prev) => {
+      const next = prev.map((u) => {
         if (u.id !== userId) return u;
         const targetStatus: AdminUserStatus =
           newStatus || (u.status === 'active' ? 'disabled' : 'active');
         return { ...u, status: targetStatus };
-      })
-    );
+      });
+      try {
+        localStorage.setItem('rafluo_admin_users', JSON.stringify(next));
+      } catch {}
+      return next;
+    });
     setToastMessage('Status do usuário administrativo alterado com sucesso.');
   };
 

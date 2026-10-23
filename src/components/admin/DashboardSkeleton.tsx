@@ -60,6 +60,7 @@ import { ExportDataDropdown } from '../common/ExportDataDropdown';
 import { WhatsAppIcon } from '../common/WhatsAppIcon';
 import { WhatsAppModal } from '../modals/WhatsAppModal';
 import { NavSection } from '../../types/navigation';
+import { RowActionDropdown, ActionItem } from '../common/list-components';
 
 interface DashboardSkeletonProps {
   currentSection: NavSection;
@@ -1169,7 +1170,7 @@ export const DashboardSkeleton: React.FC<DashboardSkeletonProps> = ({
                         <th className="py-3 px-3 hidden md:table-cell">Status</th>
                         <th className="py-3 px-3 hidden md:table-cell">Nº convidados</th>
                         <th className="py-3 px-3 hidden md:table-cell">Observações</th>
-                        <th className="py-3 px-4 text-right hidden md:table-cell">Ações</th>
+                        <th className="py-3 px-3 sm:px-4 text-right">Ações</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-[#24152F]/5 text-[#24152F]">
@@ -1366,104 +1367,67 @@ export const DashboardSkeleton: React.FC<DashboardSkeletonProps> = ({
                                   )}
                                 </td>
 
-                                {/* Menu de Três Pontinhos (Item 3: com Visualizar Ficha e sem Copiar Link) */}
-                                <td className="py-4 px-4 align-middle text-right hidden md:table-cell" onClick={(e) => e.stopPropagation()}>
-                                  <div className="relative inline-block text-left" ref={isActionOpen ? inviteActionRef : undefined}>
-                                    <button
-                                      type="button"
-                                      id={`btn-invite-menu-${g.id}`}
-                                      onClick={() => setOpenInviteActionId(isActionOpen ? null : g.id)}
-                                      className="w-8 h-8 rounded-lg flex items-center justify-center text-[#24152F]/60 hover:text-[#24152F] hover:bg-[#FAF6EE] transition-colors cursor-pointer border border-transparent hover:border-[#24152F]/15"
-                                      title="Opções do convite"
-                                    >
-                                      <MoreVertical className="w-4 h-4" />
-                                    </button>
-
-                                    {isActionOpen && (
-                                      <div className="absolute right-0 top-full mt-1 w-56 rounded-2xl bg-white border border-[#24152F]/15 shadow-xl py-1.5 z-40 animate-in fade-in zoom-in-95 duration-100 space-y-0.5">
-                                        {/* 1. Visualizar ficha (Item 3: Adicionado) */}
-                                        <button
-                                          type="button"
-                                          onClick={() => {
-                                            setOpenInviteActionId(null);
-                                            onOpenGuestDetails(g);
-                                          }}
-                                          className="w-full text-left px-3.5 py-2 text-xs font-semibold text-[#24152F] hover:bg-[#FAF6EE] flex items-center gap-2.5 cursor-pointer transition-colors"
-                                        >
-                                          <Eye className="w-3.5 h-3.5 text-[#24152F]/70" />
-                                          <span>Visualizar ficha</span>
-                                        </button>
-
-                                        {/* 2. Copiar código RSVP */}
-                                        <button
-                                          type="button"
-                                          onClick={() => {
-                                            setOpenInviteActionId(null);
-                                            copyToClipboard(g.rsvpCode);
-                                            if (onShowToast) onShowToast(`Código RSVP ${g.rsvpCode} copiado!`);
-                                          }}
-                                          className="w-full text-left px-3.5 py-2 text-xs font-semibold text-[#24152F] hover:bg-[#FAF6EE] flex items-center gap-2.5 cursor-pointer transition-colors"
-                                        >
-                                          <Copy className="w-3.5 h-3.5 text-[#24152F]/70" />
-                                          <span>Copiar código RSVP</span>
-                                        </button>
-
-                                        {/* 3. Enviar link por WhatsApp */}
-                                        <button
-                                          type="button"
-                                          onClick={() => {
-                                            setOpenInviteActionId(null);
-                                            onOpenWhatsApp(g);
-                                          }}
-                                          className="w-full text-left px-3.5 py-2 text-xs font-semibold text-emerald-700 hover:bg-emerald-50 flex items-center gap-2.5 cursor-pointer transition-colors"
-                                        >
-                                          <WhatsAppIcon className="w-3.5 h-3.5 text-emerald-600" />
-                                          <span>Enviar por WhatsApp</span>
-                                        </button>
-
-                                        {/* 4. Abrir página de confirmação */}
-                                        <button
-                                          type="button"
-                                          onClick={() => {
-                                            setOpenInviteActionId(null);
-                                            onOpenGuestPreview(g.rsvpCode);
-                                          }}
-                                          className="w-full text-left px-3.5 py-2 text-xs font-semibold text-[#24152F] hover:bg-[#FAF6EE] flex items-center gap-2.5 cursor-pointer transition-colors"
-                                        >
-                                          <ExternalLink className="w-3.5 h-3.5 text-[#24152F]/70" />
-                                          <span>Abrir página de confirmação</span>
-                                        </button>
-
-                                        {/* 5. Editar convite */}
-                                        <button
-                                          type="button"
-                                          onClick={() => {
-                                            setOpenInviteActionId(null);
-                                            onEditGuest && onEditGuest(g);
-                                          }}
-                                          className="w-full text-left px-3.5 py-2 text-xs font-semibold text-[#24152F] hover:bg-[#FAF6EE] flex items-center gap-2.5 cursor-pointer transition-colors border-t border-[#24152F]/5"
-                                        >
-                                          <Edit3 className="w-3.5 h-3.5 text-[#24152F]/70" />
-                                          <span>Editar convite</span>
-                                        </button>
-
-                                        {/* 6. Excluir convite */}
-                                        {onDeleteGuest && (
-                                          <button
-                                            type="button"
-                                            onClick={() => {
-                                              setOpenInviteActionId(null);
-                                              onDeleteGuest(g.id);
-                                            }}
-                                            className="w-full text-left px-3.5 py-2 text-xs font-semibold text-rose-600 hover:bg-rose-50 flex items-center gap-2.5 cursor-pointer transition-colors border-t border-[#24152F]/5"
-                                          >
-                                            <Trash2 className="w-3.5 h-3.5 text-rose-600" />
-                                            <span>Excluir convite</span>
-                                          </button>
-                                        )}
-                                      </div>
-                                    )}
-                                  </div>
+                                {/* Menu de Três Pontinhos com Portal inteligente e anti-corte */}
+                                <td className="py-4 px-3 sm:px-4 align-middle text-right" onClick={(e) => e.stopPropagation()}>
+                                  <RowActionDropdown
+                                    id={`btn-invite-menu-${g.id}`}
+                                    title="Opções do convite"
+                                    width={240}
+                                    actions={[
+                                      {
+                                        id: 'view',
+                                        label: 'Visualizar ficha',
+                                        icon: Eye,
+                                        onClick: () => onOpenGuestDetails(g),
+                                      },
+                                      {
+                                        id: 'copy-code',
+                                        label: 'Copiar código RSVP',
+                                        icon: Copy,
+                                        onClick: () => {
+                                          copyToClipboard(g.rsvpCode);
+                                          if (onShowToast) onShowToast(`Código RSVP ${g.rsvpCode} copiado!`);
+                                        },
+                                      },
+                                      {
+                                        id: 'whatsapp',
+                                        label: 'Enviar por WhatsApp',
+                                        icon: WhatsAppIcon,
+                                        className: 'text-emerald-700 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/40',
+                                        iconClassName: 'text-emerald-600 dark:text-emerald-400',
+                                        onClick: () => onOpenWhatsApp(g),
+                                      },
+                                      {
+                                        id: 'preview',
+                                        label: 'Abrir página de confirmação',
+                                        icon: ExternalLink,
+                                        onClick: () => onOpenGuestPreview(g.rsvpCode),
+                                      },
+                                      ...(onEditGuest
+                                        ? [
+                                            {
+                                              id: 'edit',
+                                              label: 'Editar convite',
+                                              icon: Edit3,
+                                              dividerAbove: true,
+                                              onClick: () => onEditGuest(g),
+                                            },
+                                          ]
+                                        : []),
+                                      ...(onDeleteGuest
+                                        ? [
+                                            {
+                                              id: 'delete',
+                                              label: 'Excluir convite',
+                                              icon: Trash2,
+                                              variant: 'danger' as const,
+                                              dividerAbove: !onEditGuest,
+                                              onClick: () => onDeleteGuest(g.id),
+                                            },
+                                          ]
+                                        : []),
+                                    ]}
+                                  />
                                 </td>
                               </tr>
                             </React.Fragment>
@@ -2031,7 +1995,7 @@ export const DashboardSkeleton: React.FC<DashboardSkeletonProps> = ({
               <div className="space-y-4">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-[#24152F]/10">
                   <div>
-                    <h3 className="text-base font-bold text-[#24152F]">Relatórios</h3>
+                    <h3 className="text-base font-bold text-[#24152F]">Relatório</h3>
                   </div>
 
                   <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">

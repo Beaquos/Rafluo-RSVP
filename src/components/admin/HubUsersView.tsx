@@ -15,9 +15,14 @@ import {
   Eye,
   Search,
   SlidersHorizontal,
+  Key,
+  Lock,
+  AlertCircle,
 } from 'lucide-react';
 import { AdminUser, AdminUserStatus, AdminUserRole, normalizeAdminRole, normalizeAdminProfiles } from '../../types/user';
 import { RowActionDropdown, ConfirmModal } from '../common/list-components';
+import { PasswordInput } from '../common/PasswordInput';
+import { validatePasswordPolicy, generateSalt, hashPassword } from '../../utils/authUtils';
 
 interface HubUsersViewProps {
   adminUsers: AdminUser[];
@@ -117,6 +122,105 @@ export const HubUsersView: React.FC<HubUsersViewProps> = ({
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [modalMode, setModalMode] = useState<'create' | 'edit' | 'view'>('create');
   const [selectedUser, setSelectedUser] = useState<AdminUser | null>(null);
+
+  // Redefinir Senha State (Gestão de Usuários)
+  const isCurrentUserAdmin =
+    currentUser.role === 'Administrador' ||
+    (Array.isArray(currentUser.accessProfiles) &&
+      currentUser.accessProfiles.includes('Administrador'));
+
+  const [isResetPasswordModalOpen, setIsResetPasswordModalOpen] = useState(false);
+  const [resetPasswordUser, setResetPasswordUser] = useState<AdminUser | null>(null);
+  const [resetNewPassword, setResetNewPassword] = useState('');
+  const [resetConfirmPassword, setResetConfirmPassword] = useState('');
+  const [resetConfirmCheckbox, setResetConfirmCheckbox] = useState(false);
+  const [resetPasswordErrors, setResetPasswordErrors] = useState<{
+    new?: string;
+    confirm?: string;
+    checkbox?: string;
+    general?: string;
+  }>({});
+  const [isSubmittingReset, setIsSubmittingReset] = useState(false);
+
+  const handleOpenResetPassword = (user: AdminUser) => {
+    if (!isCurrentUserAdmin) {
+      onShowToast('Apenas administradores podem redefinir senhas de usuários.');
+      return;
+    }
+    setResetPasswordUser(user);
+    setResetNewPassword('');
+    setResetConfirmPassword('');
+    setResetConfirmCheckbox(false);
+    setResetPasswordErrors({});
+    setIsResetPasswordModalOpen(true);
+  };
+
+  const handleCloseResetPassword = () => {
+    setIsResetPasswordModalOpen(false);
+    setResetPasswordUser(null);
+    setResetNewPassword('');
+    setResetConfirmPassword('');
+    setResetConfirmCheckbox(false);
+    setResetPasswordErrors({});
+    setIsSubmittingReset(false);
+  };
+
+  const handleResetPasswordSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!resetPasswordUser) return;
+    if (!isCurrentUserAdmin) {
+      onShowToast('Apenas administradores podem redefinir senhas.');
+      return;
+    }
+
+    const errs: { new?: string; confirm?: string; checkbox?: string; general?: string } = {};
+
+    const policy = validatePasswordPolicy(resetNewPassword);
+    if (!policy.valid) {
+      errs.new = policy.errors[0];
+    }
+
+    if (!resetConfirmPassword) {
+      errs.confirm = 'Confirme a nova senha';
+    } else if (resetNewPassword !== resetConfirmPassword) {
+      errs.confirm = 'A confirmação não confere com a nova senha';
+    }
+
+    if (!resetConfirmCheckbox) {
+      errs.checkbox = 'Confirme que deseja redefinir a senha deste usuário';
+    }
+
+    if (Object.keys(errs).length > 0) {
+      setResetPasswordErrors(errs);
+      return;
+    }
+
+    setIsSubmittingReset(true);
+    try {
+      const salt = generateSalt();
+      const hash = await hashPassword(resetNewPassword, salt);
+
+      const updatedUser: AdminUser = {
+        ...resetPasswordUser,
+        passwordHash: hash,
+        passwordSalt: salt,
+        passwordUpdatedAt: new Date().toISOString(),
+      };
+
+      onSaveUser(updatedUser);
+      onShowToast(
+        `Senha do usuário "${resetPasswordUser.name} ${resetPasswordUser.lastName}" redefinida com sucesso!`
+      );
+      handleCloseResetPassword();
+    } catch (err) {
+      console.error(err);
+      setResetPasswordErrors({
+        general: 'Ocorreu um erro ao redefinir a senha. Tente novamente.',
+      });
+    } finally {
+      setIsSubmittingReset(false);
+    }
+  };
 
   // Modal de confirmação de exclusão
   const [confirmModal, setConfirmModal] = useState<{
@@ -364,6 +468,9 @@ export const HubUsersView: React.FC<HubUsersViewProps> = ({
       createdAt: selectedUser
         ? selectedUser.createdAt
         : new Date().toISOString().split('T')[0],
+      passwordHash: selectedUser?.passwordHash,
+      passwordSalt: selectedUser?.passwordSalt,
+      passwordUpdatedAt: selectedUser?.passwordUpdatedAt,
     };
 
     onSaveUser(userToSave);
@@ -571,29 +678,35 @@ export const HubUsersView: React.FC<HubUsersViewProps> = ({
                         onClick: () => handleOpenEdit(user),
                       },
                       {
-                        id: 'delete',
-                        label: 'Excluir',
-                        icon: Trash2,
-                        variant: 'danger',
-                        disabled: isSelf,
-                        onClick: () => {
-                          if (isSelf) {
-                            onShowToast('Você não pode excluir sua própria conta.');
-                            return;
-                          }
-                          setConfirmModal({
-                            isOpen: true,
-                            title: 'Excluir Usuário',
-                            description: `Deseja realmente remover o usuário "${user.name} ${user.lastName}"? Esta ação revogará todos os acessos administrativos deste usuário.`,
-                            onConfirm: () => {
-                              if (onDeleteUser) {
-                                onDeleteUser(user.id);
-                              }
-                              onShowToast(`Usuário "${user.name} ${user.lastName}" excluído.`);
-                            },
-                          });
-                        },
+                        id: 'reset-password',
+                        label: 'Redefinir senha',
+                        icon: Key,
+                        disabled: !isCurrentUserAdmin,
+                        onClick: () => handleOpenResetPassword(user),
                       },
+                      ...(!isSelf
+                        ? [
+                            {
+                              id: 'delete',
+                              label: 'Excluir',
+                              icon: Trash2,
+                              variant: 'danger' as const,
+                              onClick: () => {
+                                setConfirmModal({
+                                  isOpen: true,
+                                  title: 'Excluir Usuário',
+                                  description: `Deseja realmente remover o usuário "${user.name} ${user.lastName}"? Esta ação revogará todos os acessos administrativos deste usuário.`,
+                                  onConfirm: () => {
+                                    if (onDeleteUser) {
+                                      onDeleteUser(user.id);
+                                    }
+                                    onShowToast(`Usuário "${user.name} ${user.lastName}" excluído.`);
+                                  },
+                                });
+                              },
+                            },
+                          ]
+                        : []),
                     ]}
                   />
                 </div>
@@ -935,6 +1048,35 @@ export const HubUsersView: React.FC<HubUsersViewProps> = ({
                     </div>
                   </div>
                 )}
+
+                {/* Ação de Redefinir Senha dentro da tela de edição (Requisito 2) */}
+                {modalMode === 'edit' && selectedUser && isCurrentUserAdmin && (
+                  <div className="pt-3 border-t border-[#24152F]/10 dark:border-[#3F2553]">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3.5 rounded-2xl bg-[#24152F]/5 dark:bg-white/5 border border-[#24152F]/10 dark:border-white/10">
+                      <div>
+                        <div className="flex items-center gap-1.5 text-xs font-bold text-[#24152F] dark:text-[#F7F1E5]">
+                          <Key className="w-3.5 h-3.5 text-[#24152F] dark:text-[#DFFF5F]" />
+                          <span>Segurança e Acesso</span>
+                        </div>
+                        <p className="text-[11px] text-[#24152F]/70 dark:text-[#E2D7EA]/70 mt-0.5">
+                          Como administrador, você pode redefinir a senha deste usuário a qualquer momento.
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const target = selectedUser;
+                          handleCloseModal();
+                          handleOpenResetPassword(target);
+                        }}
+                        className="flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-xl bg-white dark:bg-[#1E1128] border border-[#24152F]/20 dark:border-[#3F2553] text-[#24152F] dark:text-[#F7F1E5] text-xs font-semibold hover:bg-[#FAF6EE] dark:hover:bg-[#2A1738] transition-colors cursor-pointer flex-shrink-0"
+                      >
+                        <Key className="w-3.5 h-3.5" />
+                        <span>Redefinir Senha</span>
+                      </button>
+                    </div>
+                  </div>
+                )}
               </form>
 
               {/* Modal Footer */}
@@ -1090,6 +1232,257 @@ export const HubUsersView: React.FC<HubUsersViewProps> = ({
         }}
         onClose={() => setConfirmModal((prev) => ({ ...prev, isOpen: false }))}
       />
+
+      {/* Modal Redefinir Senha de Usuário (Requisito 2) */}
+      {isResetPasswordModalOpen && resetPasswordUser && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4 overflow-y-auto">
+          <div className="bg-white dark:bg-[#1E1128] rounded-2xl sm:rounded-3xl border border-[#24152F]/20 dark:border-[#3F2553] w-full max-w-lg shadow-2xl overflow-hidden my-auto max-h-[92vh] flex flex-col animate-in fade-in zoom-in-95">
+            {/* Header */}
+            <div className="bg-[#1A1033] text-[#F7F1E5] p-5 sm:p-6 flex items-center justify-between flex-shrink-0">
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-xl bg-[#DFFF5F] text-[#180D20] flex items-center justify-center font-bold flex-shrink-0">
+                  <Key className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-[#F7F1E5]">
+                    Redefinir Senha
+                  </h3>
+                  <p className="text-xs text-[#D2C4DC]">
+                    Defina uma nova senha de acesso para o usuário selecionado
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={handleCloseResetPassword}
+                className="text-[#D2C4DC] hover:text-[#F7F1E5] p-1.5 rounded-lg hover:bg-white/10 transition-colors cursor-pointer"
+                aria-label="Fechar"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Body */}
+            <form onSubmit={handleResetPasswordSubmit} className="p-5 sm:p-6 overflow-y-auto space-y-4 flex-1">
+              {/* Usuário Identificado */}
+              <div className="p-3.5 rounded-2xl bg-[#FAF6EE]/80 dark:bg-[#120919]/60 border border-[#24152F]/10 dark:border-[#3F2553] flex items-center gap-3">
+                {resetPasswordUser.photoUrl ? (
+                  <img
+                    src={resetPasswordUser.photoUrl}
+                    alt={`${resetPasswordUser.name} ${resetPasswordUser.lastName}`}
+                    className="w-11 h-11 rounded-xl object-cover border border-[#24152F]/15 flex-shrink-0"
+                  />
+                ) : (
+                  <div className="w-11 h-11 rounded-xl bg-[#24152F] text-[#F7F1E5] dark:bg-[#DFFF5F] dark:text-[#180D20] flex items-center justify-center font-black text-sm flex-shrink-0">
+                    {resetPasswordUser.name[0]}
+                    {resetPasswordUser.lastName?.[0] || ''}
+                  </div>
+                )}
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="text-sm font-bold text-[#24152F] dark:text-[#F7F1E5] truncate">
+                      {resetPasswordUser.name} {resetPasswordUser.lastName}
+                    </span>
+                    <span className="text-[10px] font-semibold bg-[#24152F]/5 dark:bg-white/5 text-[#24152F] dark:text-[#F7F1E5] px-2 py-0.5 rounded-md border border-[#24152F]/10 dark:border-white/10">
+                      {resetPasswordUser.role}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-1.5 text-xs text-[#24152F]/70 dark:text-[#E2D7EA]/70 mt-0.5 truncate">
+                    <Mail className="w-3 h-3 text-[#24152F]/40 flex-shrink-0" />
+                    <span className="truncate">{resetPasswordUser.email}</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Informação de permissão administrativa */}
+              <div className="p-3 rounded-xl bg-blue-50/70 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-900/40 text-blue-900 dark:text-blue-300 text-xs flex items-start gap-2.5">
+                <Lock className="w-4 h-4 text-blue-700 dark:text-blue-400 mt-0.5 flex-shrink-0" />
+                <div className="space-y-0.5">
+                  <p className="font-semibold">Redefinição direta por administrador</p>
+                  <p className="text-[11px] opacity-90">
+                    Como administrador, você não precisa informar a senha atual do usuário. A nova senha passará a valer imediatamente no próximo acesso.
+                  </p>
+                </div>
+              </div>
+
+              {resetPasswordErrors.general && (
+                <div className="p-3 rounded-xl bg-rose-50 dark:bg-rose-950/30 border border-rose-200 dark:border-rose-800 text-rose-800 dark:text-rose-300 text-xs flex items-center gap-2">
+                  <AlertCircle className="w-4 h-4 flex-shrink-0" />
+                  <span>{resetPasswordErrors.general}</span>
+                </div>
+              )}
+
+              {/* Campo Nova Senha */}
+              <div className="space-y-1">
+                <label className="block text-xs font-bold text-[#24152F] dark:text-[#F7F1E5]">
+                  Nova Senha *
+                </label>
+                <PasswordInput
+                  id="reset-new-password"
+                  value={resetNewPassword}
+                  onChange={(e) => {
+                    setResetNewPassword(e.target.value);
+                    if (resetPasswordErrors.new) {
+                      setResetPasswordErrors((prev) => ({ ...prev, new: undefined }));
+                    }
+                  }}
+                  placeholder="Digite a nova senha segura..."
+                  disabled={isSubmittingReset}
+                />
+                {resetPasswordErrors.new && (
+                  <p className="text-[11px] text-rose-600 mt-1">{resetPasswordErrors.new}</p>
+                )}
+              </div>
+
+              {/* Campo Confirmar Nova Senha */}
+              <div className="space-y-1">
+                <label className="block text-xs font-bold text-[#24152F] dark:text-[#F7F1E5]">
+                  Confirmar Nova Senha *
+                </label>
+                <PasswordInput
+                  id="reset-confirm-password"
+                  value={resetConfirmPassword}
+                  onChange={(e) => {
+                    setResetConfirmPassword(e.target.value);
+                    if (resetPasswordErrors.confirm) {
+                      setResetPasswordErrors((prev) => ({ ...prev, confirm: undefined }));
+                    }
+                  }}
+                  placeholder="Repita a nova senha..."
+                  disabled={isSubmittingReset}
+                />
+                {resetPasswordErrors.confirm && (
+                  <p className="text-[11px] text-rose-600 mt-1">{resetPasswordErrors.confirm}</p>
+                )}
+              </div>
+
+              {/* Requisitos de Segurança */}
+              <div className="p-3 rounded-xl bg-[#FAF6EE]/80 dark:bg-[#120919]/60 border border-[#24152F]/10 dark:border-[#3F2553] space-y-1.5 text-xs">
+                <p className="font-bold text-[#24152F] dark:text-[#F7F1E5] text-[11px]">
+                  Critérios de Segurança:
+                </p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 text-[11px]">
+                  <div
+                    className={`flex items-center gap-1.5 ${
+                      resetNewPassword.length >= 6
+                        ? 'text-emerald-700 dark:text-emerald-400 font-semibold'
+                        : 'text-[#24152F]/60 dark:text-[#E2D7EA]/60'
+                    }`}
+                  >
+                    {resetNewPassword.length >= 6 ? (
+                      <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 flex-shrink-0" />
+                    ) : (
+                      <span className="w-3.5 h-3.5 rounded-full border border-stone-300 dark:border-stone-700 flex-shrink-0" />
+                    )}
+                    <span>Mínimo de 6 caracteres</span>
+                  </div>
+
+                  <div
+                    className={`flex items-center gap-1.5 ${
+                      /[a-zA-Z]/.test(resetNewPassword)
+                        ? 'text-emerald-700 dark:text-emerald-400 font-semibold'
+                        : 'text-[#24152F]/60 dark:text-[#E2D7EA]/60'
+                    }`}
+                  >
+                    {/[a-zA-Z]/.test(resetNewPassword) ? (
+                      <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 flex-shrink-0" />
+                    ) : (
+                      <span className="w-3.5 h-3.5 rounded-full border border-stone-300 dark:border-stone-700 flex-shrink-0" />
+                    )}
+                    <span>Pelo menos uma letra</span>
+                  </div>
+
+                  <div
+                    className={`flex items-center gap-1.5 ${
+                      /[0-9]/.test(resetNewPassword)
+                        ? 'text-emerald-700 dark:text-emerald-400 font-semibold'
+                        : 'text-[#24152F]/60 dark:text-[#E2D7EA]/60'
+                    }`}
+                  >
+                    {/[0-9]/.test(resetNewPassword) ? (
+                      <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 flex-shrink-0" />
+                    ) : (
+                      <span className="w-3.5 h-3.5 rounded-full border border-stone-300 dark:border-stone-700 flex-shrink-0" />
+                    )}
+                    <span>Pelo menos um número</span>
+                  </div>
+
+                  <div
+                    className={`flex items-center gap-1.5 ${
+                      resetNewPassword &&
+                      resetConfirmPassword &&
+                      resetNewPassword === resetConfirmPassword
+                        ? 'text-emerald-700 dark:text-emerald-400 font-semibold'
+                        : 'text-[#24152F]/60 dark:text-[#E2D7EA]/60'
+                    }`}
+                  >
+                    {resetNewPassword &&
+                    resetConfirmPassword &&
+                    resetNewPassword === resetConfirmPassword ? (
+                      <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 flex-shrink-0" />
+                    ) : (
+                      <span className="w-3.5 h-3.5 rounded-full border border-stone-300 dark:border-stone-700 flex-shrink-0" />
+                    )}
+                    <span>Senhas coincidem</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Checkbox de Confirmação Obrigatória (Requisito 2) */}
+              <div className="pt-1">
+                <label className="flex items-start gap-2.5 cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    checked={resetConfirmCheckbox}
+                    onChange={(e) => {
+                      setResetConfirmCheckbox(e.target.checked);
+                      if (resetPasswordErrors.checkbox) {
+                        setResetPasswordErrors((prev) => ({ ...prev, checkbox: undefined }));
+                      }
+                    }}
+                    className="mt-0.5 rounded border-[#24152F]/30 text-[#24152F] focus:ring-[#24152F] w-4 h-4 cursor-pointer"
+                  />
+                  <span className="text-xs text-[#24152F]/80 dark:text-[#E2D7EA]/80 font-medium">
+                    Confirmo que desejo redefinir a senha de acesso de <strong>{resetPasswordUser.name} {resetPasswordUser.lastName}</strong>.
+                  </span>
+                </label>
+                {resetPasswordErrors.checkbox && (
+                  <p className="text-[11px] text-rose-600 mt-1 pl-6.5">
+                    {resetPasswordErrors.checkbox}
+                  </p>
+                )}
+              </div>
+
+              {/* Footer */}
+              <div className="pt-3 border-t border-[#24152F]/10 dark:border-[#3F2553] flex items-center justify-end gap-2.5">
+                <button
+                  type="button"
+                  onClick={handleCloseResetPassword}
+                  disabled={isSubmittingReset}
+                  className="px-4 py-2.5 text-xs font-semibold rounded-xl text-[#24152F]/70 dark:text-[#E2D7EA]/70 hover:bg-[#FAF6EE] dark:hover:bg-[#2A1738] transition-colors cursor-pointer"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  disabled={
+                    isSubmittingReset ||
+                    !resetNewPassword ||
+                    !resetConfirmPassword ||
+                    !resetConfirmCheckbox
+                  }
+                  className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-[#24152F] hover:bg-[#180D20] text-[#F7F1E5] text-xs sm:text-sm font-semibold shadow-xs transition-all active:scale-95 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed border border-[#3F2553]"
+                >
+                  <Key className="w-4 h-4 text-[#DFFF5F]" />
+                  <span>
+                    {isSubmittingReset ? 'Redefinindo...' : 'Redefinir Senha'}
+                  </span>
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

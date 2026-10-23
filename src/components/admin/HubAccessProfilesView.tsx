@@ -61,7 +61,7 @@ export const HubAccessProfilesView: React.FC<HubAccessProfilesViewProps> = ({
   ];
 
   const PROFILE_TYPE_OPTIONS: { id: 'system' | 'custom'; label: string }[] = [
-    { id: 'system', label: 'Padrão do Sistema' },
+    { id: 'system', label: 'Padrão Sistema' },
     { id: 'custom', label: 'Personalizado' },
   ];
 
@@ -382,15 +382,10 @@ export const HubAccessProfilesView: React.FC<HubAccessProfilesViewProps> = ({
                         <h4 className="text-sm font-bold text-[#24152F] dark:text-[#F7F1E5] truncate">
                           {displayName}
                         </h4>
-                        {profile.isSystemDefault && (
-                          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-[#DFFF5F] text-[#180D20]">
-                            Padrão do Sistema
-                          </span>
-                        )}
                         {isAdminProfile && (
                           <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-50 text-amber-900 border border-amber-300 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800 flex items-center gap-1">
                             <Lock className="w-2.5 h-2.5" />
-                            Protegido
+                            Padrão Sistema
                           </span>
                         )}
                         <span className="text-[10px] sm:text-[11px] font-medium bg-[#24152F]/5 dark:bg-white/5 text-[#24152F] dark:text-[#F7F1E5] px-2 py-0.5 rounded-md border border-[#24152F]/10 dark:border-white/10">
@@ -629,9 +624,10 @@ export const HubAccessProfilesView: React.FC<HubAccessProfilesViewProps> = ({
                   <h4 className="text-sm font-bold text-[#1A1033] dark:text-[#F7F1E5]">
                     {viewingProfile.name}
                   </h4>
-                  {viewingProfile.isSystemDefault && (
-                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-[#DFFF5F] text-[#180D20]">
-                      Padrão do Sistema
+                  {isProtectedAdmin(viewingProfile) && (
+                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-50 text-amber-900 border border-amber-300 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800 flex items-center gap-1">
+                      <Lock className="w-2.5 h-2.5" />
+                      Padrão Sistema
                     </span>
                   )}
                 </div>
@@ -675,18 +671,22 @@ export const HubAccessProfilesView: React.FC<HubAccessProfilesViewProps> = ({
 
               {/* Modal Footer */}
               <div className="flex items-center justify-between pt-3 border-t border-[#24152F]/10 dark:border-[#3F2553]">
-                <button
-                  type="button"
-                  onClick={() => {
-                    const prof = viewingProfile;
-                    handleCloseDetailsModal();
-                    handleOpenEdit(prof);
-                  }}
-                  className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-[#1A1033] hover:bg-[#120919] text-[#F7F1E5] text-xs font-semibold cursor-pointer transition-all"
-                >
-                  <Pen className="w-3.5 h-3.5" />
-                  <span>Editar Perfil</span>
-                </button>
+                {!isProtectedAdmin(viewingProfile) ? (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const prof = viewingProfile;
+                      handleCloseDetailsModal();
+                      handleOpenEdit(prof);
+                    }}
+                    className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-[#1A1033] hover:bg-[#120919] text-[#F7F1E5] text-xs font-semibold cursor-pointer transition-all"
+                  >
+                    <Pen className="w-3.5 h-3.5" />
+                    <span>Editar Perfil</span>
+                  </button>
+                ) : (
+                  <div />
+                )}
                 <button
                   type="button"
                   onClick={handleCloseDetailsModal}

@@ -54,13 +54,12 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
     { id: 'overview', label: 'Dashboard', icon: LayoutDashboard },
     { id: 'guests', label: 'Convidados', icon: Users },
     { id: 'guest-link', label: 'Confirmação', icon: LinkIcon },
-    { id: 'analytics', label: 'Relatórios', icon: BarChart3 },
+    { id: 'analytics', label: 'Relatório', icon: BarChart3 },
   ];
 
   // More sheet items for event management
   const moreSheetItems = [
     { id: 'events' as NavSection, label: 'Dados do Evento', icon: Calendar, desc: 'Data, horário, local e capacidade' },
-    { id: 'form-builder' as NavSection, label: 'Formulários', icon: FileText, desc: 'Perguntas extras de confirmação' },
     { id: 'managers' as NavSection, label: 'Responsáveis', icon: UserCheck, desc: 'Acessos e permissões do cliente' },
     { id: 'settings' as NavSection, label: 'Configurações', icon: Settings, desc: 'Preferências do evento' },
   ];

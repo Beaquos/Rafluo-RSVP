@@ -38,6 +38,9 @@ export interface AdminUser {
   accessStart?: string; // Data de início para usuário temporário (ex: 2026-10-01 ou 01/10/26)
   accessEnd?: string;   // Data de fim para usuário temporário (ex: 2026-10-31 ou 31/10/26)
   createdAt: string;    // Data de cadastro (ex: 2026-09-21)
+  passwordHash?: string; // Hash criptográfico da senha (SHA-256)
+  passwordSalt?: string; // Salt único para hashing seguro
+  passwordUpdatedAt?: string; // Data da última alteração de senha
 }
 
 export interface AdminNotification {

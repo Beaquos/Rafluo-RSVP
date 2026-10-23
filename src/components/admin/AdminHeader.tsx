@@ -75,7 +75,7 @@ const EVENT_SECTION_TITLES: Record<NavSection, { title: string }> = {
     title: 'Responsáveis',
   },
   analytics: {
-    title: 'Relatórios',
+    title: 'Relatório',
   },
   settings: {
     title: 'Configurações',

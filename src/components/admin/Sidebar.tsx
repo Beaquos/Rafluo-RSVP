@@ -61,11 +61,10 @@ const HUB_NAV_ITEMS: HubNavItemConfig[] = [
 const EVENT_NAV_ITEMS: EventNavItemConfig[] = [
   { id: 'overview', label: 'Dashboard', iconName: 'LayoutDashboard' },
   { id: 'events', label: 'Dados do Evento', iconName: 'Calendar' },
-  { id: 'form-builder', label: 'Formulários', iconName: 'FileText' },
-  { id: 'guests', label: 'Convidados & Grupos', iconName: 'Users' },
+  { id: 'guests', label: 'Convidados', iconName: 'Users' },
   { id: 'guest-link', label: 'Página de Confirmação', iconName: 'Link' },
   { id: 'managers', label: 'Responsáveis', iconName: 'UserCheck' },
-  { id: 'analytics', label: 'Relatórios do Evento', iconName: 'BarChart3' },
+  { id: 'analytics', label: 'Relatório', iconName: 'BarChart3' },
   { id: 'settings', label: 'Configurações', iconName: 'Settings' },
 ];
 

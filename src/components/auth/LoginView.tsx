@@ -1,8 +1,10 @@
 import React, { useState } from 'react';
-import { Mail, Lock, ArrowRight, ShieldCheck, AlertCircle, Eye, EyeOff } from 'lucide-react';
+import { Mail, ArrowRight, ShieldCheck, AlertCircle } from 'lucide-react';
 import { RafluoLogo } from '../common/RafluoLogo';
 import { AdminUser } from '../../types/user';
 import { checkTemporaryUserAccess } from '../../utils/dateUtils';
+import { PasswordInput } from '../common/PasswordInput';
+import { verifyUserPassword } from '../../utils/authUtils';
 
 interface LoginViewProps {
   onLogin: (user: AdminUser) => void;
@@ -16,16 +18,20 @@ export const LoginView: React.FC<LoginViewProps> = ({
   registeredUsers = [],
 }) => {
   const [email, setEmail] = useState(defaultUser?.email || '');
-  const [password, setPassword] = useState('••••••••');
-  const [showPassword, setShowPassword] = useState(false);
+  const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const cleanEmail = email.trim().toLowerCase();
 
     if (!cleanEmail) {
       setError('Por favor, informe seu e-mail cadastrado.');
+      return;
+    }
+
+    if (!password) {
+      setError('Por favor, informe sua senha de acesso.');
       return;
     }
 
@@ -54,6 +60,13 @@ export const LoginView: React.FC<LoginViewProps> = ({
         );
         return;
       }
+    }
+
+    // Verify Password against hash or default initial password
+    const isPasswordCorrect = await verifyUserPassword(targetUser, password);
+    if (!isPasswordCorrect) {
+      setError('Senha incorreta. Verifique a senha digitada e tente novamente.');
+      return;
     }
 
     // Success
@@ -115,33 +128,17 @@ export const LoginView: React.FC<LoginViewProps> = ({
             </div>
 
             <div>
-              <label className="block text-[13px] font-medium text-[#24152F] mb-1 font-sans">
-                Senha
-              </label>
-              <div className="relative">
-                <input
-                  type={showPassword ? 'text' : 'password'}
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="••••••••"
-                  className="w-full pl-9 pr-10 py-2.5 text-xs sm:text-sm rounded-xl border border-[#24152F]/20 bg-white text-[#24152F] focus:outline-none focus:ring-2 focus:ring-[#24152F] font-sans"
-                />
-                <Lock className="w-4 h-4 text-[#24152F]/40 absolute left-3 top-3.5 pointer-events-none" />
-                <button
-                  type="button"
-                  id="btn-toggle-password-visibility"
-                  onClick={() => setShowPassword((prev) => !prev)}
-                  className="absolute right-2.5 top-1/2 -translate-y-1/2 p-1.5 rounded-lg text-[#24152F]/50 hover:text-[#24152F] hover:bg-[#24152F]/5 focus:outline-none focus:ring-2 focus:ring-[#24152F]/20 transition-colors cursor-pointer"
-                  aria-label={showPassword ? 'Ocultar senha' : 'Mostrar senha'}
-                  title={showPassword ? 'Ocultar senha' : 'Mostrar senha'}
-                >
-                  {showPassword ? (
-                    <EyeOff className="w-4 h-4" />
-                  ) : (
-                    <Eye className="w-4 h-4" />
-                  )}
-                </button>
-              </div>
+              <PasswordInput
+                id="login-password-input"
+                label="Senha"
+                value={password}
+                onChange={(e) => {
+                  setPassword(e.target.value);
+                  setError(null);
+                }}
+                placeholder="Digite sua senha"
+                required
+              />
             </div>
 
             <button
