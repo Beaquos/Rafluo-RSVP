@@ -157,7 +157,7 @@ export const LoginView: React.FC<LoginViewProps> = ({
               <ShieldCheck className="w-4 h-4" />
             </div>
             <div className="text-[11px] text-[#24152F]/70 leading-relaxed">
-              Ambiente seguro para gestores e administradores do Simfluo
+              Ambiente de gestão e organização de eventos.
             </div>
           </div>
         </div>

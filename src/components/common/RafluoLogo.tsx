@@ -2,12 +2,13 @@ import React, { useState, useEffect } from 'react';
 import { getStoredCompanyLogo, subscribeToCrossTabSync } from '../../utils/storageUtils';
 
 export interface RafluoLogoProps {
-  variant?: 'dark' | 'light'; // 'dark' = used on dark purple background; 'light' = used on beige/white background
+  variant?: 'dark' | 'light'; // 'dark' = used on dark background (sidebar); 'light' = used on light background (login, cards)
   size?: 'sm' | 'md' | 'lg';
   showDescriptor?: boolean; // "Gestão inteligente de confirmações."
   showOrigin?: boolean; // "Desenvolvido com carinho por Beaquos Estúdio Criativo"
   symbolOnly?: boolean;
   className?: string;
+  alt?: string;
 }
 
 export const RafluoLogo: React.FC<RafluoLogoProps> = ({
@@ -17,6 +18,7 @@ export const RafluoLogo: React.FC<RafluoLogoProps> = ({
   showOrigin = false,
   symbolOnly = false,
   className = '',
+  alt = 'Simfluo by beaquos',
 }) => {
   const [companyLogo, setCompanyLogo] = useState<string>(() => {
     return typeof window !== 'undefined' ? getStoredCompanyLogo() : '';
@@ -30,42 +32,45 @@ export const RafluoLogo: React.FC<RafluoLogoProps> = ({
     });
     return unsubscribe;
   }, []);
-  const isDark = variant === 'dark'; // Dark purple background (text is beige/white, accent neon)
 
+  const isDark = variant === 'dark';
+
+  // Sizing definitions preserving the 1104:330 aspect ratio for full logos, and 1:1 for symbols
   const sizeClasses = {
     sm: {
-      symbol: 'w-7 h-7',
-      text: 'text-lg',
+      symbol: 'w-7 h-7 sm:w-8 sm:h-8',
+      fullLogo: 'h-7 sm:h-8 w-auto max-w-full',
       descriptor: 'text-[9px]',
       origin: 'text-[9px]',
     },
     md: {
-      symbol: 'w-8 h-8',
-      text: 'text-xl',
+      symbol: 'w-8 h-8 sm:w-9 sm:h-9',
+      fullLogo: 'h-8 sm:h-9 md:h-10 w-auto max-w-full',
       descriptor: 'text-[11px]',
       origin: 'text-[10px]',
     },
     lg: {
-      symbol: 'w-10 h-10',
-      text: 'text-2xl',
+      symbol: 'w-10 h-10 sm:w-12 sm:h-12',
+      fullLogo: 'h-11 sm:h-13 md:h-14 w-auto max-w-full',
       descriptor: 'text-xs',
       origin: 'text-xs',
     },
   }[size];
 
-  // Symbol element: Geometric, modern, fluid monogram
-  const renderSymbol = () => {
-    if (companyLogo && companyLogo.trim().length > 0) {
+  // If a custom company logo is stored in hub settings, prioritize it
+  if (companyLogo && companyLogo.trim().length > 0) {
+    if (symbolOnly) {
       return (
         <div
-          className={`relative ${sizeClasses.symbol} rounded-xl flex items-center justify-center flex-shrink-0 transition-transform overflow-hidden ${
+          className={`relative ${sizeClasses.symbol} rounded-xl flex items-center justify-center flex-shrink-0 overflow-hidden ${
             isDark ? 'bg-white/10 p-0.5' : 'bg-black/5 p-0.5'
-          }`}
+          } ${className}`}
+          title="Logo da Empresa"
         >
           <img
             src={companyLogo}
             alt="Logo da Empresa"
-            className="w-full h-full object-contain"
+            className="w-full h-full object-contain select-none"
             onError={() => setCompanyLogo('')}
           />
         </div>
@@ -73,85 +78,76 @@ export const RafluoLogo: React.FC<RafluoLogoProps> = ({
     }
 
     return (
-      <div
-        className={`relative ${sizeClasses.symbol} rounded-xl flex items-center justify-center flex-shrink-0 transition-transform ${
-          isDark
-            ? 'bg-[#180D20] border border-[#3F2553] shadow-inner'
-            : 'bg-[#24152F] shadow-sm'
-        }`}
-      >
-        <svg
-          viewBox="0 0 32 32"
-          fill="none"
-          xmlns="http://www.w3.org/2000/svg"
-          className="w-5 h-5"
+      <div className={`inline-flex flex-col items-center ${className}`}>
+        <div
+          className={`relative ${sizeClasses.fullLogo} flex items-center justify-center flex-shrink-0 overflow-hidden`}
         >
-          {/* Sleek dynamic fluid monogram stem & curve */}
-          <path
-            d="M9 7C9 5.89543 9.89543 5 11 5H18C21.3137 5 24 7.68629 24 11C24 13.973 21.8398 16.441 19 16.9V17L23.5 25C23.9 25.7 23.4 26.5 22.5 26.5H19.5C18.9 26.5 18.4 26.1 18.1 25.6L14 17.5H12V25.5C12 26.0523 11.5523 26.5 11 26.5C10.4477 26.5 10 26.0523 10 25.5V8"
-            stroke={isDark ? '#F7F1E5' : '#F7F1E5'}
-            strokeWidth="2.2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
+          <img
+            src={companyLogo}
+            alt="Logo da Empresa"
+            className="max-h-full max-w-full object-contain select-none"
+            onError={() => setCompanyLogo('')}
           />
-          {/* Upper inner bowl accent */}
-          <path
-            d="M12 13.5H17.5C18.8807 13.5 20 12.3807 20 11C20 9.61929 18.8807 8.5 17.5 8.5H12V13.5Z"
-            fill={isDark ? '#2E1B3C' : '#3F2553'}
-          />
-          {/* Neon Green Confirmation Spark/Dot */}
-          <circle cx="21" cy="7.5" r="2.2" fill="#DFFF5F" />
-        </svg>
-        {/* Subtle indicator ring */}
-        <span className="absolute -bottom-0.5 -right-0.5 w-2 h-2 rounded-full bg-[#DFFF5F] ring-2 ring-[#24152F]" />
-      </div>
-    );
-  };
-
-  if (symbolOnly) {
-    return (
-      <div className={`inline-flex items-center ${className}`} title="Simfluo">
-        {renderSymbol()}
+        </div>
+        {showDescriptor && (
+          <span
+            className={`mt-1.5 font-medium tracking-normal text-center ${sizeClasses.descriptor} ${
+              isDark ? 'text-[#D2C4DC]' : 'text-[#60526B]'
+            }`}
+          >
+            Gestão inteligente de confirmações.
+          </span>
+        )}
       </div>
     );
   }
 
-  return (
-    <div className={`inline-flex flex-col ${className}`}>
-      <div className="flex items-center gap-2.5">
-        {renderSymbol()}
-        <div className="flex flex-col leading-none">
-          <div className="flex items-baseline">
-            <span
-              className={`font-black tracking-tight ${sizeClasses.text} ${
-                isDark ? 'text-[#F7F1E5]' : 'text-[#24152F]'
-              }`}
-              style={{ fontFamily: "'Montserrat', sans-serif" }}
-            >
-              Simfluo
-            </span>
-            <span className="w-1.5 h-1.5 rounded-full bg-[#DFFF5F] ml-0.5 mb-0.5 inline-block" />
-          </div>
-
-          {showDescriptor && (
-            <span
-              className={`mt-1 font-medium tracking-normal ${sizeClasses.descriptor} ${
-                isDark ? 'text-[#D2C4DC]' : 'text-[#60526B]'
-              }`}
-              style={{ fontFamily: "'Inter', sans-serif" }}
-            >
-              Gestão inteligente de confirmações.
-            </span>
-          )}
-        </div>
+  // Symbol only (e.g. collapsed sidebar or compact app icon)
+  if (symbolOnly) {
+    return (
+      <div
+        className={`inline-flex items-center justify-center flex-shrink-0 ${className}`}
+        title="Simfluo"
+      >
+        <img
+          src="/favicon.svg"
+          alt={alt}
+          className={`${sizeClasses.symbol} object-contain rounded-xl select-none transition-transform hover:scale-105`}
+          draggable={false}
+          loading="eager"
+        />
       </div>
+    );
+  }
+
+  // Full official logo: logo-dark.svg for dark background, logo-light.svg for light background
+  const officialLogoPath = isDark ? '/logo-dark.svg' : '/logo-light.svg';
+
+  return (
+    <div className={`inline-flex flex-col items-center sm:items-start ${className}`} title="Simfluo by beaquos">
+      <img
+        src={officialLogoPath}
+        alt={alt}
+        className={`${sizeClasses.fullLogo} object-contain select-none transition-opacity hover:opacity-95`}
+        draggable={false}
+        loading="eager"
+      />
+
+      {showDescriptor && (
+        <span
+          className={`mt-2 font-medium tracking-normal ${sizeClasses.descriptor} ${
+            isDark ? 'text-[#D2C4DC]' : 'text-[#60526B]'
+          }`}
+        >
+          Gestão inteligente de confirmações.
+        </span>
+      )}
 
       {showOrigin && (
         <span
-          className={`mt-1.5 font-medium ${sizeClasses.origin} ${
+          className={`mt-1 font-medium ${sizeClasses.origin} ${
             isDark ? 'text-[#D2C4DC]' : 'text-[#8E7E9A]'
           }`}
-          style={{ fontFamily: "'Inter', sans-serif" }}
         >
           Desenvolvido com carinho por{' '}
           <strong className={isDark ? 'text-[#D2C4DC] font-semibold' : 'text-[#4E395B]'}>
@@ -165,3 +161,4 @@ export const RafluoLogo: React.FC<RafluoLogoProps> = ({
 
 export const SimfluoLogo = RafluoLogo;
 export default RafluoLogo;
+

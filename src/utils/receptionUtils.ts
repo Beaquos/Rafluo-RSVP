@@ -248,11 +248,11 @@ export const downloadConfirmationPng = async (
       console.warn('Erro ao carregar logo na imagem de confirmação:', e);
     }
 
-    // Marca Rafluo ao lado do logo
+    // Marca Simfluo ao lado do logo
     ctx.fillStyle = '#F7F1E5';
-    ctx.font = 'bold 38px Montserrat, sans-serif';
+    ctx.font = 'bold 36px "Plus Jakarta Sans", sans-serif';
     ctx.textAlign = 'left';
-    ctx.fillText('RAFLUO', width / 2 - 58, 80);
+    ctx.fillText('SIMFLUO', width / 2 - 58, 80);
 
     // Ponto neon da marca
     ctx.fillStyle = '#DFFF5F';
@@ -376,7 +376,7 @@ export const downloadConfirmationPng = async (
 
     // 1. Total de pessoas
     ctx.fillStyle = '#24152F';
-    ctx.font = 'bold 24px Montserrat, sans-serif';
+    ctx.font = 'bold 24px "Plus Jakarta Sans", sans-serif';
     const reservationHeader =
       totalPersons === 1
         ? 'Reserva válida para 1 pessoa'
@@ -385,23 +385,23 @@ export const downloadConfirmationPng = async (
 
     // 2. Titular da reserva
     curY += 36;
-    ctx.font = '600 21px sans-serif';
+    ctx.font = '600 21px "Plus Jakarta Sans", sans-serif';
     ctx.fillStyle = '#24152F';
     ctx.fillText(`Titular: ${guestName}`, width / 2, curY);
 
     // 3. Acompanhantes
     if (companionsToRender.length === 1) {
       curY += 32;
-      ctx.font = '500 19px sans-serif';
+      ctx.font = '500 19px "Inter", sans-serif';
       ctx.fillStyle = '#5A4A65';
       ctx.fillText(`Acompanhante: ${companionsToRender[0]}`, width / 2, curY);
     } else if (companionsToRender.length > 1) {
       curY += 32;
-      ctx.font = 'bold 19px sans-serif';
+      ctx.font = 'bold 19px "Plus Jakarta Sans", sans-serif';
       ctx.fillStyle = '#24152F';
       ctx.fillText('Acompanhantes:', width / 2, curY);
 
-      ctx.font = '500 18px sans-serif';
+      ctx.font = '500 18px "Inter", sans-serif';
       ctx.fillStyle = '#5A4A65';
       const maxShown = Math.min(companionsToRender.length, 5);
       for (let i = 0; i < maxShown; i++) {
@@ -430,7 +430,7 @@ export const downloadConfirmationPng = async (
     ctx.fill();
 
     ctx.fillStyle = '#180D20';
-    ctx.font = 'bold 16px Montserrat, sans-serif';
+    ctx.font = 'bold 16px "Plus Jakarta Sans", sans-serif';
     ctx.fillText('✔ PRESENÇA CONFIRMADA', width / 2, curY);
 
     // Caixa do QR Code em alta resolução (dimensão generosa e nítida)
@@ -465,18 +465,18 @@ export const downloadConfirmationPng = async (
     // String do código de check-in / reserva unificado
     curY = qrY + qrBoxSize + 50;
     ctx.fillStyle = '#24152F';
-    ctx.font = 'bold 20px monospace';
+    ctx.font = 'bold 20px "Inter", monospace';
     ctx.fillText(`Código: ${checkInCode}`, width / 2, curY);
 
     curY += 28;
     ctx.fillStyle = '#7A6A85';
-    ctx.font = '15px sans-serif';
+    ctx.font = '15px "Inter", sans-serif';
     ctx.fillText('Código exclusivo e intransferível • Válido para entrada única', width / 2, curY);
 
     // Rodapé do Canvas (fora do cartão)
     ctx.fillStyle = '#9C8DA8';
-    ctx.font = '15px Montserrat, sans-serif';
-    ctx.fillText('Rafluo • Gestão Inteligente de Eventos & RSVP', width / 2, height - 45);
+    ctx.font = '15px "Plus Jakarta Sans", sans-serif';
+    ctx.fillText('Simfluo • Gestão Inteligente de Eventos & RSVP', width / 2, height - 45);
 
     // Download do arquivo gerado
     const dataUrl = canvas.toDataURL('image/png');
